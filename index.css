@@ -1,0 +1,103 @@
+@import "tailwindcss";
+@import "@fortawesome/fontawesome-free/css/all.min.css";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/plus-jakarta-sans/800.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body { 
+    @apply bg-slate-400 m-0 p-0 overflow-hidden h-[100dvh] w-screen text-slate-900 antialiased fixed flex items-center justify-center font-sans;
+    color-scheme: light !important;
+  }
+
+  #root { 
+    @apply h-full w-full max-w-[540px] bg-slate-400 flex flex-col overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.07)];
+  }
+
+  @media (min-width: 768px) {
+    #root {
+      @apply h-[94%] rounded-[3rem] border-[10px] border-slate-50;
+    }
+  }
+}
+
+@layer components {
+  .soft-card { 
+    @apply bg-slate-200 rounded-[2rem] border border-slate-100/90 shadow-[0_12px_30px_-10px_rgba(15,23,42,0.06)];
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  .animate-in { 
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+  }
+
+  .safe-bottom { 
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1.5rem); 
+  }
+
+  .scanner-line {
+    @apply absolute w-full h-[3px] z-[5] top-0;
+    background: linear-gradient(90deg, transparent, #2563eb, transparent);
+    animation: scan 2.5s linear infinite;
+  }
+
+  .mono-font { @apply font-mono; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scan {
+  0% { top: 0; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.leaflet-tooltip.custom-tooltip {
+  background-color: rgba(15, 23, 42, 0.9);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-family: inherit;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 4px 8px;
+}
+
+.leaflet-tooltip-top.custom-tooltip::before {
+  border-top-color: rgba(15, 23, 42, 0.9);
+}

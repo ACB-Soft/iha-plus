@@ -1,11 +1,24 @@
-<div align="center">
+# İHA Plus
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+## 📦 Kurulum
 
-  <h1>Built with AI Studio</h2>
+Projeyi yerel ortamınızda çalıştırmak için:
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+1. Bağımlılıkları yükleyin:
+   ```bash
+   npm install
+   ```
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+2. Geliştirme sunucusunu başlatın:
+   ```bash
+   npm run dev
+   ```
 
-</div>
+3. Üretim için derleme yapın:
+   ```bash
+   npm run build
+   ```
+
+## 📄 Lisans
+
+Bu proje **ACB_Soft** tarafından geliştirilmiştir. Tüm hakları saklıdır.
