@@ -14,7 +14,6 @@ interface Props {
 const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange }) => {
   const [gcpDistance, setGcpDistance] = useState(400);
   const [gcpStartOffset, setGcpStartOffset] = useState(10);
-  const [minGcpCount, setMinGcpCount] = useState(3);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   const [isParsing, setIsParsing] = useState(false);
   
@@ -56,8 +55,7 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
       expandToRectangle: false,
       showRoute: false,
       gcpDistance,
-      gcpStartOffset,
-      minGcpCount
+      gcpStartOffset
     };
     
     onPlanCreated(kmlData, config);
@@ -67,7 +65,7 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
       <Header title="YKN Planı Hazırlığı" onBack={onBack} />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-24">
         {/* 1. KML Selection */}
         <section className="space-y-4">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
@@ -106,29 +104,9 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 2. En Az YKN Sayısı */}
+        {/* 2. YKN Arası Mesafe */}
         <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. En Az YKN Sayısı</label>
-          <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-            <button 
-              onClick={() => setMinGcpCount(p => Math.max(3, p - 1))} 
-              className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
-            >
-              <i className="fas fa-minus text-xs"></i>
-            </button>
-            <span className="flex-1 text-center font-black text-slate-900 text-lg">{minGcpCount}</span>
-            <button 
-              onClick={() => setMinGcpCount(p => Math.min(20, p + 1))} 
-              className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
-            >
-              <i className="fas fa-plus text-xs"></i>
-            </button>
-          </div>
-        </section>
-
-        {/* 3. YKN Arası Mesafe */}
-        <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Arası Mesafe</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. YKN Arası Mesafe</label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpDistance(p => Math.max(50, p - 50))} 
@@ -146,9 +124,9 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 4. YKN Başlangıç Mesafesi */}
+        {/* 3. YKN Başlangıç Mesafesi */}
         <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. YKN Başlangıç Mesafesi</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Başlangıç Mesafesi</label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpStartOffset(p => Math.max(0, p - 10))} 
@@ -166,7 +144,7 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        <div className="pt-4">
+        <div className="pt-4 space-y-4">
           <button 
             onClick={handleCreatePlan}
             className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 shadow-blue-100"
@@ -174,6 +152,10 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
             <span>PLANLAMA EKRANINA GEÇ</span>
             <i className="fas fa-arrow-right"></i>
           </button>
+          
+          <p className="text-[9px] font-black text-slate-500 text-center leading-relaxed uppercase tracking-widest px-4">
+            Fotogrametrik dengelemenin başarılı olması için en az 5 adet nokta otomatik olarak üretilecektir.
+          </p>
         </div>
       </div>
 

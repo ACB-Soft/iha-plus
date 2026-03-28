@@ -218,8 +218,8 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
       lat: p.lat
     }));
 
-    // 5. Ensure at least minGcpCount points with specific patterns
-    const minCount = config.minGcpCount || 3;
+    // 5. Ensure at least 5 points for photogrammetric balancing
+    const minCount = 5;
     
     // If grid didn't produce enough points, try with smaller distance or use patterns
     if (finalPoints.length < minCount) {
@@ -270,36 +270,16 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
 
         let basePts: [number, number][] = [];
 
-        if (minCount === 3) {
-          // 3 YKN: Sol Üst, Sol Alt, Sağ Orta
-          basePts = [
-            ensureInPoly([minLng, maxLat]), // TL
-            ensureInPoly([minLng, minLat]), // BL
-            ensureInPoly([maxLng, midLat])  // MR
-          ];
-        } else if (minCount === 4) {
-          // 4 YKN: Sol Üst, Sağ Üst, Sağ Alt, Sol Alt
-          basePts = [
-            ensureInPoly([minLng, maxLat]), // TL
-            ensureInPoly([maxLng, maxLat]), // TR
-            ensureInPoly([maxLng, minLat]), // BR
-            ensureInPoly([minLng, minLat])  // BL
-          ];
-        } else if (minCount >= 5) {
-          // 5 YKN: Sol Üst, Sağ Üst, Orta, Sağ Alt, Sol Alt
-          basePts = [
-            ensureInPoly([minLng, maxLat]), // TL
-            ensureInPoly([maxLng, maxLat]), // TR
-            ensureInPoly([midLng, midLat]), // Center
-            ensureInPoly([maxLng, minLat]), // BR
-            ensureInPoly([minLng, minLat])  // BL
-          ];
-          
-          // If minCount > 5 and we are here, we just take the 5 points as a fallback
-          // but the grid reduction above should have handled it.
-        }
+        // 5 YKN: Sol Üst, Sağ Üst, Orta, Sağ Alt, Sol Alt
+        basePts = [
+          ensureInPoly([minLng, maxLat]), // TL
+          ensureInPoly([maxLng, maxLat]), // TR
+          ensureInPoly([midLng, midLat]), // Center
+          ensureInPoly([maxLng, minLat]), // BR
+          ensureInPoly([minLng, minLat])  // BL
+        ];
 
-        finalPoints = basePts.slice(0, minCount).map((p, i) => ({
+        finalPoints = basePts.map((p, i) => ({
           id: `ykn-${i}`,
           name: `YKN${i + 1}`,
           lng: p[0],
