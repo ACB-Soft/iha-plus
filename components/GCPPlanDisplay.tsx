@@ -218,73 +218,54 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
       lat: p.lat
     }));
 
-    // 5. Ensure at least 5 points for photogrammetric balancing
+    // 5. Ensure at least 5 points for photogrammetric balancing by reducing distance if needed
     const minCount = 5;
     
-    // If grid didn't produce enough points, try with smaller distance or use patterns
     if (finalPoints.length < minCount) {
-      if (minCount > 5) {
-        // For more than 5 points, try to reduce distance until we have enough
-        let currentDist = distanceMeters;
-        let tempPoints: YKNPoint[] = [];
-        let attempts = 0;
+      // Try to reduce distance until we have enough points
+      let currentDist = distanceMeters;
+      let tempPoints: YKNPoint[] = [];
+      let attempts = 0;
+      
+      while (tempPoints.length < minCount && attempts < 15) {
+        currentDist *= 0.7; // More aggressive reduction
+        const newGrid = turf.pointGrid(bbox, currentDist / 1000, { units: 'kilometers', mask: targetPoly });
         
-        while (tempPoints.length < minCount && attempts < 10) {
-          currentDist *= 0.8;
-          const newGrid = turf.pointGrid(bbox, currentDist / 1000, { units: 'kilometers', mask: targetPoly });
-          tempPoints = newGrid.features.map((f, i) => ({
-            id: `ykn-${i}`,
-            name: `YKN${i + 1}`,
+        if (newGrid.features.length >= minCount) {
+          // Re-apply zigzag sorting for the new denser grid
+          const newRaw = newGrid.features.map(f => ({
             lng: f.geometry.coordinates[0],
             lat: f.geometry.coordinates[1]
           }));
-          attempts++;
+          
+          const newRows: Record<string, typeof newRaw> = {};
+          newRaw.forEach(p => {
+            const key = p.lat.toFixed(6);
+            if (!newRows[key]) newRows[key] = [];
+            newRows[key].push(p);
+          });
+          
+          const newLatKeys = Object.keys(newRows).sort((a, b) => parseFloat(b) - parseFloat(a));
+          let newZigzag: typeof newRaw = [];
+          newLatKeys.forEach((key, idx) => {
+            const rowPts = newRows[key].sort((a, b) => a.lng - b.lng);
+            if (idx % 2 === 1) rowPts.reverse();
+            newZigzag = newZigzag.concat(rowPts);
+          });
+          
+          tempPoints = newZigzag.map((p, i) => ({
+            id: `ykn-${i}`,
+            name: `YKN${i + 1}`,
+            lng: p.lng,
+            lat: p.lat
+          }));
+          break;
         }
-        
-        if (tempPoints.length >= minCount) {
-          finalPoints = tempPoints;
-        }
+        attempts++;
       }
       
-      // If still not enough (or minCount <= 5), use specific patterns
-      if (finalPoints.length < minCount) {
-        const minLng = bbox[0];
-        const minLat = bbox[1];
-        const maxLng = bbox[2];
-        const maxLat = bbox[3];
-        const midLng = (minLng + maxLng) / 2;
-        const midLat = (minLat + maxLat) / 2;
-
-        const ensureInPoly = (pt: [number, number]) => {
-          const point = turf.point(pt);
-          if (turf.booleanPointInPolygon(point, targetPoly)) {
-            return pt;
-          }
-          try {
-            const snapped = turf.nearestPointOnLine(turf.polygonToLine(targetPoly) as any, point);
-            return snapped.geometry.coordinates as [number, number];
-          } catch (e) {
-            return pt;
-          }
-        };
-
-        let basePts: [number, number][] = [];
-
-        // 5 YKN: Sol Üst, Sağ Üst, Orta, Sağ Alt, Sol Alt
-        basePts = [
-          ensureInPoly([minLng, maxLat]), // TL
-          ensureInPoly([maxLng, maxLat]), // TR
-          ensureInPoly([midLng, midLat]), // Center
-          ensureInPoly([maxLng, minLat]), // BR
-          ensureInPoly([minLng, minLat])  // BL
-        ];
-
-        finalPoints = basePts.map((p, i) => ({
-          id: `ykn-${i}`,
-          name: `YKN${i + 1}`,
-          lng: p[0],
-          lat: p[1]
-        }));
+      if (tempPoints.length >= minCount) {
+        finalPoints = tempPoints;
       }
     }
 
