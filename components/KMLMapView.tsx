@@ -339,8 +339,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
                     positions={f.originalCoords.map(c => [c.lat, c.lng] as [number, number])} 
                     color="red"
                     fillOpacity={0.1}
-                    weight={1}
-                    dashArray="5, 5"
+                    weight={3}
                   />
                   
                   {/* Expanded, Grid or Rectangle Polygon */}
@@ -350,6 +349,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
                       color="#4f46e5"
                       fillOpacity={0.2}
                       weight={2}
+                      dashArray="10, 10"
                     >
                       <Popup>
                         <div className="font-bold">Planlanan Alan</div>
