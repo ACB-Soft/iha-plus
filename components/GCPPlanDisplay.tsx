@@ -226,15 +226,32 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
     }
   };
 
-  // Calculate distances between consecutive points for interactive display
+  // Calculate distances between nearest neighbors for interactive display
   const pointConnections = useMemo(() => {
     const connections: { from: YKNPoint; to: YKNPoint; distance: number }[] = [];
-    for (let i = 0; i < points.length - 1; i++) {
-      const from = points[i];
-      const to = points[i + 1];
-      const dist = turf.distance([from.lng, from.lat], [to.lng, to.lat], { units: 'meters' });
-      connections.push({ from, to, distance: Math.round(dist) });
-    }
+    const added = new Set<string>();
+
+    points.forEach((p1, i) => {
+      // Find all other points and their distances to p1
+      const distances = points
+        .map((p2, j) => {
+          if (i === j) return null;
+          const dist = turf.distance([p1.lng, p1.lat], [p2.lng, p2.lat], { units: 'meters' });
+          return { point: p2, dist, index: j };
+        })
+        .filter((d): d is { point: YKNPoint; dist: number; index: number } => d !== null)
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, 4); // Take up to 4 nearest neighbors
+
+      distances.forEach(d => {
+        const pairId = [p1.id, d.point.id].sort().join('-');
+        if (!added.has(pairId)) {
+          connections.push({ from: p1, to: d.point, distance: Math.round(d.dist) });
+          added.add(pairId);
+        }
+      });
+    });
+
     return connections;
   }, [points]);
 
