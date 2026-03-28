@@ -116,6 +116,36 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
       rows[key].push(p);
     });
 
+    // Center points in each row according to polygon width at that latitude
+    const polyBbox = turf.bbox(targetPoly);
+    Object.keys(rows).forEach(latKey => {
+      const rowPoints = rows[latKey];
+      if (rowPoints.length > 1) {
+        const lat = parseFloat(latKey);
+        // Create a horizontal line across the polygon at this latitude
+        const horizontalLine = turf.lineString([
+          [polyBbox[0] - 0.1, lat],
+          [polyBbox[2] + 0.1, lat]
+        ]);
+        
+        const intersections = turf.lineIntersect(horizontalLine, targetPoly);
+        if (intersections.features.length >= 2) {
+          const xCoords = intersections.features.map(f => f.geometry.coordinates[0]);
+          const minX = Math.min(...xCoords);
+          const maxX = Math.max(...xCoords);
+          const polyMid = (minX + maxX) / 2;
+
+          const ptsX = rowPoints.map(p => p.lng);
+          const ptsMid = (Math.min(...ptsX) + Math.max(...ptsX)) / 2;
+
+          const shift = polyMid - ptsMid;
+          rowPoints.forEach(p => {
+            p.lng += shift;
+          });
+        }
+      }
+    });
+
     // Sort row latitudes descending (top to bottom)
     const sortedLatKeys = Object.keys(rows).sort((a, b) => parseFloat(b) - parseFloat(a));
     
