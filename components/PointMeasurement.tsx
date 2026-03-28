@@ -5,6 +5,7 @@ import { getAccuracyColor, getAccuracyBg } from '../utils/StyleUtils';
 import { parseKML, parseKMZ, KMLFeature } from './KMLUtils';
 import { BRAND_NAME } from '../version';
 import GlobalFooter from './GlobalFooter';
+import Header from './Header';
 
 interface Props {
   onComplete: (coord: Coordinate, folderName: string, pointName: string, description: string, coordinateSystem: string) => void;
@@ -286,36 +287,11 @@ const PointMeasurement: React.FC<Props> = ({ onComplete, onCancel, isContinuing 
     onNavigate('COUNTDOWN');
   };
 
-  const PageHeader = (title: string) => (
-    <header className="flex flex-col items-center shrink-0 mb-10 md:mb-16">
-      <div className="space-y-2 md:space-y-3 text-center px-6">
-        <p className="text-slate-900 font-black text-[12px] md:text-[14px] uppercase tracking-[0.18em] leading-tight max-w-[260px] mx-auto opacity-80">
-          {title}
-        </p>
-        <h1 className="text-5xl md:text-6xl font-black text-blue-600 tracking-tighter leading-none">
-          {BRAND_NAME}
-        </h1>
-      </div>
-    </header>
-  );
-
-  const BackButton = (onClick: () => void) => (
-    <div className="absolute top-6 left-8 z-20">
-      <button 
-        onClick={onClick} 
-        className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center shadow-xl border border-blue-200 text-slate-800 active:scale-90 transition-all hover:bg-blue-100"
-      >
-        <i className="fas fa-chevron-left text-sm"></i>
-      </button>
-    </div>
-  );
-
   if (step === 'SELECT_MODE') return (
-    <div className="w-full flex flex-col bg-slate-200 animate-in h-full relative overflow-y-auto no-scrollbar pt-20 md:pt-28">
-      {BackButton(onCancel)}
-      {PageHeader("Uçuş Planı Oluştur")}
+    <div className="w-full flex flex-col bg-slate-200 animate-in h-full relative overflow-hidden">
+      <Header title="Uçuş Planı Oluştur" onBack={onCancel} />
       
-      <main className="w-full max-w-sm mx-auto flex flex-col space-y-3 px-6">
+      <main className="flex-1 w-full max-w-sm mx-auto flex flex-col space-y-3 px-6 pt-10 overflow-y-auto no-scrollbar">
         {/* Yeni Uçuş Planı */}
         <button 
           onClick={() => { setIsNewProject(true); setFolderName(''); onNavigate('FORM'); }}
@@ -352,11 +328,10 @@ const PointMeasurement: React.FC<Props> = ({ onComplete, onCancel, isContinuing 
   );
 
   if (step === 'FORM') return (
-    <div className="w-full flex flex-col bg-slate-200 animate-in h-full relative overflow-y-auto no-scrollbar pt-20 md:pt-28">
-      {BackButton(() => onNavigate('SELECT_MODE'))}
-      {PageHeader("Proje Bilgisi")}
+    <div className="w-full flex flex-col bg-slate-200 animate-in h-full relative overflow-hidden">
+      <Header title="Proje Bilgisi" onBack={() => onNavigate('SELECT_MODE')} />
 
-      <div className="w-full px-6 mx-auto">
+      <div className="flex-1 w-full px-6 mx-auto overflow-y-auto no-scrollbar pt-10">
         <div className="max-w-sm mx-auto w-full">
           <div className="bg-white p-8 rounded-[32px] shadow-xl border border-slate-100 space-y-6">
           <div className="space-y-2">
@@ -402,17 +377,20 @@ const PointMeasurement: React.FC<Props> = ({ onComplete, onCancel, isContinuing 
 
   return (
     <div className="w-full flex flex-col bg-slate-200 h-full animate-in overflow-hidden relative">
-      {BackButton(() => {
-        if (step === 'COUNTDOWN' || step === 'READY' || step === 'FORM') {
-          onNavigate('FORM');
-        } else if (isContinuing) {
-          onCancel();
-        } else {
-          window.history.back();
-        }
-      })}
+      <Header 
+        title="Ölçüm Ekranı" 
+        onBack={() => {
+          if (step === 'COUNTDOWN' || step === 'READY' || step === 'FORM') {
+            onNavigate('FORM');
+          } else if (isContinuing) {
+            onCancel();
+          } else {
+            window.history.back();
+          }
+        }} 
+      />
 
-      <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar pt-20 md:pt-28">
+      <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar pt-10">
         <div className="flex-1 flex flex-col items-center justify-start p-6 text-center relative">
           
           <div className="mb-8">

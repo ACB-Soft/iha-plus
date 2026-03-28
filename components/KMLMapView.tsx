@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Popup, Polyline, Polygon, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { KMLFeature } from './KMLUtils';
+import { KMLData, KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
+import Header from './Header';
 import { SCALE_TARGET_GSD, FlightConfig } from '../src/types/flight';
 import { getBoundingBox, expandPolygon, getGridPolygon, getSteppedGridPolygon, generateFlightLines, calculateDistance, calculatePolygonArea } from './GeometryUtils';
 
@@ -220,17 +221,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
 
   return (
     <div className="w-full flex flex-col bg-slate-200 h-full animate-in overflow-hidden">
-      <header className="px-6 pt-5 pb-5 flex items-center gap-5 shrink-0 bg-slate-200 w-full shadow-sm z-30">
-        <button 
-          onClick={onBack} 
-          className="w-12 h-12 bg-slate-200 rounded-2xl flex items-center justify-center shadow-md border border-slate-100 text-slate-800 active:scale-90 transition-all"
-        >
-          <i className="fas fa-chevron-left text-sm"></i>
-        </button>
-        <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none truncate max-w-[200px]">Uçuş Planı Ekranı</h2>
-        </div>
-      </header>
+      <Header title="Uçuş Planı Ekranı" onBack={onBack} />
 
       <div className="flex-1 relative z-10">
         {/* Top Right Export Button Overlay */}

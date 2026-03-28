@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { FlightConfig } from '../src/types/flight';
 import { parseKMLorKMZ, KMLData } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
+import Header from './Header';
 
 interface Props {
   onBack: () => void;
@@ -62,17 +63,7 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
-      <header className="px-6 py-5 flex items-center gap-5 shrink-0 bg-slate-200 shadow-sm z-30">
-        <button 
-          onClick={onBack} 
-          className="w-12 h-12 bg-slate-200 rounded-2xl flex items-center justify-center shadow-md border border-slate-100 text-slate-800 active:scale-90 transition-all"
-        >
-          <i className="fas fa-chevron-left text-sm"></i>
-        </button>
-        <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none">YKN Planı Hazırlığı</h2>
-        </div>
-      </header>
+      <Header title="YKN Planı Hazırlığı" onBack={onBack} />
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         {/* 1. KML Selection */}
