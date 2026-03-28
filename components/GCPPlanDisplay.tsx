@@ -137,73 +137,92 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
 
     // 5. Ensure at least minGcpCount points with specific patterns
     const minCount = config.minGcpCount || 3;
+    
+    // If grid didn't produce enough points, try with smaller distance or use patterns
     if (finalPoints.length < minCount) {
-      const bbox = turf.bbox(targetPoly);
-      const minLng = bbox[0];
-      const minLat = bbox[1];
-      const maxLng = bbox[2];
-      const maxLat = bbox[3];
-      const midLng = (minLng + maxLng) / 2;
-      const midLat = (minLat + maxLat) / 2;
-
-      const ensureInPoly = (pt: [number, number]) => {
-        const point = turf.point(pt);
-        if (turf.booleanPointInPolygon(point, targetPoly)) {
-          return pt;
+      if (minCount > 5) {
+        // For more than 5 points, try to reduce distance until we have enough
+        let currentDist = distanceMeters;
+        let tempPoints: YKNPoint[] = [];
+        let attempts = 0;
+        
+        while (tempPoints.length < minCount && attempts < 10) {
+          currentDist *= 0.8;
+          const newGrid = turf.pointGrid(bbox, currentDist / 1000, { units: 'kilometers', mask: targetPoly });
+          tempPoints = newGrid.features.map((f, i) => ({
+            id: `ykn-${i}`,
+            name: `YKN${i + 1}`,
+            lng: f.geometry.coordinates[0],
+            lat: f.geometry.coordinates[1]
+          }));
+          attempts++;
         }
-        try {
-          const snapped = turf.nearestPointOnLine(turf.polygonToLine(targetPoly) as any, point);
-          return snapped.geometry.coordinates as [number, number];
-        } catch (e) {
-          return pt;
+        
+        if (tempPoints.length >= minCount) {
+          finalPoints = tempPoints;
         }
-      };
-
-      let basePts: [number, number][] = [];
-
-      if (minCount === 3) {
-        // 3 YKN: Sol Üst, Sol Alt, Sağ Orta
-        basePts = [
-          ensureInPoly([minLng, maxLat]), // TL
-          ensureInPoly([minLng, minLat]), // BL
-          ensureInPoly([maxLng, midLat])  // MR
-        ];
-      } else if (minCount === 4) {
-        // 4 YKN: Sol Üst, Sağ Üst, Sağ Alt, Sol Alt
-        basePts = [
-          ensureInPoly([minLng, maxLat]), // TL
-          ensureInPoly([maxLng, maxLat]), // TR
-          ensureInPoly([maxLng, minLat]), // BR
-          ensureInPoly([minLng, minLat])  // BL
-        ];
-      } else if (minCount === 5) {
-        // 5 YKN: Sol Üst, Sağ Üst, Orta, Sağ Alt, Sol Alt
-        basePts = [
-          ensureInPoly([minLng, maxLat]), // TL
-          ensureInPoly([maxLng, maxLat]), // TR
-          ensureInPoly([midLng, midLat]), // Center
-          ensureInPoly([maxLng, minLat]), // BR
-          ensureInPoly([minLng, minLat])  // BL
-        ];
-      } else {
-        // More than 5: Use corners and then fill with grid or random points inside
-        // For now, let's use the corners and center as base
-        basePts = [
-          ensureInPoly([minLng, maxLat]),
-          ensureInPoly([maxLng, maxLat]),
-          ensureInPoly([maxLng, minLat]),
-          ensureInPoly([minLng, minLat]),
-          ensureInPoly([midLng, midLat])
-        ];
-        // If still need more, we could add more points, but usually grid handles > 5
       }
+      
+      // If still not enough (or minCount <= 5), use specific patterns
+      if (finalPoints.length < minCount) {
+        const minLng = bbox[0];
+        const minLat = bbox[1];
+        const maxLng = bbox[2];
+        const maxLat = bbox[3];
+        const midLng = (minLng + maxLng) / 2;
+        const midLat = (minLat + maxLat) / 2;
 
-      finalPoints = basePts.slice(0, minCount).map((p, i) => ({
-        id: `ykn-${i}`,
-        name: `YKN${i + 1}`,
-        lng: p[0],
-        lat: p[1]
-      }));
+        const ensureInPoly = (pt: [number, number]) => {
+          const point = turf.point(pt);
+          if (turf.booleanPointInPolygon(point, targetPoly)) {
+            return pt;
+          }
+          try {
+            const snapped = turf.nearestPointOnLine(turf.polygonToLine(targetPoly) as any, point);
+            return snapped.geometry.coordinates as [number, number];
+          } catch (e) {
+            return pt;
+          }
+        };
+
+        let basePts: [number, number][] = [];
+
+        if (minCount === 3) {
+          // 3 YKN: Sol Üst, Sol Alt, Sağ Orta
+          basePts = [
+            ensureInPoly([minLng, maxLat]), // TL
+            ensureInPoly([minLng, minLat]), // BL
+            ensureInPoly([maxLng, midLat])  // MR
+          ];
+        } else if (minCount === 4) {
+          // 4 YKN: Sol Üst, Sağ Üst, Sağ Alt, Sol Alt
+          basePts = [
+            ensureInPoly([minLng, maxLat]), // TL
+            ensureInPoly([maxLng, maxLat]), // TR
+            ensureInPoly([maxLng, minLat]), // BR
+            ensureInPoly([minLng, minLat])  // BL
+          ];
+        } else if (minCount >= 5) {
+          // 5 YKN: Sol Üst, Sağ Üst, Orta, Sağ Alt, Sol Alt
+          basePts = [
+            ensureInPoly([minLng, maxLat]), // TL
+            ensureInPoly([maxLng, maxLat]), // TR
+            ensureInPoly([midLng, midLat]), // Center
+            ensureInPoly([maxLng, minLat]), // BR
+            ensureInPoly([minLng, minLat])  // BL
+          ];
+          
+          // If minCount > 5 and we are here, we just take the 5 points as a fallback
+          // but the grid reduction above should have handled it.
+        }
+
+        finalPoints = basePts.slice(0, minCount).map((p, i) => ({
+          id: `ykn-${i}`,
+          name: `YKN${i + 1}`,
+          lng: p[0],
+          lat: p[1]
+        }));
+      }
     }
 
     setPoints(finalPoints);
@@ -226,32 +245,15 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
     }
   };
 
-  // Calculate distances between nearest neighbors for interactive display
+  // Calculate distances between consecutive points for interactive display
   const pointConnections = useMemo(() => {
     const connections: { from: YKNPoint; to: YKNPoint; distance: number }[] = [];
-    const added = new Set<string>();
-
-    points.forEach((p1, i) => {
-      // Find all other points and their distances to p1
-      const distances = points
-        .map((p2, j) => {
-          if (i === j) return null;
-          const dist = turf.distance([p1.lng, p1.lat], [p2.lng, p2.lat], { units: 'meters' });
-          return { point: p2, dist, index: j };
-        })
-        .filter((d): d is { point: YKNPoint; dist: number; index: number } => d !== null)
-        .sort((a, b) => a.dist - b.dist)
-        .slice(0, 4); // Take up to 4 nearest neighbors
-
-      distances.forEach(d => {
-        const pairId = [p1.id, d.point.id].sort().join('-');
-        if (!added.has(pairId)) {
-          connections.push({ from: p1, to: d.point, distance: Math.round(d.dist) });
-          added.add(pairId);
-        }
-      });
-    });
-
+    for (let i = 0; i < points.length - 1; i++) {
+      const from = points[i];
+      const to = points[i + 1];
+      const dist = turf.distance([from.lng, from.lat], [to.lng, to.lat], { units: 'meters' });
+      connections.push({ from, to, distance: Math.round(dist) });
+    }
     return connections;
   }, [points]);
 
