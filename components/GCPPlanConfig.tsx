@@ -14,6 +14,7 @@ interface Props {
 const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange }) => {
   const [gcpDistance, setGcpDistance] = useState(400);
   const [gcpStartOffset, setGcpStartOffset] = useState(10);
+  const [minGcpCount, setMinGcpCount] = useState(3);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   const [isParsing, setIsParsing] = useState(false);
   
@@ -55,7 +56,8 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
       expandToRectangle: false,
       showRoute: false,
       gcpDistance,
-      gcpStartOffset
+      gcpStartOffset,
+      minGcpCount
     };
     
     onPlanCreated(kmlData, config);
@@ -104,9 +106,29 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 2. YKN Arası Mesafe */}
+        {/* 2. En Az YKN Sayısı */}
         <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. YKN Arası Mesafe</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. En Az YKN Sayısı</label>
+          <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+            <button 
+              onClick={() => setMinGcpCount(p => Math.max(3, p - 1))} 
+              className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
+            >
+              <i className="fas fa-minus text-xs"></i>
+            </button>
+            <span className="flex-1 text-center font-black text-slate-900 text-lg">{minGcpCount}</span>
+            <button 
+              onClick={() => setMinGcpCount(p => Math.min(20, p + 1))} 
+              className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
+            >
+              <i className="fas fa-plus text-xs"></i>
+            </button>
+          </div>
+        </section>
+
+        {/* 3. YKN Arası Mesafe */}
+        <section className="space-y-4">
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Arası Mesafe</label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpDistance(p => Math.max(50, p - 50))} 
@@ -124,9 +146,9 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 3. YKN Başlangıç Mesafesi */}
+        {/* 4. YKN Başlangıç Mesafesi */}
         <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Başlangıç Mesafesi</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. YKN Başlangıç Mesafesi</label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpStartOffset(p => Math.max(0, p - 10))} 

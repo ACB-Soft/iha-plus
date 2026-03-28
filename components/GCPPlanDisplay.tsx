@@ -135,32 +135,51 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
       lat: p.lat
     }));
 
-    // 5. Ensure at least 3 points (Bottom-Left, Top-Right, Middle)
-    if (finalPoints.length < 3) {
+    // 5. Ensure at least minGcpCount points (Bottom-Left, Middle-Right, Top-Left pattern for 3)
+    const minCount = config.minGcpCount || 3;
+    if (finalPoints.length < minCount) {
       const bbox = turf.bbox(targetPoly);
-      const bl: [number, number] = [bbox[0], bbox[1]];
-      const tr: [number, number] = [bbox[2], bbox[3]];
-      const mid: [number, number] = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2];
-
+      
+      // Pattern: Bottom-Left, Middle-Right, Top-Left
+      const p_bl: [number, number] = [bbox[0], bbox[1]]; // Bottom-Left
+      const p_mr: [number, number] = [bbox[2], (bbox[1] + bbox[3]) / 2]; // Middle-Right
+      const p_tl: [number, number] = [bbox[0], bbox[3]]; // Top-Left
+      
       const ensureInPoly = (pt: [number, number]) => {
         const point = turf.point(pt);
         if (turf.booleanPointInPolygon(point, targetPoly)) {
           return pt;
         }
-        // If outside, find nearest point on boundary
-        const snapped = turf.nearestPointOnLine(turf.polygonToLine(targetPoly) as any, point);
-        return snapped.geometry.coordinates as [number, number];
+        try {
+          const snapped = turf.nearestPointOnLine(turf.polygonToLine(targetPoly) as any, point);
+          return snapped.geometry.coordinates as [number, number];
+        } catch (e) {
+          return pt;
+        }
       };
 
-      const p1 = ensureInPoly(bl);
-      const p2 = ensureInPoly(tr);
-      const p3 = ensureInPoly(mid);
+      const basePts = [ensureInPoly(p_bl), ensureInPoly(p_mr), ensureInPoly(p_tl)];
+      
+      // If more than 3 are needed, add some intermediate points
+      if (minCount > 3) {
+        const tr: [number, number] = [bbox[2], bbox[3]]; // Top-Right
+        const br: [number, number] = [bbox[2], bbox[1]]; // Bottom-Right
+        basePts.push(ensureInPoly(tr));
+        basePts.push(ensureInPoly(br));
+        
+        // If still need more, add center
+        if (minCount > 5) {
+          const mid: [number, number] = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2];
+          basePts.push(ensureInPoly(mid));
+        }
+      }
 
-      finalPoints = [
-        { id: 'ykn-0', name: 'YKN1', lng: p1[0], lat: p1[1] },
-        { id: 'ykn-1', name: 'YKN2', lng: p3[0], lat: p3[1] }, // Middle as YKN2
-        { id: 'ykn-2', name: 'YKN3', lng: p2[0], lat: p2[1] }
-      ];
+      finalPoints = basePts.slice(0, minCount).map((p, i) => ({
+        id: `ykn-${i}`,
+        name: `YKN${i + 1}`,
+        lng: p[0],
+        lat: p[1]
+      }));
     }
 
     setPoints(finalPoints);

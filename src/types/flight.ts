@@ -46,4 +46,5 @@ export interface FlightConfig {
   showRoute: boolean;
   gcpDistance?: number;
   gcpStartOffset?: number;
+  minGcpCount?: number;
 }
