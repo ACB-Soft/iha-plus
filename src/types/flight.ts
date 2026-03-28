@@ -42,5 +42,8 @@ export interface FlightConfig {
   expandToGrid: number; // 0 for "Yok", or step size in meters
   overlapFront: number;
   overlapSide: number;
+  expandToRectangle: boolean;
   showRoute: boolean;
+  gcpDistance?: number;
+  gcpStartOffset?: number;
 }

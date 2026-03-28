@@ -75,7 +75,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
 
   // Calculate all geometry and flight lines once
   const processedFeatures = features.map(f => {
-    if (f.type !== 'Polygon') return { ...f, originalCoords: [], expandedCoords: null, gridCoords: null, flightLines: [], initialFlightLines: [], initialArea: 0, finalArea: 0 };
+    if (f.type !== 'Polygon') return { ...f, originalCoords: [], expandedCoords: null, gridCoords: null, rectangleCoords: null, flightLines: [], initialFlightLines: [], initialArea: 0, finalArea: 0 };
     
     const originalCoords = f.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
     const initialArea = calculatePolygonArea(originalCoords);
@@ -100,12 +100,16 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
           config.expandToGrid
         )
       : null;
+
+    const rectangleCoords = config.expandToRectangle
+      ? getGridPolygon(gridCoords || expandedCoords || originalCoords, 1)
+      : null;
       
-    const finalArea = calculatePolygonArea(gridCoords || expandedCoords || originalCoords);
+    const finalArea = calculatePolygonArea(rectangleCoords || gridCoords || expandedCoords || originalCoords);
       
     const flightLines = config.showRoute
       ? generateFlightLines(
-          gridCoords || expandedCoords || originalCoords,
+          rectangleCoords || gridCoords || expandedCoords || originalCoords,
           altitude,
           config.camera.sensorWidth,
           config.camera.focalLength,
@@ -118,6 +122,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       originalCoords,
       expandedCoords,
       gridCoords,
+      rectangleCoords,
       flightLines,
       initialFlightLines,
       initialArea,
@@ -179,7 +184,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     const feature = processedFeatures.find(f => f.type === 'Polygon');
     if (!feature) return;
 
-    const coords = feature.gridCoords || feature.expandedCoords || feature.originalCoords;
+    const coords = feature.rectangleCoords || feature.gridCoords || feature.expandedCoords || feature.originalCoords;
     if (!coords || coords.length === 0) return;
 
     const kml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -345,10 +350,10 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
                     dashArray="5, 5"
                   />
                   
-                  {/* Expanded or Grid Polygon */}
-                  {(f.expandedCoords || f.gridCoords) && (
+                  {/* Expanded, Grid or Rectangle Polygon */}
+                  {(f.expandedCoords || f.gridCoords || f.rectangleCoords) && (
                     <Polygon 
-                      positions={(f.gridCoords || f.expandedCoords || []).map(c => [c.lat, c.lng] as [number, number])} 
+                      positions={(f.rectangleCoords || f.gridCoords || f.expandedCoords || []).map(c => [c.lat, c.lng] as [number, number])} 
                       color="#4f46e5"
                       fillOpacity={0.2}
                       weight={2}

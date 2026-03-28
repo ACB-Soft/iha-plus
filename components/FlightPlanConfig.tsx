@@ -19,7 +19,8 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
   const [expandToGrid, setExpandToGrid] = useState<number>(0);
   const [overlapFront, setOverlapFront] = useState(80);
   const [overlapSide, setOverlapSide] = useState(70);
-  const [showRoute, setShowRoute] = useState(true);
+  const [expandToRectangle, setExpandToRectangle] = useState(false);
+  const [showRoute, setShowRoute] = useState(false);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   const [isParsing, setIsParsing] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -69,6 +70,7 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
       expandToGrid,
       overlapFront,
       overlapSide,
+      expandToRectangle,
       showRoute
     };
     
@@ -92,7 +94,7 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         {/* 1. Uçuş Tipi */}
         <section className="space-y-4">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">1. Uçuş Tipi</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Uçuş Tipi</label>
           <div className="flex gap-3">
             {[
               { id: 'Normal', label: 'Normal Uçuş' },
@@ -101,7 +103,7 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
               <button
                 key={type.id}
                 onClick={() => setFlightType(type.id as 'Normal' | 'Strip')}
-                className={`flex-1 py-5 rounded-2xl font-black text-sm transition-all border ${
+                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
                   flightType === type.id 
                   ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
                   : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
@@ -115,11 +117,11 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
 
         {/* 2. Tahdit Dosyası */}
         <section className="space-y-4">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">2. Tahdit Dosyası</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Tahdit Dosyası</label>
           <div className="flex flex-col gap-3">
             <div 
               onClick={() => !kmlData && fileInputRef.current?.click()}
-              className={`w-full p-4 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
+              className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
                 kmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
               }`}
             >
@@ -130,20 +132,20 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
                 accept=".kml,.kmz" 
                 className="hidden" 
               />
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
                 kmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
               }`}>
-                <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : kmlData ? 'fa-check' : 'fa-file-upload'} text-xl`}></i>
+                <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : kmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
               </div>
               <div className="flex-1 truncate">
-                <p className="font-black text-slate-900 truncate">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
+                <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
                 <p className="text-[10px] text-slate-500 uppercase tracking-wider">{kmlData ? `1 Polygon bulundu` : 'KML veya KMZ formatında'}</p>
               </div>
             </div>
             {kmlData && (
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full py-5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-xs hover:bg-slate-50 active:scale-95 transition-all"
+                className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
               >
                 DEĞİŞTİR
               </button>
@@ -153,62 +155,62 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
 
         {/* 3. Camera Selection - Button Trigger */}
         <section className="space-y-4">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">3. Kamera (Sensör) Bilgisi</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Kamera (Sensör) Bilgisi</label>
           <button
             onClick={() => setShowCameraModal(true)}
-            className="w-full p-5 bg-slate-100 border border-slate-200 rounded-[24px] flex items-center justify-between shadow-sm hover:border-blue-300 transition-all active:scale-[0.98]"
+            className="w-full p-3.5 bg-slate-100 border border-slate-200 rounded-[24px] flex items-center justify-between shadow-sm hover:border-blue-300 transition-all active:scale-[0.98]"
           >
             <div className="text-left">
               <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest leading-none mb-1">Seçili Kamera</p>
-              <p className="font-black text-slate-900 text-lg leading-none">{selectedCamera.name}</p>
+              <p className="font-black text-slate-900 text-base leading-none">{selectedCamera.name}</p>
               <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">
                 {selectedCamera.sensorWidth}mm Sw | {selectedCamera.focalLength}mm f | {selectedCamera.imageWidth}px
               </p>
             </div>
-            <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
-              <i className="fas fa-camera"></i>
+            <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
+              <i className="fas fa-camera text-sm"></i>
             </div>
           </button>
         </section>
 
-        {/* 4. Height Selection */}
+        {/* 4. Overlap Ratios */}
         <section className="space-y-4">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">4. Planlanan Uçuş Yüksekliği</label>
-          <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-[24px] border border-slate-200 shadow-sm">
-            <button 
-              onClick={() => setHeight(h => Math.max(5, h - 5))} 
-              className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-slate-800 shadow-sm active:scale-90 transition-all border border-slate-100"
-            >
-              <i className="fas fa-minus"></i>
-            </button>
-            <div className="flex-1 text-center">
-              <span className="text-2xl font-black text-slate-900">{height}</span>
-              <span className="ml-1 text-xs font-black text-slate-400 uppercase tracking-widest">Metre</span>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Bindirme Oranları (%)</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold text-slate-500">Enine (Side)</span>
+              <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <button onClick={() => setOverlapSide(p => Math.max(0, p - 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus text-xs"></i></button>
+                <span className="flex-1 text-center font-black text-slate-900 text-sm">{overlapSide}%</span>
+                <button onClick={() => setOverlapSide(p => Math.min(100, p + 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus text-xs"></i></button>
+              </div>
             </div>
-            <button 
-              onClick={() => setHeight(h => Math.min(500, h + 5))} 
-              className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-slate-800 shadow-sm active:scale-90 transition-all border border-slate-100"
-            >
-              <i className="fas fa-plus"></i>
-            </button>
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold text-slate-500">Boyuna (Frontal)</span>
+              <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <button onClick={() => setOverlapFront(p => Math.max(0, p - 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus text-xs"></i></button>
+                <span className="flex-1 text-center font-black text-slate-900 text-sm">{overlapFront}%</span>
+                <button onClick={() => setOverlapFront(p => Math.min(100, p + 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus text-xs"></i></button>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* 5. Buffer Selection */}
         <section className="space-y-4">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">5. Tolerans Değeri (Buffer)</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Tahditi Genişlet (Buffer)</label>
           <div className="flex gap-3">
             {[0, 5, 10, 20].map(val => (
               <button
                 key={val}
                 onClick={() => setBuffer(val)}
-                className={`flex-1 py-5 rounded-2xl font-black text-sm transition-all border ${
+                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
                   buffer === val 
                   ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
                   : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
                 }`}
               >
-                {val === 0 ? 'Yok' : `${val}m`}
+                {val === 0 ? 'Hayır' : `${val}m`}
               </button>
             ))}
           </div>
@@ -216,56 +218,53 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
 
         {/* 6. Orthogonal Boundary Generation */}
         <section className="space-y-4">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">6. Ortogonal Tahdit Üret</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">6. Tahditi Genişlet (Ortogonal)</label>
           <div className="flex gap-3">
             {[0, 50, 100, 200].map(val => (
               <button
                 key={val}
                 onClick={() => setExpandToGrid(val)}
-                className={`flex-1 py-5 rounded-2xl font-black text-sm transition-all border ${
+                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
                   expandToGrid === val 
                   ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
                   : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
                 }`}
               >
-                {val === 0 ? 'Yok' : `${val}m`}
+                {val === 0 ? 'Hayır' : `${val}m`}
               </button>
             ))}
           </div>
         </section>
 
-        {/* 7. Overlap Ratios */}
+        {/* 7. Expand to Rectangle */}
         <section className="space-y-4">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">7. Bindirme Oranları (%)</label>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-slate-500">Enine (Side)</span>
-              <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
-                <button onClick={() => setOverlapSide(p => Math.max(0, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus"></i></button>
-                <span className="flex-1 text-center font-black text-slate-900">{overlapSide}%</span>
-                <button onClick={() => setOverlapSide(p => Math.min(100, p + 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus"></i></button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-slate-500">Boyuna (Frontal)</span>
-              <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
-                <button onClick={() => setOverlapFront(p => Math.max(0, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus"></i></button>
-                <span className="flex-1 text-center font-black text-slate-900">{overlapFront}%</span>
-                <button onClick={() => setOverlapFront(p => Math.min(100, p + 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus"></i></button>
-              </div>
-            </div>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">7. Tahditi Genişlet (Dikdörtgen)</label>
+          <div className="flex gap-3">
+            {[false, true].map(val => (
+              <button
+                key={val.toString()}
+                onClick={() => setExpandToRectangle(val)}
+                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
+                  expandToRectangle === val 
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
+                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                }`}
+              >
+                {val ? 'EVET' : 'HAYIR'}
+              </button>
+            ))}
           </div>
         </section>
 
         {/* 8. Show Route */}
         <section className="space-y-4">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">8. Planlanan Uçuş Rotasını Göster</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">8. Planlanan Uçuş Rotasını Göster</label>
           <div className="flex gap-3">
-            {[true, false].map(val => (
+            {[false, true].map(val => (
               <button
                 key={val.toString()}
                 onClick={() => setShowRoute(val)}
-                className={`flex-1 py-5 rounded-2xl font-black text-sm transition-all border ${
+                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
                   showRoute === val 
                   ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
                   : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'

@@ -9,6 +9,7 @@ import HelpView from './components/HelpView';
 import SettingsView from './components/SettingsView';
 import KMLMapView from './components/KMLMapView';
 import FlightPlanConfig from './components/FlightPlanConfig';
+import GCPPlanDisplay from './components/GCPPlanDisplay';
 import GlobalFooter from './components/GlobalFooter';
 import { SavedLocation, Coordinate, AppSettings } from './types';
 import { KMLFeature } from './components/KMLUtils';
@@ -16,7 +17,7 @@ import { FlightConfig } from './src/types/flight';
 import { geoidService } from './services/GeoidService';
 
 const App = () => {
-  type ViewType = 'onboarding' | 'dashboard' | 'capture' | 'list' | 'flightPlanner' | 'result' | 'help' | 'settings' | 'kmlMap' | 'flightConfig';
+  type ViewType = 'onboarding' | 'dashboard' | 'capture' | 'list' | 'flightPlanner' | 'result' | 'help' | 'settings' | 'kmlMap' | 'flightConfig' | 'gcpMap';
   const [view, setView] = useState<ViewType>('onboarding');
   const [subView, setSubView] = useState<string | null>(null);
   const [kmlData, setKmlData] = useState<{ name: string; features: KMLFeature[] } | null>(null);
@@ -272,8 +273,17 @@ const App = () => {
             onPlanCreated={(data, config) => {
               setKmlData(data);
               setFlightConfig(config);
-              navigateTo('kmlMap');
+              navigateTo('gcpMap');
             }}
+          />
+        )}
+
+        {view === 'gcpMap' && kmlData && flightConfig && (
+          <GCPPlanDisplay
+            projectName={kmlData.name}
+            features={kmlData.features}
+            config={flightConfig}
+            onBack={() => window.history.back()}
           />
         )}
 
