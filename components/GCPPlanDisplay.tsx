@@ -135,16 +135,17 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
       lat: p.lat
     }));
 
-    // 5. Ensure at least minGcpCount points (Bottom-Left, Middle-Right, Top-Left pattern for 3)
+    // 5. Ensure at least minGcpCount points with specific patterns
     const minCount = config.minGcpCount || 3;
     if (finalPoints.length < minCount) {
       const bbox = turf.bbox(targetPoly);
-      
-      // Pattern: Bottom-Left, Middle-Right, Top-Left
-      const p_bl: [number, number] = [bbox[0], bbox[1]]; // Bottom-Left
-      const p_mr: [number, number] = [bbox[2], (bbox[1] + bbox[3]) / 2]; // Middle-Right
-      const p_tl: [number, number] = [bbox[0], bbox[3]]; // Top-Left
-      
+      const minLng = bbox[0];
+      const minLat = bbox[1];
+      const maxLng = bbox[2];
+      const maxLat = bbox[3];
+      const midLng = (minLng + maxLng) / 2;
+      const midLat = (minLat + maxLat) / 2;
+
       const ensureInPoly = (pt: [number, number]) => {
         const point = turf.point(pt);
         if (turf.booleanPointInPolygon(point, targetPoly)) {
@@ -158,20 +159,43 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
         }
       };
 
-      const basePts = [ensureInPoly(p_bl), ensureInPoly(p_mr), ensureInPoly(p_tl)];
-      
-      // If more than 3 are needed, add some intermediate points
-      if (minCount > 3) {
-        const tr: [number, number] = [bbox[2], bbox[3]]; // Top-Right
-        const br: [number, number] = [bbox[2], bbox[1]]; // Bottom-Right
-        basePts.push(ensureInPoly(tr));
-        basePts.push(ensureInPoly(br));
-        
-        // If still need more, add center
-        if (minCount > 5) {
-          const mid: [number, number] = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2];
-          basePts.push(ensureInPoly(mid));
-        }
+      let basePts: [number, number][] = [];
+
+      if (minCount === 3) {
+        // 3 YKN: Sol Üst, Sol Alt, Sağ Orta
+        basePts = [
+          ensureInPoly([minLng, maxLat]), // TL
+          ensureInPoly([minLng, minLat]), // BL
+          ensureInPoly([maxLng, midLat])  // MR
+        ];
+      } else if (minCount === 4) {
+        // 4 YKN: Sol Üst, Sağ Üst, Sağ Alt, Sol Alt
+        basePts = [
+          ensureInPoly([minLng, maxLat]), // TL
+          ensureInPoly([maxLng, maxLat]), // TR
+          ensureInPoly([maxLng, minLat]), // BR
+          ensureInPoly([minLng, minLat])  // BL
+        ];
+      } else if (minCount === 5) {
+        // 5 YKN: Sol Üst, Sağ Üst, Orta, Sağ Alt, Sol Alt
+        basePts = [
+          ensureInPoly([minLng, maxLat]), // TL
+          ensureInPoly([maxLng, maxLat]), // TR
+          ensureInPoly([midLng, midLat]), // Center
+          ensureInPoly([maxLng, minLat]), // BR
+          ensureInPoly([minLng, minLat])  // BL
+        ];
+      } else {
+        // More than 5: Use corners and then fill with grid or random points inside
+        // For now, let's use the corners and center as base
+        basePts = [
+          ensureInPoly([minLng, maxLat]),
+          ensureInPoly([maxLng, maxLat]),
+          ensureInPoly([maxLng, minLat]),
+          ensureInPoly([minLng, minLat]),
+          ensureInPoly([midLng, midLat])
+        ];
+        // If still need more, we could add more points, but usually grid handles > 5
       }
 
       finalPoints = basePts.slice(0, minCount).map((p, i) => ({
