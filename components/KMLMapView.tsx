@@ -230,18 +230,20 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none truncate max-w-[200px]">Uçuş Planı Ekranı</h2>
         </div>
-        <div className="flex items-center gap-3 ml-auto">
+      </header>
+
+      <div className="flex-1 relative z-10">
+        {/* Top Right Export Button Overlay */}
+        <div className="absolute top-6 right-6 z-[1000] pointer-events-none">
           <button 
             onClick={handleExport}
-            className="px-4 py-3 bg-blue-600 rounded-xl flex items-center gap-2 shadow-md text-white font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+            className="px-4 py-3 bg-blue-600 rounded-xl flex items-center gap-2 shadow-xl text-white font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all pointer-events-auto border border-blue-500/50"
           >
             <i className="fas fa-file-export"></i>
             Tahditi Dışa Aktar
           </button>
         </div>
-      </header>
 
-      <div className="flex-1 relative z-10">
         {/* Bottom Stats & Controls Overlay */}
         <div className="absolute bottom-6 left-4 right-4 z-[1000] pointer-events-none flex items-end gap-3 justify-center">
           {/* Controls Stacked Vertically */}

@@ -6,12 +6,14 @@ import GlobalFooter from './GlobalFooter';
 interface Props {
   onBack: () => void;
   onPlanCreated: (kmlData: KMLData, config: FlightConfig) => void;
+  initialKmlData?: KMLData | null;
+  onKmlDataChange?: (data: KMLData | null) => void;
 }
 
-const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated }) => {
+const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange }) => {
   const [gcpDistance, setGcpDistance] = useState(400);
   const [gcpStartOffset, setGcpStartOffset] = useState(10);
-  const [kmlData, setKmlData] = useState<KMLData | null>(null);
+  const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   const [isParsing, setIsParsing] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -23,10 +25,12 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated }) => {
       try {
         const data = await parseKMLorKMZ(file);
         setKmlData(data);
+        onKmlDataChange?.(data);
       } catch (err) {
         alert('KML dosyası ayrıştırılamadı.');
       } finally {
         setIsParsing(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     }
   };
@@ -74,28 +78,38 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated }) => {
         {/* 1. KML Selection */}
         <section className="space-y-4">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
-          <div 
-            onClick={() => fileInputRef.current?.click()}
-            className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all cursor-pointer ${
-              kmlData ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-100 border-slate-200 hover:border-blue-300'
-            }`}
-          >
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              accept=".kml,.kmz" 
-              className="hidden" 
-            />
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
-              kmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
-            }`}>
-              <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : kmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
+          <div className="flex flex-col gap-3">
+            <div 
+              onClick={() => !kmlData && fileInputRef.current?.click()}
+              className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
+                kmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
+              }`}
+            >
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept=".kml,.kmz" 
+                className="hidden" 
+              />
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
+                kmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+              }`}>
+                <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : kmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
+              </div>
+              <div className="flex-1 truncate">
+                <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">{kmlData ? `${kmlData.features.length} özellik bulundu` : 'KML veya KMZ formatında'}</p>
+              </div>
             </div>
-            <div className="flex-1 truncate">
-              <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider">{kmlData ? `${kmlData.features.length} özellik bulundu` : 'KML veya KMZ formatında'}</p>
-            </div>
+            {kmlData && (
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
+              >
+                DEĞİŞTİR
+              </button>
+            )}
           </div>
         </section>
 

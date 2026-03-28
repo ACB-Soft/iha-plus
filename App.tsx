@@ -270,6 +270,8 @@ const App = () => {
         {view === 'flightPlanner' && (
           <GCPPlanConfig 
             onBack={() => window.history.back()} 
+            initialKmlData={kmlData}
+            onKmlDataChange={setKmlData}
             onPlanCreated={(data, config) => {
               setKmlData(data);
               setFlightConfig(config);

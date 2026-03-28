@@ -101,12 +101,37 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
     const bbox = turf.bbox(targetPoly);
     const grid = turf.pointGrid(bbox, distanceMeters / 1000, { units: 'kilometers', mask: targetPoly });
 
-    // 4. Map to YKN Points
-    let finalPoints: YKNPoint[] = grid.features.map((f, i) => ({
-      id: `ykn-${i}`,
-      name: `YKN${i + 1}`,
+    // 4. Map to YKN Points with Zigzag sorting
+    const rawPoints = grid.features.map(f => ({
       lng: f.geometry.coordinates[0],
       lat: f.geometry.coordinates[1]
+    }));
+
+    // Group points by latitude (rows)
+    const rows: Record<string, typeof rawPoints> = {};
+    rawPoints.forEach(p => {
+      const key = p.lat.toFixed(6); // Use fixed precision for grouping
+      if (!rows[key]) rows[key] = [];
+      rows[key].push(p);
+    });
+
+    // Sort row latitudes descending (top to bottom)
+    const sortedLatKeys = Object.keys(rows).sort((a, b) => parseFloat(b) - parseFloat(a));
+    
+    let zigzagSorted: typeof rawPoints = [];
+    sortedLatKeys.forEach((key, index) => {
+      const rowPoints = rows[key].sort((a, b) => a.lng - b.lng);
+      if (index % 2 === 1) {
+        rowPoints.reverse(); // Reverse every second row for zigzag
+      }
+      zigzagSorted = zigzagSorted.concat(rowPoints);
+    });
+
+    let finalPoints: YKNPoint[] = zigzagSorted.map((p, i) => ({
+      id: `ykn-${i}`,
+      name: `YKN${i + 1}`,
+      lng: p.lng,
+      lat: p.lat
     }));
 
     // 5. Ensure at least 3 points (Bottom-Left, Top-Right, Middle)
@@ -208,18 +233,20 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none truncate max-w-[200px]">YKN Planı Ekranı</h2>
         </div>
-        <div className="flex items-center gap-3 ml-auto">
+      </header>
+
+      <div className="flex-1 relative z-10">
+        {/* Top Right Export Button Overlay */}
+        <div className="absolute top-6 right-6 z-[1000] pointer-events-none">
           <button 
             onClick={handleExport}
-            className="px-4 py-3 bg-blue-600 rounded-xl flex items-center gap-2 shadow-md text-white font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+            className="px-4 py-3 bg-blue-600 rounded-xl flex items-center gap-2 shadow-xl text-white font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all pointer-events-auto border border-blue-500/50"
           >
             <i className="fas fa-file-export"></i>
             YKN'leri Dışa Aktar
           </button>
         </div>
-      </header>
 
-      <div className="flex-1 relative z-10">
         {/* Bottom Stats Overlay */}
         <div className="absolute bottom-6 left-4 right-4 z-[1000] pointer-events-none flex items-end gap-3 justify-center">
           <div className="bg-slate-100/95 backdrop-blur-md rounded-xl shadow-lg border border-slate-200 overflow-hidden pointer-events-auto w-full max-w-lg p-4 flex justify-around items-center">
