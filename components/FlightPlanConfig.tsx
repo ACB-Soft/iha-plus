@@ -172,18 +172,18 @@ const FlightPlanConfig: React.FC<Props> = ({
             
             <button 
               onClick={() => window.open('https://acb-soft.github.io/KML-Plus/', '_blank')}
-              className="w-full group relative bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-[32px] shadow-2xl shadow-slate-400/50 active:scale-95 text-left overflow-hidden border border-slate-700"
+              className="w-full group relative bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-[32px] shadow-2xl shadow-blue-400/30 active:scale-95 text-left overflow-hidden border border-blue-500/50"
             >
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <img src="/kml_plus.svg" alt="" className="w-24 h-24 object-contain grayscale invert" />
+                <i className="fas fa-external-link-alt text-7xl text-white"></i>
               </div>
               
               <div className="relative z-10">
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-black text-white uppercase tracking-tight">KML Plus</h3>
-                  <span className="px-2 py-0.5 bg-blue-500 text-[8px] font-black text-white rounded-full tracking-widest">ACB SOFTWARE</span>
+                  <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm text-[8px] font-black text-white rounded-full tracking-widest border border-white/30">ACB SOFTWARE</span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5 font-medium leading-tight">Hızlıca KML/KMZ tahdit dosyası oluşturmak için yardımcı uygulamayı kullanın.</p>
+                <p className="text-xs text-blue-100 mt-0.5 font-medium leading-tight">Hızlıca KML/KMZ tahdit dosyası oluşturmak için yardımcı uygulamayı kullanın.</p>
               </div>
             </button>
           </div>

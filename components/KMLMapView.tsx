@@ -159,17 +159,18 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   const handleExport = () => {
     if (processedFeatures.length === 0) return;
 
-    const kml = `<?xml version="1.0" encoding="UTF-8"?>
+    const generateKML = (name: string, features: any[]) => {
+      return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>${exportName}</name>
-    ${processedFeatures.map((feature, idx) => {
+    <name>${name}</name>
+    ${features.map((feature, idx) => {
       const coords = feature.rectangleCoords || feature.gridCoords || feature.expandedCoords || feature.originalCoords;
       if (!coords || coords.length === 0) return '';
       
       return `
     <Placemark>
-      <name>${exportName}${processedFeatures.length > 1 ? `_${idx + 1}` : ''}</name>
+      <name>${feature.name || name}</name>
       <Polygon>
         <outerBoundaryIs>
           <LinearRing>
@@ -183,16 +184,36 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     }).join('')}
   </Document>
 </kml>`;
+    };
 
-    const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${exportName}.kml`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const downloadFile = (kmlContent: string, fileName: string) => {
+      const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.kml`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    // 1. Download Full KML (All segments together)
+    const fullKml = generateKML(exportName, processedFeatures);
+    downloadFile(fullKml, exportName);
+
+    // 2. If there are multiple segments (split flight), download each separately
+    if (processedFeatures.length > 1) {
+      processedFeatures.forEach((feature, idx) => {
+        // Use a small delay for each subsequent download to avoid browser blocking
+        setTimeout(() => {
+          const partName = `${exportName}${idx + 1}`;
+          const partKml = generateKML(partName, [feature]);
+          downloadFile(partKml, partName);
+        }, (idx + 1) * 300); // 300ms delay between files
+      });
+    }
+
     setShowExportModal(false);
   };
 
