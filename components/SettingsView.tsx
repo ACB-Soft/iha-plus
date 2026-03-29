@@ -9,8 +9,20 @@ interface Props {
 }
 
 const SettingsView: React.FC<Props> = ({ onBack }) => {
-  const [mapProvider, setMapProvider] = useState(localStorage.getItem('default_map_provider') || 'Google Hybrid');
+  const [mapProvider, setMapProvider] = useState(localStorage.getItem('default_map_provider') || 'Google Satellite');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  
+  // Flight Plan Defaults
+  const [fpHeight, setFpHeight] = useState(Number(localStorage.getItem('fp_default_height')) || 150);
+  const [fpBuffer, setFpBuffer] = useState(Number(localStorage.getItem('fp_default_buffer')) || 0);
+  const [fpExpandGrid, setFpExpandGrid] = useState(Number(localStorage.getItem('fp_default_expand_to_grid')) || 0);
+  const [fpExpandRect, setFpExpandRect] = useState(localStorage.getItem('fp_default_expand_to_rectangle') === 'true');
+  const [fpStripBuffer, setFpStripBuffer] = useState(Number(localStorage.getItem('fp_default_strip_buffer')) || 50);
+  const [fpStripSplit, setFpStripSplit] = useState(Number(localStorage.getItem('fp_default_strip_split_distance')) || 1000);
+
+  // GCP Plan Defaults
+  const [gcpDistance, setGcpDistance] = useState(Number(localStorage.getItem('gcp_default_distance')) || 400);
+  const [gcpOffset, setGcpOffset] = useState(Number(localStorage.getItem('gcp_default_start_offset')) || 10);
   
   const [modal, setModal] = useState<{
     isOpen: boolean;
@@ -27,7 +39,15 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
 
   useEffect(() => {
     localStorage.setItem('default_map_provider', mapProvider);
-  }, [mapProvider]);
+    localStorage.setItem('fp_default_height', fpHeight.toString());
+    localStorage.setItem('fp_default_buffer', fpBuffer.toString());
+    localStorage.setItem('fp_default_expand_to_grid', fpExpandGrid.toString());
+    localStorage.setItem('fp_default_expand_to_rectangle', fpExpandRect.toString());
+    localStorage.setItem('fp_default_strip_buffer', fpStripBuffer.toString());
+    localStorage.setItem('fp_default_strip_split_distance', fpStripSplit.toString());
+    localStorage.setItem('gcp_default_distance', gcpDistance.toString());
+    localStorage.setItem('gcp_default_start_offset', gcpOffset.toString());
+  }, [mapProvider, fpHeight, fpBuffer, fpExpandGrid, fpExpandRect, fpStripBuffer, fpStripSplit, gcpDistance, gcpOffset]);
 
   const handleUpdateCheck = async () => {
     if (isCheckingUpdate) return;
@@ -114,6 +134,110 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
                 </div>
                 {!isCheckingUpdate && <i className="fas fa-chevron-right text-blue-300 text-xs"></i>}
               </button>
+            </div>
+          </section>
+
+          {/* Uçuş Planı Ayarları */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                <i className="fas fa-plane"></i>
+              </div>
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Uçuş Planı</h3>
+            </div>
+            
+            <div className="soft-card p-5 space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Varsayılan Yükseklik (m)</label>
+                <input 
+                  type="number"
+                  value={fpHeight}
+                  onChange={(e) => setFpHeight(Number(e.target.value))}
+                  className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none shadow-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Buffer (m)</label>
+                  <input 
+                    type="number"
+                    value={fpBuffer}
+                    onChange={(e) => setFpBuffer(Number(e.target.value))}
+                    className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none shadow-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grid Gen. (m)</label>
+                  <input 
+                    type="number"
+                    value={fpExpandGrid}
+                    onChange={(e) => setFpExpandGrid(Number(e.target.value))}
+                    className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none shadow-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-slate-100 rounded-2xl border border-slate-100">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-tight">Dikdörtgen Genişletme</span>
+                <button 
+                  onClick={() => setFpExpandRect(!fpExpandRect)}
+                  className={`w-12 h-6 rounded-full transition-all relative ${fpExpandRect ? 'bg-blue-600' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${fpExpandRect ? 'left-7' : 'left-1'}`}></div>
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Şerit Buffer (m)</label>
+                  <input 
+                    type="number"
+                    value={fpStripBuffer}
+                    onChange={(e) => setFpStripBuffer(Number(e.target.value))}
+                    className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none shadow-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Şerit Bölme (m)</label>
+                  <input 
+                    type="number"
+                    value={fpStripSplit}
+                    onChange={(e) => setFpStripSplit(Number(e.target.value))}
+                    className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none shadow-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* YkN Planı Ayarları */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                <i className="fas fa-map-marker-alt"></i>
+              </div>
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">YkN Planı</h3>
+            </div>
+            
+            <div className="soft-card p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nokta Arası (m)</label>
+                  <input 
+                    type="number"
+                    value={gcpDistance}
+                    onChange={(e) => setGcpDistance(Number(e.target.value))}
+                    className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none shadow-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Başlangıç Ofs (m)</label>
+                  <input 
+                    type="number"
+                    value={gcpOffset}
+                    onChange={(e) => setGcpOffset(Number(e.target.value))}
+                    className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none shadow-sm"
+                  />
+                </div>
+              </div>
             </div>
           </section>
 

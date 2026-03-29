@@ -3,6 +3,7 @@ import { Camera, CAMERAS, SCALES, SCALE_TARGET_GSD, FlightConfig } from '../src/
 import { parseKMLorKMZ, KMLData } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
+import { AppSettings } from '../types';
 
 interface Props {
   onBack: () => void;
@@ -13,6 +14,7 @@ interface Props {
   onPlanCreated: (kmlData: KMLData, config: FlightConfig) => void;
   initialKmlData?: KMLData | null;
   onKmlDataChange?: (data: KMLData | null) => void;
+  settings: AppSettings;
 }
 
 const FlightPlanConfig: React.FC<Props> = ({ 
@@ -23,19 +25,20 @@ const FlightPlanConfig: React.FC<Props> = ({
   onStepChange, 
   onPlanCreated, 
   initialKmlData, 
-  onKmlDataChange 
+  onKmlDataChange,
+  settings
 }) => {
   const [selectedCamera, setSelectedCamera] = useState<Camera>(CAMERAS[0]);
   const [selectedScale, setSelectedScale] = useState(SCALES[0]);
-  const [height, setHeight] = useState(150);
-  const [buffer, setBuffer] = useState(0);
-  const [expandToGrid, setExpandToGrid] = useState<number>(0);
+  const [height, setHeight] = useState(settings.flightPlan.defaultHeight);
+  const [buffer, setBuffer] = useState(settings.flightPlan.defaultBuffer);
+  const [expandToGrid, setExpandToGrid] = useState<number>(settings.flightPlan.defaultExpandToGrid);
   const [overlapFront, setOverlapFront] = useState(80);
   const [overlapSide, setOverlapSide] = useState(70);
-  const [stripBuffer, setStripBuffer] = useState(50);
+  const [stripBuffer, setStripBuffer] = useState(settings.flightPlan.defaultStripBuffer);
   const [isStripSplitEnabled, setIsStripSplitEnabled] = useState(false);
-  const [stripSplitDistance, setStripSplitDistance] = useState(1000);
-  const [expandToRectangle, setExpandToRectangle] = useState(false);
+  const [stripSplitDistance, setStripSplitDistance] = useState(settings.flightPlan.defaultStripSplitDistance);
+  const [expandToRectangle, setExpandToRectangle] = useState(settings.flightPlan.defaultExpandToRectangle);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   
   // Sync kmlData with initialKmlData when flightType or initialKmlData changes

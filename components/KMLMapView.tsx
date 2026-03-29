@@ -49,7 +49,7 @@ const FitBounds: React.FC<{ features: KMLFeature[] }> = ({ features }) => {
 };
 
 const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) => {
-  const mapProvider = localStorage.getItem('default_map_provider') || 'Google Hybrid';
+  const mapProvider = localStorage.getItem('default_map_provider') || 'Google Satellite';
   
   // Initial calculation based on config
   const initialAltitude = config.height;
@@ -198,20 +198,20 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       URL.revokeObjectURL(url);
     };
 
-    // 1. Download Full KML (All segments together)
-    const fullKml = generateKML(exportName, processedFeatures);
-    downloadFile(fullKml, exportName);
-
-    // 2. If there are multiple segments (split flight), download each separately
-    if (processedFeatures.length > 1) {
+    // If it's a split Strip flight, download only individual segments as separate files
+    if (config.flightType === 'Strip' && processedFeatures.length > 1) {
       processedFeatures.forEach((feature, idx) => {
         // Use a small delay for each subsequent download to avoid browser blocking
         setTimeout(() => {
           const partName = `${exportName}${idx + 1}`;
           const partKml = generateKML(partName, [feature]);
           downloadFile(partKml, partName);
-        }, (idx + 1) * 300); // 300ms delay between files
+        }, idx * 300); // 300ms delay between files
       });
+    } else {
+      // Normal behavior: Download Full KML (one file containing all features)
+      const fullKml = generateKML(exportName, processedFeatures);
+      downloadFile(fullKml, exportName);
     }
 
     setShowExportModal(false);

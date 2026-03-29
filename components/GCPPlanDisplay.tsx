@@ -56,7 +56,7 @@ const FitBounds: React.FC<{ features: KMLFeature[] }> = ({ features }) => {
 };
 
 const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack }) => {
-  const mapProvider = localStorage.getItem('default_map_provider') || 'Google Hybrid';
+  const mapProvider = localStorage.getItem('default_map_provider') || 'Google Satellite';
   const [points, setPoints] = useState<YKNPoint[]>([]);
   const [shrunkPolygon, setShrunkPolygon] = useState<[number, number][] | null>(null);
 

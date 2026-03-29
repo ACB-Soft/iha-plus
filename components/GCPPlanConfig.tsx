@@ -3,17 +3,19 @@ import { FlightConfig, CAMERAS } from '../src/types/flight';
 import { parseKMLorKMZ, KMLData } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
+import { AppSettings } from '../types';
 
 interface Props {
   onBack: () => void;
   onPlanCreated: (kmlData: KMLData, config: FlightConfig) => void;
   initialKmlData?: KMLData | null;
   onKmlDataChange?: (data: KMLData | null) => void;
+  settings: AppSettings;
 }
 
-const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange }) => {
-  const [gcpDistance, setGcpDistance] = useState(400);
-  const [gcpStartOffset, setGcpStartOffset] = useState(10);
+const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange, settings }) => {
+  const [gcpDistance, setGcpDistance] = useState(settings.gcpPlan.defaultDistance);
+  const [gcpStartOffset, setGcpStartOffset] = useState(settings.gcpPlan.defaultStartOffset);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   
   // Sync kmlData with initialKmlData when it changes

@@ -12,6 +12,22 @@ import { AppSettings } from './types';
 import { KMLData } from './components/KMLUtils';
 import { FlightConfig } from './src/types/flight';
 
+const getInitialSettings = (): AppSettings => ({
+  mapProvider: localStorage.getItem('default_map_provider') || 'Google Satellite',
+  flightPlan: {
+    defaultHeight: Number(localStorage.getItem('fp_default_height')) || 150,
+    defaultBuffer: Number(localStorage.getItem('fp_default_buffer')) || 0,
+    defaultExpandToGrid: Number(localStorage.getItem('fp_default_expand_to_grid')) || 0,
+    defaultExpandToRectangle: localStorage.getItem('fp_default_expand_to_rectangle') === 'true',
+    defaultStripBuffer: Number(localStorage.getItem('fp_default_strip_buffer')) || 50,
+    defaultStripSplitDistance: Number(localStorage.getItem('fp_default_strip_split_distance')) || 1000,
+  },
+  gcpPlan: {
+    defaultDistance: Number(localStorage.getItem('gcp_default_distance')) || 400,
+    defaultStartOffset: Number(localStorage.getItem('gcp_default_start_offset')) || 10,
+  }
+});
+
 const App = () => {
   type ViewType = 'onboarding' | 'dashboard' | 'flightPlanner' | 'help' | 'settings' | 'kmlMap' | 'flightConfig' | 'gcpMap';
   const [view, setView] = useState<ViewType>('onboarding');
@@ -31,9 +47,7 @@ const App = () => {
     subViewRef.current = subView;
   }, [view, subView]);
 
-  const [settings, setSettings] = useState<AppSettings>(() => ({
-    mapProvider: localStorage.getItem('default_map_provider') || 'Google Hybrid',
-  }));
+  const [settings, setSettings] = useState<AppSettings>(getInitialSettings);
 
   // Navigation wrapper to sync with browser history
   const navigateTo = (newView: ViewType, newSubView: string | null = null) => {
@@ -116,9 +130,7 @@ const App = () => {
           <SettingsView 
             onBack={() => {
               // Refresh settings when coming back from settings
-              setSettings({
-                mapProvider: localStorage.getItem('default_map_provider') || 'Google Hybrid',
-              });
+              setSettings(getInitialSettings());
               window.history.back();
             }} 
           />
@@ -148,6 +160,7 @@ const App = () => {
               setFlightConfig(config);
               navigateTo('kmlMap');
             }}
+            settings={settings}
           />
         )}
 
@@ -170,6 +183,7 @@ const App = () => {
               setFlightConfig(config);
               navigateTo('gcpMap');
             }}
+            settings={settings}
           />
         )}
 
