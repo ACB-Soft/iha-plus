@@ -5,8 +5,8 @@ import 'leaflet/dist/leaflet.css';
 import { KMLData, KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
-import { SCALE_TARGET_GSD, FlightConfig } from '../src/types/flight';
-import { getBoundingBox, expandPolygon, expandLineToPolygon, splitLineByDistance, getGridPolygon, getSteppedGridPolygon, generateFlightLines, calculateDistance, calculatePolygonArea } from './GeometryUtils';
+import { SCALE_TARGET_GSD, FlightConfig, Camera, CAMERAS } from '../src/types/flight';
+import { getBoundingBox, expandPolygon, expandLineToPolygon, splitLineByDistance, getGridPolygon, getSteppedGridPolygon, calculatePolygonArea } from './GeometryUtils';
 
 // Fix Leaflet icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -57,21 +57,30 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   
   const [altitude, setAltitude] = useState(Math.round(initialAltitude));
   const [gsd, setGsd] = useState(Number(initialGsd.toFixed(2)));
-  const [initialStats, setInitialStats] = useState({ distance: 0, photoCount: 0, time: 0 });
-  const [finalStats, setFinalStats] = useState({ distance: 0, photoCount: 0, time: 0 });
+  const [currentCamera, setCurrentCamera] = useState<Camera>(config.camera);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [exportName, setExportName] = useState(`TAHDIT_${projectName.replace(/\.(kml|kmz)$/i, '')}`);
 
   // Recalculate GSD when altitude changes
   const handleAltitudeChange = (newAlt: number) => {
     setAltitude(newAlt);
-    const newGsd = (newAlt * config.camera.sensorWidth) / (config.camera.focalLength * config.camera.imageWidth) * 100;
+    const newGsd = (newAlt * currentCamera.sensorWidth) / (currentCamera.focalLength * currentCamera.imageWidth) * 100;
     setGsd(Number(newGsd.toFixed(2)));
   };
 
   // Recalculate altitude when GSD changes
   const handleGsdChange = (newGsd: number) => {
     setGsd(newGsd);
-    const newAlt = (newGsd * config.camera.focalLength * config.camera.imageWidth) / (config.camera.sensorWidth * 100);
+    const newAlt = (newGsd * currentCamera.focalLength * currentCamera.imageWidth) / (currentCamera.sensorWidth * 100);
     setAltitude(Math.round(newAlt));
+  };
+
+  const handleCameraChange = (newCam: Camera) => {
+    setCurrentCamera(newCam);
+    // Recalculate GSD based on current altitude and new camera
+    const newGsd = (altitude * newCam.sensorWidth) / (newCam.focalLength * newCam.imageWidth) * 100;
+    setGsd(Number(newGsd.toFixed(2)));
   };
 
   // Calculate all geometry and flight lines once
@@ -82,23 +91,13 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       const splitDistance = config.stripSplitDistance || 1000;
       const buffer = config.stripBuffer || 50;
       
-      // Split the line into segments with 10m overlap
-      const segments = splitLineByDistance(originalCoords, splitDistance, 10);
+      // Split the line into segments with 20m overlap
+      const segments = splitLineByDistance(originalCoords, splitDistance, 20);
       
       return segments.map((segCoords, idx) => {
         const expandedCoords = expandLineToPolygon(segCoords, buffer);
         const initialArea = calculatePolygonArea(expandedCoords);
         
-        const flightLines = config.showRoute 
-          ? generateFlightLines(
-              expandedCoords, 
-              altitude, 
-              config.camera.sensorWidth, 
-              config.camera.focalLength, 
-              config.overlapSide
-            )
-          : [];
-
         return {
           ...f,
           name: `${f.name} (Parça ${idx + 1})`,
@@ -106,28 +105,16 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
           expandedCoords,
           gridCoords: null,
           rectangleCoords: null,
-          flightLines,
-          initialFlightLines: [segCoords],
           initialArea,
           finalArea: initialArea
         };
       });
     }
 
-    if (f.type !== 'Polygon') return [{ ...f, originalCoords: [], expandedCoords: null, gridCoords: null, rectangleCoords: null, flightLines: [], initialFlightLines: [], initialArea: 0, finalArea: 0 }];
+    if (f.type !== 'Polygon') return [{ ...f, originalCoords: [], expandedCoords: null, gridCoords: null, rectangleCoords: null, initialArea: 0, finalArea: 0 }];
     
     const initialArea = calculatePolygonArea(originalCoords);
     
-    const initialFlightLines = config.showRoute
-      ? generateFlightLines(
-          originalCoords,
-          altitude,
-          config.camera.sensorWidth,
-          config.camera.focalLength,
-          config.overlapSide
-        )
-      : [];
-
     const expandedCoords = config.buffer > 0 
       ? expandPolygon(originalCoords, config.buffer)
       : null;
@@ -145,65 +132,16 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       
     const finalArea = calculatePolygonArea(rectangleCoords || gridCoords || expandedCoords || originalCoords);
       
-    const flightLines = config.showRoute
-      ? generateFlightLines(
-          rectangleCoords || gridCoords || expandedCoords || originalCoords,
-          altitude,
-          config.camera.sensorWidth,
-          config.camera.focalLength,
-          config.overlapSide
-        )
-      : [];
-      
     return [{
       ...f,
       originalCoords,
       expandedCoords,
       gridCoords,
       rectangleCoords,
-      flightLines,
-      initialFlightLines,
       initialArea,
       finalArea
     }];
   }), [features, config, altitude]);
-
-  // Update stats
-  useEffect(() => {
-    let iDist = 0;
-    let fDist = 0;
-    
-    processedFeatures.forEach(f => {
-      f.initialFlightLines.forEach(line => {
-        for (let j = 0; j < line.length - 1; j++) {
-          iDist += calculateDistance(line[j], line[j + 1]);
-        }
-      });
-      f.flightLines.forEach(line => {
-        for (let j = 0; j < line.length - 1; j++) {
-          fDist += calculateDistance(line[j], line[j + 1]);
-        }
-      });
-    });
-
-    const sensorHeight = config.camera.sensorWidth * 0.66;
-    const groundSwathHeight = altitude * (sensorHeight / config.camera.focalLength);
-    const distanceBetweenPhotos = groundSwathHeight * (1 - config.overlapFront / 100);
-    
-    const speed = 10; // 10 m/s
-    
-    setInitialStats({
-      distance: iDist,
-      photoCount: distanceBetweenPhotos > 0 ? Math.ceil(iDist / distanceBetweenPhotos) : 0,
-      time: Math.ceil(iDist / (speed * 60))
-    });
-
-    setFinalStats({
-      distance: fDist,
-      photoCount: distanceBetweenPhotos > 0 ? Math.ceil(fDist / distanceBetweenPhotos) : 0,
-      time: Math.ceil(fDist / (speed * 60))
-    });
-  }, [processedFeatures, altitude, config.overlapFront]);
 
   const getTileLayer = () => {
     switch (mapProvider) {
@@ -228,9 +166,9 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     const kml = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>${projectName} - Grid Tahdit</name>
+    <name>${exportName}</name>
     <Placemark>
-      <name>Grid Tahdit</name>
+      <name>${exportName}</name>
       <Polygon>
         <outerBoundaryIs>
           <LinearRing>
@@ -246,10 +184,9 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
 
     const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
     const url = URL.createObjectURL(blob);
-    const cleanName = projectName.replace(/\.(kml|kmz)$/i, '');
     const a = document.createElement('a');
     a.href = url;
-    a.download = `GRID_${cleanName}.kml`;
+    a.download = `${exportName}.kml`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -261,102 +198,6 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       <Header title="Uçuş Planı Ekranı" onBack={onBack} />
 
       <div className="flex-1 relative z-10">
-        {/* Top Right Export Button Overlay */}
-        <div className="absolute top-6 right-6 z-[1000] pointer-events-none">
-          <button 
-            onClick={handleExport}
-            className="px-4 py-3 bg-blue-600 rounded-xl flex items-center gap-2 shadow-xl text-white font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all pointer-events-auto border border-blue-500/50"
-          >
-            <i className="fas fa-file-export"></i>
-            Tahditi Dışa Aktar
-          </button>
-        </div>
-
-        {/* Bottom Stats & Controls Overlay */}
-        <div className="absolute bottom-6 left-4 right-4 z-[1000] pointer-events-none flex items-end gap-3 justify-center">
-          {/* Controls Stacked Vertically */}
-          <div className="flex flex-col gap-2 pointer-events-auto w-[120px] shrink-0">
-            {/* GSD Control */}
-            <div className="bg-slate-100/95 backdrop-blur-md px-2 py-1.5 rounded-xl shadow-lg border border-slate-200 flex flex-col items-center">
-              <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">GSD (cm/px)</p>
-              <div className="flex items-center justify-between w-full gap-1">
-                <button 
-                  onClick={() => handleGsdChange(Number((gsd - 0.01).toFixed(2)))}
-                  className="w-5 h-5 bg-slate-200 rounded-md flex items-center justify-center text-slate-600 active:bg-blue-100"
-                >
-                  <i className="fas fa-minus text-[8px]"></i>
-                </button>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  value={gsd.toFixed(2)}
-                  onChange={(e) => handleGsdChange(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-transparent text-center text-[11px] font-black text-blue-600 mono-font focus:outline-none"
-                />
-                <button 
-                  onClick={() => handleGsdChange(Number((gsd + 0.01).toFixed(2)))}
-                  className="w-5 h-5 bg-slate-200 rounded-md flex items-center justify-center text-slate-600 active:bg-blue-100"
-                >
-                  <i className="fas fa-plus text-[8px]"></i>
-                </button>
-              </div>
-            </div>
-
-            {/* Altitude Control */}
-            <div className="bg-slate-100/95 backdrop-blur-md px-2 py-1.5 rounded-xl shadow-lg border border-slate-200 flex flex-col items-center">
-              <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Yükseklik (m)</p>
-              <div className="flex items-center justify-between w-full gap-1">
-                <button 
-                  onClick={() => handleAltitudeChange(altitude - 5)}
-                  className="w-5 h-5 bg-slate-200 rounded-md flex items-center justify-center text-slate-600 active:bg-emerald-100"
-                >
-                  <i className="fas fa-minus text-[8px]"></i>
-                </button>
-                <input 
-                  type="number" 
-                  value={altitude}
-                  onChange={(e) => handleAltitudeChange(parseInt(e.target.value) || 0)}
-                  className="w-full bg-transparent text-center text-[11px] font-black text-emerald-600 mono-font focus:outline-none"
-                />
-                <button 
-                  onClick={() => handleAltitudeChange(altitude + 5)}
-                  className="w-5 h-5 bg-slate-200 rounded-md flex items-center justify-center text-slate-600 active:bg-emerald-100"
-                >
-                  <i className="fas fa-plus text-[8px]"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats Table (Shrunk & Matched Theme) */}
-          <div className="bg-slate-100/95 backdrop-blur-md rounded-xl shadow-lg border border-slate-200 overflow-hidden pointer-events-auto w-full max-w-lg">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-200/30">
-                  <th className="px-3 py-1.5 text-[7px] font-black text-slate-400 uppercase tracking-widest">Kategori</th>
-                  <th className="px-3 py-1.5 text-[7px] font-black text-slate-400 uppercase tracking-widest text-center">Alan (ha)</th>
-                  <th className="px-3 py-1.5 text-[7px] font-black text-slate-400 uppercase tracking-widest text-center">Süre (dk)</th>
-                  <th className="px-3 py-1.5 text-[7px] font-black text-slate-400 uppercase tracking-widest text-center">Foto (ad)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-slate-100">
-                  <td className="px-3 py-1 text-[9px] font-black text-slate-500">İlk Alan</td>
-                  <td className="px-3 py-1 text-[10px] font-black text-slate-700 mono-font text-center">{processedFeatures[0]?.initialArea.toFixed(2)}</td>
-                  <td className="px-3 py-1 text-[10px] font-black text-slate-700 mono-font text-center">{initialStats.time}</td>
-                  <td className="px-3 py-1 text-[10px] font-black text-slate-700 mono-font text-center">{initialStats.photoCount}</td>
-                </tr>
-                <tr>
-                  <td className="px-3 py-1 text-[9px] font-black text-blue-600">Planlanan</td>
-                  <td className="px-3 py-1 text-[10px] font-black text-blue-600 mono-font text-center">{processedFeatures[0]?.finalArea.toFixed(2)}</td>
-                  <td className="px-3 py-1 text-[10px] font-black text-orange-600 mono-font text-center">{finalStats.time}</td>
-                  <td className="px-3 py-1 text-[10px] font-black text-emerald-600 mono-font text-center">{finalStats.photoCount}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         <MapContainer 
           center={[39, 35]} 
           zoom={6} 
@@ -404,17 +245,6 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
                       </Popup>
                     </Polygon>
                   )}
-                  
-                  {/* Flight Lines */}
-                  {f.flightLines.map((line, li) => (
-                    <Polyline 
-                      key={`line-${li}`} 
-                      positions={line.map(c => [c.lat, c.lng] as [number, number])} 
-                      color="#10b981"
-                      weight={2}
-                      opacity={0.8}
-                    />
-                  ))}
                 </React.Fragment>
               );
             }
@@ -423,7 +253,146 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
         </MapContainer>
       </div>
 
+      {/* Uçuş Bilgi Alanı */}
+      <div className="bg-slate-200 px-6 py-2 border-t border-slate-300 flex flex-col gap-2 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col items-start w-1/3">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">GSD (cm/px)</span>
+            <div className="flex items-center gap-1.5">
+               <button onClick={() => handleGsdChange(Number((gsd - 0.01).toFixed(2)))} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-blue-50"><i className="fas fa-minus text-[7px]"></i></button>
+               <span className="text-[11px] font-black text-blue-600 w-10 text-center">{gsd.toFixed(2)}</span>
+               <button onClick={() => handleGsdChange(Number((gsd + 0.01).toFixed(2)))} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-blue-50"><i className="fas fa-plus text-[7px]"></i></button>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setShowCameraModal(true)}
+            className="flex flex-col items-center w-1/3 group"
+          >
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 group-active:text-blue-500 transition-colors">Kamera</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-black text-slate-900 truncate max-w-[100px]">{currentCamera.name}</span>
+              <i className="fas fa-chevron-down text-[7px] text-slate-400"></i>
+            </div>
+          </button>
+
+          <div className="flex flex-col items-end w-1/3">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Yükseklik (m)</span>
+            <div className="flex items-center gap-1.5">
+               <button onClick={() => handleAltitudeChange(altitude - 5)} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-emerald-50"><i className="fas fa-minus text-[7px]"></i></button>
+               <span className="text-[11px] font-black text-emerald-600 w-8 text-center">{altitude}</span>
+               <button onClick={() => handleAltitudeChange(altitude + 5)} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-emerald-50"><i className="fas fa-plus text-[7px]"></i></button>
+            </div>
+          </div>
+        </div>
+        
+        <button 
+          onClick={() => setShowExportModal(true)}
+          className="w-full py-2.5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
+          <i className="fas fa-file-export"></i>
+          DIŞARI AKTAR
+        </button>
+      </div>
+
       <GlobalFooter />
+
+      {/* Camera Selection Modal */}
+      {showCameraModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 animate-in fade-in">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCameraModal(false)}></div>
+          <div className="bg-slate-100 w-full max-w-md h-[70vh] rounded-[32px] shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            <div className="p-6 shrink-0 flex items-center justify-between border-b border-slate-200">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Kamera Seçimi</h3>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Fotogrametrik Sensörler</p>
+              </div>
+              <button onClick={() => setShowCameraModal(false)} className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {CAMERAS.map(cam => (
+                <button
+                  key={cam.name}
+                  onClick={() => {
+                    handleCameraChange(cam);
+                    setShowCameraModal(false);
+                  }}
+                  className={`w-full p-4 rounded-2xl text-left transition-all border ${
+                    currentCamera.name === cam.name 
+                    ? 'bg-blue-50 border-blue-200' 
+                    : 'bg-white border-slate-100 hover:border-blue-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className={`font-black text-sm ${currentCamera.name === cam.name ? 'text-blue-600' : 'text-slate-900'}`}>{cam.name}</p>
+                    {currentCamera.name === cam.name && <i className="fas fa-check-circle text-blue-500"></i>}
+                  </div>
+                  <div className="flex gap-3 mt-1">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">SW: {cam.sensorWidth}mm</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">FL: {cam.focalLength}mm</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">RES: {cam.imageWidth}px</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            
+            <div className="p-4 bg-slate-50 shrink-0">
+              <button 
+                onClick={() => setShowCameraModal(false)}
+                className="w-full py-3.5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px]"
+              >
+                KAPAT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 animate-in fade-in">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowExportModal(false)}></div>
+          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-8 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Dışarı Aktar</h3>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 mb-6">Tahdit Dosya Adı Belirleyin</p>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Dosya Adı</label>
+                <input 
+                  type="text" 
+                  value={exportName}
+                  onChange={(e) => setExportName(e.target.value)}
+                  className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:border-blue-500"
+                  placeholder="Dosya adı giriniz..."
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setShowExportModal(false)}
+                  className="flex-1 py-4 bg-slate-200 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                >
+                  İPTAL
+                </button>
+                <button 
+                  onClick={() => {
+                    handleExport();
+                    setShowExportModal(false);
+                  }}
+                  className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-100"
+                >
+                  ONAYLA
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

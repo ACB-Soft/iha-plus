@@ -43,7 +43,6 @@ export interface FlightConfig {
   overlapFront: number;
   overlapSide: number;
   expandToRectangle: boolean;
-  showRoute: boolean;
   gcpDistance?: number;
   gcpStartOffset?: number;
   stripBuffer?: number;

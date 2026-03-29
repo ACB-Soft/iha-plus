@@ -199,7 +199,7 @@ export const expandLineToPolygon = (coords: Point[], bufferMeters: number) => {
 /**
  * Splits a line into segments of a given distance with a specified overlap.
  */
-export const splitLineByDistance = (coords: Point[], segmentLengthMeters: number, overlapMeters: number = 10) => {
+export const splitLineByDistance = (coords: Point[], segmentLengthMeters: number, overlapMeters: number = 20) => {
   if (coords.length < 2) return [coords];
 
   const line = turf.lineString(coords.map(c => [c.lng, c.lat]));
@@ -419,101 +419,4 @@ export const getSteppedGridPolygon = (
   
   result.push(result[0]); // Close the loop
   return result;
-};
-
-/**
- * Calculates distance between two points in meters using Haversine formula
- */
-export const calculateDistance = (p1: Point, p2: Point) => {
-  const R = 6371e3; // Earth radius in meters
-  const φ1 = p1.lat * Math.PI / 180;
-  const φ2 = p2.lat * Math.PI / 180;
-  const Δφ = (p2.lat - p1.lat) * Math.PI / 180;
-  const Δλ = (p2.lng - p1.lng) * Math.PI / 180;
-
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-};
-
-/**
- * Generates flight lines within a polygon, clipped to its boundaries and connected by turns.
- */
-export const generateFlightLines = (
-  polygon: Point[],
-  altitude: number,
-  sensorWidth: number,
-  focalLength: number,
-  sideOverlap: number
-) => {
-  if (polygon.length < 3) return [];
-
-  const bbox = getBoundingBox(polygon);
-  const groundSwathWidth = altitude * (sensorWidth / focalLength);
-  const spacingMeters = groundSwathWidth * (1 - sideOverlap / 100);
-  
-  const centerLat = (bbox.minLat + bbox.maxLat) / 2;
-  const centerLng = (bbox.minLng + bbox.maxLng) / 2;
-  const { lngDeg } = metersToDegrees(spacingMeters, centerLat);
-  
-  const totalWidthDeg = bbox.maxLng - bbox.minLng;
-  const numLines = Math.max(1, Math.ceil(totalWidthDeg / lngDeg));
-  
-  const totalSpanDeg = (numLines - 1) * lngDeg;
-  const startLng = centerLng - totalSpanDeg / 2;
-  
-  const path: Point[] = [];
-  
-  for (let i = 0; i < numLines; i++) {
-    const currentLng = startLng + i * lngDeg;
-    
-    // Find all intersections of the vertical line at currentLng with polygon edges
-    const intersections: number[] = [];
-    for (let j = 0; j < polygon.length; j++) {
-      const p1 = polygon[j];
-      const p2 = polygon[(j + 1) % polygon.length];
-      
-      if ((p1.lng <= currentLng && p2.lng > currentLng) || (p2.lng <= currentLng && p1.lng > currentLng)) {
-        const t = (currentLng - p1.lng) / (p2.lng - p1.lng);
-        const intersectLat = p1.lat + t * (p2.lat - p1.lat);
-        intersections.push(intersectLat);
-      }
-    }
-    
-    if (intersections.length < 2) continue;
-    
-    // Sort intersections by latitude
-    intersections.sort((a, b) => a - b);
-    
-    // Create segments (pairs of intersections)
-    // For a simple convex polygon, there will be exactly 2 intersections.
-    // For concave, there could be more.
-    const segments: [number, number][] = [];
-    for (let j = 0; j < intersections.length - 1; j += 2) {
-      segments.push([intersections[j], intersections[j + 1]]);
-    }
-    
-    // Zigzag direction: alternate up and down
-    const goingUp = i % 2 === 0;
-    
-    if (goingUp) {
-      // Add segments from bottom to top
-      for (const seg of segments) {
-        path.push({ lat: seg[0], lng: currentLng });
-        path.push({ lat: seg[1], lng: currentLng });
-      }
-    } else {
-      // Add segments from top to bottom
-      for (let j = segments.length - 1; j >= 0; j--) {
-        path.push({ lat: segments[j][1], lng: currentLng });
-        path.push({ lat: segments[j][0], lng: currentLng });
-      }
-    }
-  }
-  
-  // Return as a single continuous line (including turns)
-  return path.length > 0 ? [path] : [];
 };

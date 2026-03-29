@@ -15,6 +15,11 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
   const [gcpDistance, setGcpDistance] = useState(400);
   const [gcpStartOffset, setGcpStartOffset] = useState(10);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
+  
+  // Sync kmlData with initialKmlData when it changes
+  React.useEffect(() => {
+    setKmlData(initialKmlData || null);
+  }, [initialKmlData]);
   const [isParsing, setIsParsing] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -25,10 +30,19 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
       setIsParsing(true);
       try {
         const data = await parseKMLorKMZ(file);
+        
+        const polygonFeatures = data.features.filter(f => f.type === 'Polygon');
+        if (polygonFeatures.length !== 1) {
+          alert('HATA: YKN planı için tahdit dosyası sadece tek bir Polygon (alan) objesi içermelidir. Lütfen dosyanızı kontrol edip tekrar deneyin.');
+          setKmlData(null);
+          onKmlDataChange?.(null);
+          return;
+        }
+
         setKmlData(data);
         onKmlDataChange?.(data);
       } catch (err) {
-        alert('KML dosyası ayrıştırılamadı.');
+        alert('HATA: KML dosyası ayrıştırılamadı. Lütfen geçerli bir KML veya KMZ dosyası yüklediğinizden emin olun.');
       } finally {
         setIsParsing(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -53,7 +67,6 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
       overlapFront: 0,
       overlapSide: 0,
       expandToRectangle: false,
-      showRoute: false,
       gcpDistance,
       gcpStartOffset
     };
@@ -65,9 +78,9 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
       <Header title="YKN Planı Hazırlığı" onBack={onBack} />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-24">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
         {/* 1. KML Selection */}
-        <section className="space-y-4">
+        <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
           <div className="flex flex-col gap-3">
             <div 
@@ -90,7 +103,9 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
               </div>
               <div className="flex-1 truncate">
                 <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">{kmlData ? `${kmlData.features.length} özellik bulundu` : 'KML veya KMZ formatında'}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                  {kmlData ? '1 Polygon bulundu' : 'Sadece Polygon (Alan) tipi KML/KMZ'}
+                </p>
               </div>
             </div>
             {kmlData && (
@@ -105,7 +120,7 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
         </section>
 
         {/* 2. YKN Arası Mesafe */}
-        <section className="space-y-4">
+        <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. YKN Arası Mesafe</label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
@@ -125,7 +140,7 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
         </section>
 
         {/* 3. YKN Başlangıç Mesafesi */}
-        <section className="space-y-4">
+        <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Başlangıç Mesafesi</label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 

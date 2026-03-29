@@ -6,14 +6,25 @@ import Header from './Header';
 
 interface Props {
   onBack: () => void;
+  flightType: 'Normal' | 'Strip';
+  onFlightTypeChange: (type: 'Normal' | 'Strip') => void;
+  step: 'selection' | 'config';
+  onStepChange: (step: 'selection' | 'config') => void;
   onPlanCreated: (kmlData: KMLData, config: FlightConfig) => void;
   initialKmlData?: KMLData | null;
   onKmlDataChange?: (data: KMLData | null) => void;
 }
 
-const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange }) => {
-  const [step, setStep] = useState<'selection' | 'config'>('selection');
-  const [flightType, setFlightType] = useState<'Normal' | 'Strip'>('Normal');
+const FlightPlanConfig: React.FC<Props> = ({ 
+  onBack, 
+  flightType, 
+  onFlightTypeChange, 
+  step, 
+  onStepChange, 
+  onPlanCreated, 
+  initialKmlData, 
+  onKmlDataChange 
+}) => {
   const [selectedCamera, setSelectedCamera] = useState<Camera>(CAMERAS[0]);
   const [selectedScale, setSelectedScale] = useState(SCALES[0]);
   const [height, setHeight] = useState(100);
@@ -22,10 +33,15 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
   const [overlapFront, setOverlapFront] = useState(80);
   const [overlapSide, setOverlapSide] = useState(70);
   const [stripBuffer, setStripBuffer] = useState(50);
+  const [isStripSplitEnabled, setIsStripSplitEnabled] = useState(false);
   const [stripSplitDistance, setStripSplitDistance] = useState(1000);
   const [expandToRectangle, setExpandToRectangle] = useState(false);
-  const [showRoute, setShowRoute] = useState(false);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
+  
+  // Sync kmlData with initialKmlData when flightType or initialKmlData changes
+  React.useEffect(() => {
+    setKmlData(initialKmlData || null);
+  }, [initialKmlData, flightType]);
   const [isParsing, setIsParsing] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   
@@ -50,7 +66,7 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
         if (flightType === 'Normal') {
           const polygonFeatures = data.features.filter(f => f.type === 'Polygon');
           if (polygonFeatures.length !== 1) {
-            alert('Tahdit dosyası sadece tek bir polygon içermelidir.');
+            alert('HATA: Normal uçuş için tahdit dosyası sadece tek bir Polygon (alan) objesi içermelidir. Lütfen dosyanızı kontrol edip tekrar deneyin.');
             setKmlData(null);
             onKmlDataChange?.(null);
             return;
@@ -58,7 +74,7 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
         } else {
           const lineFeatures = data.features.filter(f => f.type === 'LineString');
           if (lineFeatures.length !== 1) {
-            alert('Tahdit dosyası sadece tek bir line veya polyline içermelidir.');
+            alert('HATA: Şeritvari uçuş için tahdit dosyası sadece tek bir LineString (çizgi) objesi içermelidir. Lütfen dosyanızı kontrol edip tekrar deneyin.');
             setKmlData(null);
             onKmlDataChange?.(null);
             return;
@@ -68,7 +84,7 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
         setKmlData(data);
         onKmlDataChange?.(data);
       } catch (err) {
-        alert('KML dosyası ayrıştırılamadı.');
+        alert('HATA: KML dosyası ayrıştırılamadı. Lütfen geçerli bir KML veya KMZ dosyası yüklediğinizden emin olun.');
       } finally {
         setIsParsing(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -96,9 +112,8 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
       overlapFront,
       overlapSide,
       expandToRectangle,
-      showRoute,
       stripBuffer: flightType === 'Strip' ? stripBuffer : undefined,
-      stripSplitDistance: flightType === 'Strip' ? stripSplitDistance : undefined
+      stripSplitDistance: (flightType === 'Strip' && isStripSplitEnabled) ? stripSplitDistance : undefined
     };
     
     onPlanCreated(kmlData, config);
@@ -112,8 +127,8 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
         <div className="flex-1 p-6 flex flex-col justify-start gap-4 pt-8">
           <button 
             onClick={() => {
-              setFlightType('Normal');
-              setStep('config');
+              onFlightTypeChange('Normal');
+              onStepChange('config');
             }}
             className="group relative bg-white p-5 rounded-[32px] border-2 border-transparent hover:border-blue-500 transition-all shadow-xl shadow-slate-300/50 active:scale-95 text-left overflow-hidden"
           >
@@ -133,8 +148,8 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
 
           <button 
             onClick={() => {
-              setFlightType('Strip');
-              setStep('config');
+              onFlightTypeChange('Strip');
+              onStepChange('config');
             }}
             className="group relative bg-white p-5 rounded-[32px] border-2 border-transparent hover:border-emerald-500 transition-all shadow-xl shadow-slate-300/50 active:scale-95 text-left overflow-hidden"
           >
@@ -161,12 +176,12 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
       <Header 
         title={flightType === 'Normal' ? 'Normal Uçuş Hazırlığı' : 'Şeritvari Uçuş Hazırlığı'} 
-        onBack={() => setStep('selection')} 
+        onBack={onBack} 
       />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* 1. Tahdit Dosyası */}
-        <section className="space-y-4">
+        <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
           <div className="flex flex-col gap-3">
             <div 
@@ -206,7 +221,7 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
         </section>
 
         {/* 2. Kamera Seçimi */}
-        <section className="space-y-4">
+        <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Kamera Seçimi</label>
           <button
             onClick={() => setShowCameraModal(true)}
@@ -228,7 +243,7 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
         {flightType === 'Normal' ? (
           <>
             {/* 3. Bindirme Oranları */}
-            <section className="space-y-4">
+            <section className="space-y-2">
               <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Bindirme Oranları</label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -251,7 +266,7 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
             </section>
 
             {/* 4. Genişletme Ayarları */}
-            <section className="space-y-6">
+            <section className="space-y-4">
               <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Genişletme Ayarları</label>
               
               <div className="space-y-3">
@@ -315,56 +330,62 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
         ) : (
           <>
             {/* 3. Uçuş Genişliği (Buffer) */}
-            <section className="space-y-4">
+            <section className="space-y-3">
               <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Uçuş Genişliği (Buffer)</label>
               <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
                   <i className="fas fa-minus text-xs"></i>
                 </button>
-                <span className="flex-1 text-center font-black text-slate-900 text-lg">{stripBuffer}m</span>
+                <div className="flex-1 text-center">
+                  <span className="block font-black text-slate-900 text-lg leading-none">{stripBuffer}metre x 2</span>
+                </div>
                 <button onClick={() => setStripBuffer(p => Math.min(500, p + 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
                   <i className="fas fa-plus text-xs"></i>
                 </button>
               </div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">
+                Toplam {stripBuffer * 2}m (Sağ/Sol)
+              </p>
             </section>
 
             {/* 4. Uçuşu Parçalara Ayır */}
-            <section className="space-y-4">
+            <section className="space-y-3">
               <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Uçuşu Parçalara Ayır</label>
-              <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                <button onClick={() => setStripSplitDistance(p => Math.max(100, p - 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
-                  <i className="fas fa-minus text-xs"></i>
-                </button>
-                <span className="flex-1 text-center font-black text-slate-900 text-lg">{stripSplitDistance}m</span>
-                <button onClick={() => setStripSplitDistance(p => Math.min(10000, p + 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
-                  <i className="fas fa-plus text-xs"></i>
-                </button>
+              <div className="flex gap-3">
+                {[false, true].map(val => (
+                  <button
+                    key={val.toString()}
+                    onClick={() => setIsStripSplitEnabled(val)}
+                    className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
+                      isStripSplitEnabled === val 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    {val ? 'EVET' : 'HAYIR'}
+                  </button>
+                ))}
               </div>
+
+              {isStripSplitEnabled && (
+                <div className="animate-in slide-in-from-top-2 duration-300 space-y-3">
+                  <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                    <button onClick={() => setStripSplitDistance(p => Math.max(100, p - 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                      <i className="fas fa-minus text-xs"></i>
+                    </button>
+                    <span className="flex-1 text-center font-black text-slate-900 text-lg">{stripSplitDistance}m</span>
+                    <button onClick={() => setStripSplitDistance(p => Math.min(10000, p + 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                      <i className="fas fa-plus text-xs"></i>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">
+                    Uçuşlar 20m overlap ile parçalara ayrılacaktır.
+                  </p>
+                </div>
+              )}
             </section>
           </>
         )}
-
-        {/* 5. Show Route */}
-        <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
-            5. Planlanan Uçuş Rotasını Göster
-          </label>
-          <div className="flex gap-3">
-            {[false, true].map(val => (
-              <button
-                key={val.toString()}
-                onClick={() => setShowRoute(val)}
-                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
-                  showRoute === val 
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                }`}
-              >
-                {val ? 'EVET' : 'HAYIR'}
-              </button>
-            ))}
-          </div>
-        </section>
 
         <div className="pt-4">
           <button 

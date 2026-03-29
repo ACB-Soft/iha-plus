@@ -13,7 +13,7 @@ import GCPPlanDisplay from './components/GCPPlanDisplay';
 import GlobalFooter from './components/GlobalFooter';
 import Header from './components/Header';
 import { SavedLocation, Coordinate, AppSettings } from './types';
-import { KMLFeature } from './components/KMLUtils';
+import { KMLFeature, KMLData } from './components/KMLUtils';
 import { FlightConfig } from './src/types/flight';
 import { geoidService } from './services/GeoidService';
 
@@ -21,7 +21,11 @@ const App = () => {
   type ViewType = 'onboarding' | 'dashboard' | 'capture' | 'list' | 'flightPlanner' | 'result' | 'help' | 'settings' | 'kmlMap' | 'flightConfig' | 'gcpMap';
   const [view, setView] = useState<ViewType>('onboarding');
   const [subView, setSubView] = useState<string | null>(null);
-  const [kmlData, setKmlData] = useState<{ name: string; features: KMLFeature[] } | null>(null);
+  const [normalKmlData, setNormalKmlData] = useState<KMLData | null>(null);
+  const [stripKmlData, setStripKmlData] = useState<KMLData | null>(null);
+  const [gcpKmlData, setGcpKmlData] = useState<KMLData | null>(null);
+  const [flightType, setFlightType] = useState<'Normal' | 'Strip'>('Normal');
+  const [flightStep, setFlightStep] = useState<'selection' | 'config'>('selection');
   const [flightConfig, setFlightConfig] = useState<FlightConfig | null>(null);
   const viewRef = React.useRef<ViewType>(view);
   const subViewRef = React.useRef<string | null>(subView);
@@ -220,21 +224,35 @@ const App = () => {
 
         {view === 'flightConfig' && (
           <FlightPlanConfig 
-            onBack={() => window.history.back()}
-            initialKmlData={kmlData}
-            onKmlDataChange={setKmlData}
+            onBack={() => {
+              if (flightStep === 'config') {
+                setFlightStep('selection');
+              } else {
+                navigateTo('dashboard');
+              }
+            }}
+            flightType={flightType}
+            onFlightTypeChange={setFlightType}
+            step={flightStep}
+            onStepChange={setFlightStep}
+            initialKmlData={flightType === 'Normal' ? normalKmlData : stripKmlData}
+            onKmlDataChange={(data) => {
+              if (flightType === 'Normal') setNormalKmlData(data);
+              else setStripKmlData(data);
+            }}
             onPlanCreated={(data, config) => {
-              setKmlData(data);
+              if (flightType === 'Normal') setNormalKmlData(data);
+              else setStripKmlData(data);
               setFlightConfig(config);
               navigateTo('kmlMap');
             }}
           />
         )}
 
-        {view === 'kmlMap' && kmlData && flightConfig && (
+        {view === 'kmlMap' && (flightType === 'Normal' ? normalKmlData : stripKmlData) && flightConfig && (
           <KMLMapView 
-            projectName={kmlData.name} 
-            features={kmlData.features} 
+            projectName={(flightType === 'Normal' ? normalKmlData : stripKmlData)!.name} 
+            features={(flightType === 'Normal' ? normalKmlData : stripKmlData)!.features} 
             config={flightConfig}
             onBack={() => window.history.back()} 
           />
@@ -264,20 +282,20 @@ const App = () => {
         {view === 'flightPlanner' && (
           <GCPPlanConfig 
             onBack={() => window.history.back()} 
-            initialKmlData={kmlData}
-            onKmlDataChange={setKmlData}
+            initialKmlData={gcpKmlData}
+            onKmlDataChange={setGcpKmlData}
             onPlanCreated={(data, config) => {
-              setKmlData(data);
+              setGcpKmlData(data);
               setFlightConfig(config);
               navigateTo('gcpMap');
             }}
           />
         )}
 
-        {view === 'gcpMap' && kmlData && flightConfig && (
+        {view === 'gcpMap' && gcpKmlData && flightConfig && (
           <GCPPlanDisplay
-            projectName={kmlData.name}
-            features={kmlData.features}
+            projectName={gcpKmlData.name}
+            features={gcpKmlData.features}
             config={flightConfig}
             onBack={() => window.history.back()}
           />
