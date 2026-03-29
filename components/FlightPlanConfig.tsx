@@ -12,6 +12,7 @@ interface Props {
 }
 
 const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange }) => {
+  const [step, setStep] = useState<'selection' | 'config'>('selection');
   const [flightType, setFlightType] = useState<'Normal' | 'Strip'>('Normal');
   const [selectedCamera, setSelectedCamera] = useState<Camera>(CAMERAS[0]);
   const [selectedScale, setSelectedScale] = useState(SCALES[0]);
@@ -103,37 +104,70 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
     onPlanCreated(kmlData, config);
   };
 
+  if (step === 'selection') {
+    return (
+      <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
+        <Header title="Uçuş Tipi Seçimi" onBack={onBack} />
+        
+        <div className="flex-1 p-6 flex flex-col justify-start gap-4 pt-8">
+          <button 
+            onClick={() => {
+              setFlightType('Normal');
+              setStep('config');
+            }}
+            className="group relative bg-white p-5 rounded-[32px] border-2 border-transparent hover:border-blue-500 transition-all shadow-xl shadow-slate-300/50 active:scale-95 text-left overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <i className="fas fa-draw-polygon text-7xl"></i>
+            </div>
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200 shrink-0">
+                <i className="fas fa-draw-polygon text-xl"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Normal Uçuş</h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-medium leading-tight">Poligon tabanlı alan uçuşu. Harita ve modelleme projeleri için idealdir.</p>
+              </div>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => {
+              setFlightType('Strip');
+              setStep('config');
+            }}
+            className="group relative bg-white p-5 rounded-[32px] border-2 border-transparent hover:border-emerald-500 transition-all shadow-xl shadow-slate-300/50 active:scale-95 text-left overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <i className="fas fa-route text-7xl"></i>
+            </div>
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
+                <i className="fas fa-route text-xl"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Şeritvari Uçuş</h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-medium leading-tight">Çizgi tabanlı koridor uçuşu. Yol, kanal ve enerji hattı projeleri için idealdir.</p>
+              </div>
+            </div>
+          </button>
+        </div>
+        <GlobalFooter />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
-      <Header title="Uçuş Planı Hazırlığı" onBack={onBack} />
+      <Header 
+        title={flightType === 'Normal' ? 'Normal Uçuş Hazırlığı' : 'Şeritvari Uçuş Hazırlığı'} 
+        onBack={() => setStep('selection')} 
+      />
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
-        {/* 1. Uçuş Tipi */}
+        {/* 1. Tahdit Dosyası */}
         <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Uçuş Tipi</label>
-          <div className="flex gap-3">
-            {[
-              { id: 'Normal', label: 'Normal Uçuş' },
-              { id: 'Strip', label: 'Şeritvari Uçuş' }
-            ].map(type => (
-              <button
-                key={type.id}
-                onClick={() => setFlightType(type.id as 'Normal' | 'Strip')}
-                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
-                  flightType === type.id 
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                }`}
-              >
-                {type.label}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* 2. Tahdit Dosyası */}
-        <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Tahdit Dosyası</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
           <div className="flex flex-col gap-3">
             <div 
               onClick={() => !kmlData && fileInputRef.current?.click()}
@@ -171,9 +205,9 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
           </div>
         </section>
 
-        {/* 3. Kamera Seçimi */}
+        {/* 2. Kamera Seçimi */}
         <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Kamera Seçimi</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Kamera Seçimi</label>
           <button
             onClick={() => setShowCameraModal(true)}
             className="w-full p-3.5 bg-slate-100 border border-slate-200 rounded-[24px] flex items-center justify-between shadow-sm hover:border-blue-300 transition-all active:scale-[0.98]"
@@ -193,9 +227,9 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
 
         {flightType === 'Normal' ? (
           <>
-            {/* 4. Bindirme Oranları */}
+            {/* 3. Bindirme Oranları */}
             <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Bindirme Oranları</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Bindirme Oranları</label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <span className="text-[10px] font-bold text-slate-500">Enine (Side)</span>
@@ -216,9 +250,9 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
               </div>
             </section>
 
-            {/* 5. Genişletme Ayarları */}
+            {/* 4. Genişletme Ayarları */}
             <section className="space-y-6">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Genişletme Ayarları</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Genişletme Ayarları</label>
               
               <div className="space-y-3">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Buffer)</span>
@@ -280,9 +314,9 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
           </>
         ) : (
           <>
-            {/* 4. Uçuş Genişliği (Buffer) */}
+            {/* 3. Uçuş Genişliği (Buffer) */}
             <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Uçuş Genişliği (Buffer)</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Uçuş Genişliği (Buffer)</label>
               <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
                   <i className="fas fa-minus text-xs"></i>
@@ -294,9 +328,9 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
               </div>
             </section>
 
-            {/* 5. Uçuşu Parçalara Ayır */}
+            {/* 4. Uçuşu Parçalara Ayır */}
             <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Uçuşu Parçalara Ayır</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Uçuşu Parçalara Ayır</label>
               <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <button onClick={() => setStripSplitDistance(p => Math.max(100, p - 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
                   <i className="fas fa-minus text-xs"></i>
@@ -310,10 +344,10 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
           </>
         )}
 
-        {/* 6. Show Route */}
+        {/* 5. Show Route */}
         <section className="space-y-4">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
-            6. Planlanan Uçuş Rotasını Göster
+            5. Planlanan Uçuş Rotasını Göster
           </label>
           <div className="flex gap-3">
             {[false, true].map(val => (
