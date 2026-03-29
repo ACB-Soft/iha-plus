@@ -167,37 +167,8 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
           const maxX = Math.max(...xCoords);
           const polyMid = (minX + maxX) / 2;
 
-          // Check neighbors
-          const prevKey = i > 0 ? sortedLatKeys[i - 1] : null;
-          const nextKey = i < sortedLatKeys.length - 1 ? sortedLatKeys[i + 1] : null;
-          const prevCount = prevKey ? rows[prevKey].length : 0;
-          const nextCount = nextKey ? rows[nextKey].length : 0;
-
-          if (prevCount === 1 && nextCount === 1) {
-            // Rule: 1-1-1 Sequence -> 120 degree zigzag
-            // Angle 120 means each segment is 60 deg from vertical
-            // dx = dy * tan(60) = dy * sqrt(3)
-            // Shift from center = dx / 2
-            const dyMeters = distanceMeters;
-            const dxMeters = dyMeters * Math.sqrt(3);
-            
-            // Convert dxMeters to degrees longitude (approximate)
-            const dxDeg = (dxMeters / 111320) / Math.cos(lat * Math.PI / 180);
-            const shift = (dxDeg / 2) * (i % 2 === 0 ? 1 : -1);
-            
-            // Apply shift but stay within polygon
-            let targetLng = polyMid + shift;
-            if (targetLng < minX + 0.00001) targetLng = minX + 0.00001;
-            if (targetLng > maxX - 0.00001) targetLng = maxX - 0.00001;
-            
-            rowPoints[0].lng = targetLng;
-          } else if (prevCount === 2 && nextCount === 2) {
-            // Rule: 2-1-2 Sequence -> Center the point
-            rowPoints[0].lng = polyMid;
-          } else {
-            // Default: Center single points if no special rule applies
-            rowPoints[0].lng = polyMid;
-          }
+          // Rule: Center single points (including top and bottom)
+          rowPoints[0].lng = polyMid;
         }
       }
     });
