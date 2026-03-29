@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, CAMERAS, SCALES, FlightConfig } from '../src/types/flight';
+import { Camera, CAMERAS, SCALES, SCALE_TARGET_GSD, FlightConfig } from '../src/types/flight';
 import { parseKMLorKMZ, KMLData } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
@@ -29,6 +29,15 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
   const [showCameraModal, setShowCameraModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update height when camera or scale changes
+  React.useEffect(() => {
+    const targetGSD = SCALE_TARGET_GSD[selectedScale];
+    if (targetGSD) {
+      const calculatedHeight = (targetGSD * selectedCamera.focalLength * selectedCamera.imageWidth) / (selectedCamera.sensorWidth * 100);
+      setHeight(Math.round(calculatedHeight));
+    }
+  }, [selectedScale, selectedCamera]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -162,9 +171,9 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
           </div>
         </section>
 
-        {/* 3. Camera Selection - Button Trigger */}
+        {/* 3. Kamera Seçimi */}
         <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Kamera (Sensör) Bilgisi</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Kamera Seçimi</label>
           <button
             onClick={() => setShowCameraModal(true)}
             className="w-full p-3.5 bg-slate-100 border border-slate-200 rounded-[24px] flex items-center justify-between shadow-sm hover:border-blue-300 transition-all active:scale-[0.98]"
@@ -182,96 +191,98 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
           </button>
         </section>
 
-        {/* 4. Overlap Ratios */}
-        <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Bindirme Oranları (%)</label>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-slate-500">Enine (Side)</span>
-              <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                <button onClick={() => setOverlapSide(p => Math.max(0, p - 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus text-xs"></i></button>
-                <span className="flex-1 text-center font-black text-slate-900 text-sm">{overlapSide}%</span>
-                <button onClick={() => setOverlapSide(p => Math.min(100, p + 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus text-xs"></i></button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-slate-500">Boyuna (Frontal)</span>
-              <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                <button onClick={() => setOverlapFront(p => Math.max(0, p - 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus text-xs"></i></button>
-                <span className="flex-1 text-center font-black text-slate-900 text-sm">{overlapFront}%</span>
-                <button onClick={() => setOverlapFront(p => Math.min(100, p + 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus text-xs"></i></button>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {flightType === 'Normal' ? (
           <>
-            {/* 5. Buffer Selection */}
+            {/* 4. Bindirme Oranları */}
             <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Tahditi Genişlet (Buffer)</label>
-              <div className="flex gap-3">
-                {[0, 5, 10, 20].map(val => (
-                  <button
-                    key={val}
-                    onClick={() => setBuffer(val)}
-                    className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
-                      buffer === val 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
-                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                    }`}
-                  >
-                    {val === 0 ? 'Hayır' : `${val}m`}
-                  </button>
-                ))}
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Bindirme Oranları</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-slate-500">Enine (Side)</span>
+                  <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                    <button onClick={() => setOverlapSide(p => Math.max(0, p - 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus text-xs"></i></button>
+                    <span className="flex-1 text-center font-black text-slate-900 text-sm">{overlapSide}%</span>
+                    <button onClick={() => setOverlapSide(p => Math.min(100, p + 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus text-xs"></i></button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-slate-500">Boyuna (Frontal)</span>
+                  <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                    <button onClick={() => setOverlapFront(p => Math.max(0, p - 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus text-xs"></i></button>
+                    <span className="flex-1 text-center font-black text-slate-900 text-sm">{overlapFront}%</span>
+                    <button onClick={() => setOverlapFront(p => Math.min(100, p + 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus text-xs"></i></button>
+                  </div>
+                </div>
               </div>
             </section>
 
-            {/* 6. Orthogonal Boundary Generation */}
-            <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">6. Tahditi Genişlet (Ortogonal)</label>
-              <div className="flex gap-3">
-                {[0, 50, 100, 200].map(val => (
-                  <button
-                    key={val}
-                    onClick={() => setExpandToGrid(val)}
-                    className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
-                      expandToGrid === val 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
-                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                    }`}
-                  >
-                    {val === 0 ? 'Hayır' : `${val}m`}
-                  </button>
-                ))}
+            {/* 5. Genişletme Ayarları */}
+            <section className="space-y-6">
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Genişletme Ayarları</label>
+              
+              <div className="space-y-3">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Buffer)</span>
+                <div className="flex gap-3">
+                  {[0, 5, 10, 20].map(val => (
+                    <button
+                      key={val}
+                      onClick={() => setBuffer(val)}
+                      className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                        buffer === val 
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                      }`}
+                    >
+                      {val === 0 ? 'Hayır' : `${val}m`}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </section>
 
-            {/* 7. Expand to Rectangle */}
-            <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">7. Tahditi Genişlet (Dikdörtgen)</label>
-              <div className="flex gap-3">
-                {[false, true].map(val => (
-                  <button
-                    key={val.toString()}
-                    onClick={() => setExpandToRectangle(val)}
-                    className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
-                      expandToRectangle === val 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
-                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                    }`}
-                  >
-                    {val ? 'EVET' : 'HAYIR'}
-                  </button>
-                ))}
+              <div className="space-y-3">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Ortogonal)</span>
+                <div className="flex gap-3">
+                  {[0, 50, 100, 200].map(val => (
+                    <button
+                      key={val}
+                      onClick={() => setExpandToGrid(val)}
+                      className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                        expandToGrid === val 
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                      }`}
+                    >
+                      {val === 0 ? 'Hayır' : `${val}m`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Dikdörtgen)</span>
+                <div className="flex gap-3">
+                  {[false, true].map(val => (
+                    <button
+                      key={val.toString()}
+                      onClick={() => setExpandToRectangle(val)}
+                      className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                        expandToRectangle === val 
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                      }`}
+                    >
+                      {val ? 'EVET' : 'HAYIR'}
+                    </button>
+                  ))}
+                </div>
               </div>
             </section>
           </>
         ) : (
           <>
-            {/* 5. Strip Buffer */}
+            {/* 4. Uçuş Genişliği (Buffer) */}
             <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Uçuş Genişliği (Buffer)</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Uçuş Genişliği (Buffer)</label>
               <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
                   <i className="fas fa-minus text-xs"></i>
@@ -283,9 +294,9 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
               </div>
             </section>
 
-            {/* 6. Strip Split Distance */}
+            {/* 5. Uçuşu Parçalara Ayır */}
             <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">6. Uçuşu Parçalara Ayır</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Uçuşu Parçalara Ayır</label>
               <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <button onClick={() => setStripSplitDistance(p => Math.max(100, p - 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
                   <i className="fas fa-minus text-xs"></i>
@@ -299,10 +310,10 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
           </>
         )}
 
-        {/* 8. Show Route */}
+        {/* 6. Show Route */}
         <section className="space-y-4">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
-            {flightType === 'Normal' ? '8.' : '7.'} Planlanan Uçuş Rotasını Göster
+            6. Planlanan Uçuş Rotasını Göster
           </label>
           <div className="flex gap-3">
             {[false, true].map(val => (

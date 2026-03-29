@@ -6,7 +6,7 @@ import { KMLData, KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { SCALE_TARGET_GSD, FlightConfig } from '../src/types/flight';
-import { getBoundingBox, expandPolygon, getGridPolygon, getSteppedGridPolygon, generateFlightLines, calculateDistance, calculatePolygonArea } from './GeometryUtils';
+import { getBoundingBox, expandPolygon, expandLineToPolygon, getGridPolygon, getSteppedGridPolygon, generateFlightLines, calculateDistance, calculatePolygonArea } from './GeometryUtils';
 
 // Fix Leaflet icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -76,9 +76,38 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
 
   // Calculate all geometry and flight lines once
   const processedFeatures = features.map(f => {
+    const originalCoords = f.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
+
+    if (f.type === 'LineString' && config.flightType === 'Strip') {
+      const buffer = config.stripBuffer || 50;
+      const expandedCoords = expandLineToPolygon(originalCoords, buffer);
+      const initialArea = calculatePolygonArea(expandedCoords);
+      
+      const flightLines = config.showRoute 
+        ? generateFlightLines(
+            expandedCoords, 
+            config.height, 
+            config.camera.sensorWidth, 
+            config.camera.focalLength, 
+            config.overlapSide
+          )
+        : [];
+
+      return {
+        ...f,
+        originalCoords,
+        expandedCoords,
+        gridCoords: null,
+        rectangleCoords: null,
+        flightLines,
+        initialFlightLines: [originalCoords],
+        initialArea,
+        finalArea: initialArea
+      };
+    }
+
     if (f.type !== 'Polygon') return { ...f, originalCoords: [], expandedCoords: null, gridCoords: null, rectangleCoords: null, flightLines: [], initialFlightLines: [], initialArea: 0, finalArea: 0 };
     
-    const originalCoords = f.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
     const initialArea = calculatePolygonArea(originalCoords);
     
     const initialFlightLines = config.showRoute
@@ -331,16 +360,24 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
           <FitBounds features={features} />
           
           {processedFeatures.map((f, i) => {
-            if (f.type === 'Polygon') {
+            if (f.type === 'Polygon' || (f.type === 'LineString' && config.flightType === 'Strip')) {
               return (
                 <React.Fragment key={i}>
-                  {/* Original Polygon (Transparent) */}
-                  <Polygon 
-                    positions={f.originalCoords.map(c => [c.lat, c.lng] as [number, number])} 
-                    color="red"
-                    fillOpacity={0.1}
-                    weight={3}
-                  />
+                  {/* Original Shape (Transparent) */}
+                  {f.type === 'Polygon' ? (
+                    <Polygon 
+                      positions={f.originalCoords.map(c => [c.lat, c.lng] as [number, number])} 
+                      color="red"
+                      fillOpacity={0.1}
+                      weight={3}
+                    />
+                  ) : (
+                    <Polyline
+                      positions={f.originalCoords.map(c => [c.lat, c.lng] as [number, number])}
+                      color="red"
+                      weight={3}
+                    />
+                  )}
                   
                   {/* Expanded, Grid or Rectangle Polygon */}
                   {(f.expandedCoords || f.gridCoords || f.rectangleCoords) && (
@@ -353,7 +390,9 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
                     >
                       <Popup>
                         <div className="font-bold">Planlanan Alan</div>
-                        <div className="text-xs">Genişletilmiş Uçuş Bölgesi</div>
+                        <div className="text-xs">
+                          {f.type === 'LineString' ? 'Şeritvari Tampon Bölge' : 'Genişletilmiş Uçuş Bölgesi'}
+                        </div>
                       </Popup>
                     </Polygon>
                   )}

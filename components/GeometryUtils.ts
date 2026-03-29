@@ -35,25 +35,37 @@ export const getBoundingBox = (coords: Point[]) => {
 export const expandPolygon = (coords: Point[], bufferMeters: number) => {
   if (bufferMeters <= 0 || coords.length < 3) return coords;
   
-  const centerLat = coords.reduce((sum, c) => sum + c.lat, 0) / coords.length;
-  const { latDeg, lngDeg } = metersToDegrees(bufferMeters, centerLat);
+  // If the polygon is closed (last point == first point), remove the last point for calculation
+  let workingCoords = [...coords];
+  const isClosed = workingCoords.length > 1 && 
+    workingCoords[0].lat === workingCoords[workingCoords.length - 1].lat && 
+    workingCoords[0].lng === workingCoords[workingCoords.length - 1].lng;
+  
+  if (isClosed) {
+    workingCoords.pop();
+  }
 
-  const n = coords.length;
+  if (workingCoords.length < 3) return coords;
+
+  const n = workingCoords.length;
   const result: Point[] = [];
+  
+  const centerLat = workingCoords.reduce((sum, c) => sum + c.lat, 0) / n;
+  const { latDeg, lngDeg } = metersToDegrees(bufferMeters, centerLat);
   
   // Determine orientation (CW or CCW) to ensure outward expansion
   let area = 0;
   for (let i = 0; i < n; i++) {
-    const p1 = coords[i];
-    const p2 = coords[(i + 1) % n];
+    const p1 = workingCoords[i];
+    const p2 = workingCoords[(i + 1) % n];
     area += (p2.lng - p1.lng) * (p2.lat + p1.lat);
   }
   const isCCW = area < 0;
 
   for (let i = 0; i < n; i++) {
-    const p1 = coords[(i - 1 + n) % n];
-    const p2 = coords[i];
-    const p3 = coords[(i + 1) % n];
+    const p1 = workingCoords[(i - 1 + n) % n];
+    const p2 = workingCoords[i];
+    const p3 = workingCoords[(i + 1) % n];
     
     // Edge vectors in "meters" (approximate)
     const v1 = { x: (p2.lng - p1.lng) / lngDeg, y: (p2.lat - p1.lat) / latDeg };
@@ -68,8 +80,6 @@ export const expandPolygon = (coords: Point[], bufferMeters: number) => {
     }
     
     // Unit normals
-    // For CCW, outward normal of (dx, dy) is (dy, -dx)
-    // For CW, outward normal of (dx, dy) is (-dy, dx)
     const sign = isCCW ? 1 : -1;
     const n1 = { x: sign * v1.y / l1, y: -sign * v1.x / l1 };
     const n2 = { x: sign * v2.y / l2, y: -sign * v2.x / l2 };
@@ -80,18 +90,14 @@ export const expandPolygon = (coords: Point[], bufferMeters: number) => {
     const bl = Math.sqrt(bx * bx + by * by);
     
     if (bl < 1e-6) {
-      // Parallel edges (180 deg turn), use normal
       result.push({ 
         lat: p2.lat + n1.y * latDeg, 
         lng: p2.lng + n1.x * lngDeg 
       });
     } else {
-      // Miter length calculation: dist = buffer / cos(half_angle_between_normals)
       const dot = n1.x * n2.x + n1.y * n2.y;
       const cosHalfAngleSq = (1.0 + dot) / 2.0;
       const miterScale = 1.0 / Math.sqrt(Math.max(cosHalfAngleSq, 0.01));
-      
-      // Limit scale to avoid extreme spikes at sharp corners
       const safeScale = Math.min(miterScale, 3);
       
       result.push({
@@ -101,7 +107,91 @@ export const expandPolygon = (coords: Point[], bufferMeters: number) => {
     }
   }
   
+  if (isClosed) {
+    result.push(result[0]);
+  }
+  
   return result;
+};
+
+/**
+ * Expands a LineString (polyline) into a Polygon using "Square Buffer" logic.
+ */
+export const expandLineToPolygon = (coords: Point[], bufferMeters: number) => {
+  if (bufferMeters <= 0 || coords.length < 2) return coords;
+
+  const n = coords.length;
+  const centerLat = coords.reduce((sum, c) => sum + c.lat, 0) / n;
+  const { latDeg, lngDeg } = metersToDegrees(bufferMeters, centerLat);
+
+  const leftSide: Point[] = [];
+  const rightSide: Point[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const pPrev = i > 0 ? coords[i - 1] : null;
+    const pCurr = coords[i];
+    const pNext = i < n - 1 ? coords[i + 1] : null;
+
+    let nx = 0, ny = 0;
+
+    if (!pPrev && pNext) {
+      // Start point: perpendicular to first segment
+      const dx = (pNext.lng - pCurr.lng) / lngDeg;
+      const dy = (pNext.lat - pCurr.lat) / latDeg;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      nx = -dy / len;
+      ny = dx / len;
+    } else if (pPrev && !pNext) {
+      // End point: perpendicular to last segment
+      const dx = (pCurr.lng - pPrev.lng) / lngDeg;
+      const dy = (pCurr.lat - pPrev.lat) / latDeg;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      nx = -dy / len;
+      ny = dx / len;
+    } else if (pPrev && pNext) {
+      // Intermediate point: average of normals (bisector)
+      const dx1 = (pCurr.lng - pPrev.lng) / lngDeg;
+      const dy1 = (pCurr.lat - pPrev.lat) / latDeg;
+      const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+      const n1x = -dy1 / len1;
+      const n1y = dx1 / len1;
+
+      const dx2 = (pNext.lng - pCurr.lng) / lngDeg;
+      const dy2 = (pNext.lat - pCurr.lat) / latDeg;
+      const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+      const n2x = -dy2 / len2;
+      const n2y = dx2 / len2;
+
+      const bx = n1x + n2x;
+      const by = n1y + n2y;
+      const bl = Math.sqrt(bx * bx + by * by);
+
+      if (bl < 1e-6) {
+        nx = n1x;
+        ny = n1y;
+      } else {
+        const dot = n1x * n2x + n1y * n2y;
+        const cosHalfAngleSq = (1.0 + dot) / 2.0;
+        const miterScale = 1.0 / Math.sqrt(Math.max(cosHalfAngleSq, 0.01));
+        const safeScale = Math.min(miterScale, 3);
+        nx = (bx / bl) * safeScale;
+        ny = (by / bl) * safeScale;
+      }
+    }
+
+    leftSide.push({
+      lat: pCurr.lat + ny * latDeg,
+      lng: pCurr.lng + nx * lngDeg
+    });
+    rightSide.push({
+      lat: pCurr.lat - ny * latDeg,
+      lng: pCurr.lng - nx * lngDeg
+    });
+  }
+
+  // Combine to form a closed polygon
+  // Start with left side, then reverse right side
+  return [...leftSide, ...rightSide.reverse(), leftSide[0]];
 };
 
 /**
