@@ -20,6 +20,8 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
   const [expandToGrid, setExpandToGrid] = useState<number>(0);
   const [overlapFront, setOverlapFront] = useState(80);
   const [overlapSide, setOverlapSide] = useState(70);
+  const [stripBuffer, setStripBuffer] = useState(50);
+  const [stripSplitDistance, setStripSplitDistance] = useState(1000);
   const [expandToRectangle, setExpandToRectangle] = useState(false);
   const [showRoute, setShowRoute] = useState(false);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
@@ -34,13 +36,25 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
       setIsParsing(true);
       try {
         const data = await parseKMLorKMZ(file);
-        const polygonFeatures = data.features.filter(f => f.type === 'Polygon');
-        if (polygonFeatures.length !== 1) {
-          alert('Tahdit dosyası sadece tek bir polygon içermelidir.');
-          setKmlData(null);
-          onKmlDataChange?.(null);
-          return;
+        
+        if (flightType === 'Normal') {
+          const polygonFeatures = data.features.filter(f => f.type === 'Polygon');
+          if (polygonFeatures.length !== 1) {
+            alert('Tahdit dosyası sadece tek bir polygon içermelidir.');
+            setKmlData(null);
+            onKmlDataChange?.(null);
+            return;
+          }
+        } else {
+          const lineFeatures = data.features.filter(f => f.type === 'LineString');
+          if (lineFeatures.length !== 1) {
+            alert('Tahdit dosyası sadece tek bir line veya polyline içermelidir.');
+            setKmlData(null);
+            onKmlDataChange?.(null);
+            return;
+          }
         }
+
         setKmlData(data);
         onKmlDataChange?.(data);
       } catch (err) {
@@ -72,7 +86,9 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
       overlapFront,
       overlapSide,
       expandToRectangle,
-      showRoute
+      showRoute,
+      stripBuffer: flightType === 'Strip' ? stripBuffer : undefined,
+      stripSplitDistance: flightType === 'Strip' ? stripSplitDistance : undefined
     };
     
     onPlanCreated(kmlData, config);
@@ -130,7 +146,9 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
               </div>
               <div className="flex-1 truncate">
                 <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">{kmlData ? `1 Polygon bulundu` : 'KML veya KMZ formatında'}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                  {kmlData ? (flightType === 'Normal' ? '1 Polygon bulundu' : '1 Çizgi bulundu') : 'KML veya KMZ formatında'}
+                </p>
               </div>
             </div>
             {kmlData && (
@@ -187,69 +205,105 @@ const FlightPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlDa
           </div>
         </section>
 
-        {/* 5. Buffer Selection */}
-        <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Tahditi Genişlet (Buffer)</label>
-          <div className="flex gap-3">
-            {[0, 5, 10, 20].map(val => (
-              <button
-                key={val}
-                onClick={() => setBuffer(val)}
-                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
-                  buffer === val 
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                }`}
-              >
-                {val === 0 ? 'Hayır' : `${val}m`}
-              </button>
-            ))}
-          </div>
-        </section>
+        {flightType === 'Normal' ? (
+          <>
+            {/* 5. Buffer Selection */}
+            <section className="space-y-4">
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Tahditi Genişlet (Buffer)</label>
+              <div className="flex gap-3">
+                {[0, 5, 10, 20].map(val => (
+                  <button
+                    key={val}
+                    onClick={() => setBuffer(val)}
+                    className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
+                      buffer === val 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    {val === 0 ? 'Hayır' : `${val}m`}
+                  </button>
+                ))}
+              </div>
+            </section>
 
-        {/* 6. Orthogonal Boundary Generation */}
-        <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">6. Tahditi Genişlet (Ortogonal)</label>
-          <div className="flex gap-3">
-            {[0, 50, 100, 200].map(val => (
-              <button
-                key={val}
-                onClick={() => setExpandToGrid(val)}
-                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
-                  expandToGrid === val 
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                }`}
-              >
-                {val === 0 ? 'Hayır' : `${val}m`}
-              </button>
-            ))}
-          </div>
-        </section>
+            {/* 6. Orthogonal Boundary Generation */}
+            <section className="space-y-4">
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">6. Tahditi Genişlet (Ortogonal)</label>
+              <div className="flex gap-3">
+                {[0, 50, 100, 200].map(val => (
+                  <button
+                    key={val}
+                    onClick={() => setExpandToGrid(val)}
+                    className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
+                      expandToGrid === val 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    {val === 0 ? 'Hayır' : `${val}m`}
+                  </button>
+                ))}
+              </div>
+            </section>
 
-        {/* 7. Expand to Rectangle */}
-        <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">7. Tahditi Genişlet (Dikdörtgen)</label>
-          <div className="flex gap-3">
-            {[false, true].map(val => (
-              <button
-                key={val.toString()}
-                onClick={() => setExpandToRectangle(val)}
-                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
-                  expandToRectangle === val 
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                }`}
-              >
-                {val ? 'EVET' : 'HAYIR'}
-              </button>
-            ))}
-          </div>
-        </section>
+            {/* 7. Expand to Rectangle */}
+            <section className="space-y-4">
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">7. Tahditi Genişlet (Dikdörtgen)</label>
+              <div className="flex gap-3">
+                {[false, true].map(val => (
+                  <button
+                    key={val.toString()}
+                    onClick={() => setExpandToRectangle(val)}
+                    className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
+                      expandToRectangle === val 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    {val ? 'EVET' : 'HAYIR'}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
+        ) : (
+          <>
+            {/* 5. Strip Buffer */}
+            <section className="space-y-4">
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">5. Uçuş Genişliği (Buffer)</label>
+              <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                  <i className="fas fa-minus text-xs"></i>
+                </button>
+                <span className="flex-1 text-center font-black text-slate-900 text-lg">{stripBuffer}m</span>
+                <button onClick={() => setStripBuffer(p => Math.min(500, p + 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                  <i className="fas fa-plus text-xs"></i>
+                </button>
+              </div>
+            </section>
+
+            {/* 6. Strip Split Distance */}
+            <section className="space-y-4">
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">6. Uçuşu Parçalara Ayır</label>
+              <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <button onClick={() => setStripSplitDistance(p => Math.max(100, p - 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                  <i className="fas fa-minus text-xs"></i>
+                </button>
+                <span className="flex-1 text-center font-black text-slate-900 text-lg">{stripSplitDistance}m</span>
+                <button onClick={() => setStripSplitDistance(p => Math.min(10000, p + 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                  <i className="fas fa-plus text-xs"></i>
+                </button>
+              </div>
+            </section>
+          </>
+        )}
 
         {/* 8. Show Route */}
         <section className="space-y-4">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">8. Planlanan Uçuş Rotasını Göster</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
+            {flightType === 'Normal' ? '8.' : '7.'} Planlanan Uçuş Rotasını Göster
+          </label>
           <div className="flex gap-3">
             {[false, true].map(val => (
               <button
