@@ -27,7 +27,7 @@ const FlightPlanConfig: React.FC<Props> = ({
 }) => {
   const [selectedCamera, setSelectedCamera] = useState<Camera>(CAMERAS[0]);
   const [selectedScale, setSelectedScale] = useState(SCALES[0]);
-  const [height, setHeight] = useState(100);
+  const [height, setHeight] = useState(150);
   const [buffer, setBuffer] = useState(0);
   const [expandToGrid, setExpandToGrid] = useState<number>(0);
   const [overlapFront, setOverlapFront] = useState(80);
@@ -43,7 +43,6 @@ const FlightPlanConfig: React.FC<Props> = ({
     setKmlData(initialKmlData || null);
   }, [initialKmlData, flightType]);
   const [isParsing, setIsParsing] = useState(false);
-  const [showCameraModal, setShowCameraModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -166,6 +165,28 @@ const FlightPlanConfig: React.FC<Props> = ({
               </div>
             </div>
           </button>
+
+          {/* KML Plus Tanıtım */}
+          <div className="mt-4 pt-4 border-t border-slate-300/50">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center mb-4">Tahdit Dosyanız Yok mu?</p>
+            
+            <button 
+              onClick={() => window.open('https://acb-soft.github.io/KML-Plus/', '_blank')}
+              className="w-full group relative bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-[32px] shadow-2xl shadow-slate-400/50 active:scale-95 text-left overflow-hidden border border-slate-700"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <img src="/kml_plus.svg" alt="" className="w-24 h-24 object-contain grayscale invert" />
+              </div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight">KML Plus</h3>
+                  <span className="px-2 py-0.5 bg-blue-500 text-[8px] font-black text-white rounded-full tracking-widest">ACB SOFTWARE</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5 font-medium leading-tight">Hızlıca KML/KMZ tahdit dosyası oluşturmak için yardımcı uygulamayı kullanın.</p>
+              </div>
+            </button>
+          </div>
         </div>
         <GlobalFooter />
       </div>
@@ -220,54 +241,11 @@ const FlightPlanConfig: React.FC<Props> = ({
           </div>
         </section>
 
-        {/* 2. Kamera Seçimi */}
-        <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Kamera Seçimi</label>
-          <button
-            onClick={() => setShowCameraModal(true)}
-            className="w-full p-3.5 bg-slate-100 border border-slate-200 rounded-[24px] flex items-center justify-between shadow-sm hover:border-blue-300 transition-all active:scale-[0.98]"
-          >
-            <div className="text-left">
-              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest leading-none mb-1">Seçili Kamera</p>
-              <p className="font-black text-slate-900 text-base leading-none">{selectedCamera.name}</p>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">
-                {selectedCamera.sensorWidth}mm Sw | {selectedCamera.focalLength}mm f | {selectedCamera.imageWidth}px
-              </p>
-            </div>
-            <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
-              <i className="fas fa-camera text-sm"></i>
-            </div>
-          </button>
-        </section>
-
         {flightType === 'Normal' ? (
           <>
-            {/* 3. Bindirme Oranları */}
-            <section className="space-y-2">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Bindirme Oranları</label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-slate-500">Enine (Side)</span>
-                  <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                    <button onClick={() => setOverlapSide(p => Math.max(0, p - 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus text-xs"></i></button>
-                    <span className="flex-1 text-center font-black text-slate-900 text-sm">{overlapSide}%</span>
-                    <button onClick={() => setOverlapSide(p => Math.min(100, p + 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus text-xs"></i></button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-slate-500">Boyuna (Frontal)</span>
-                  <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                    <button onClick={() => setOverlapFront(p => Math.max(0, p - 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-minus text-xs"></i></button>
-                    <span className="flex-1 text-center font-black text-slate-900 text-sm">{overlapFront}%</span>
-                    <button onClick={() => setOverlapFront(p => Math.min(100, p + 5))} className="w-8 h-8 bg-slate-50 rounded-xl text-slate-600"><i className="fas fa-plus text-xs"></i></button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* 4. Genişletme Ayarları */}
+            {/* 2. Genişletme Ayarları */}
             <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Genişletme Ayarları</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Genişletme Ayarları</label>
               
               <div className="space-y-3">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Buffer)</span>
@@ -329,9 +307,9 @@ const FlightPlanConfig: React.FC<Props> = ({
           </>
         ) : (
           <>
-            {/* 3. Uçuş Genişliği (Buffer) */}
+            {/* 2. Uçuş Genişliği (Buffer) */}
             <section className="space-y-3">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Uçuş Genişliği (Buffer)</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Uçuş Genişliği (Buffer)</label>
               <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
                   <i className="fas fa-minus text-xs"></i>
@@ -348,9 +326,9 @@ const FlightPlanConfig: React.FC<Props> = ({
               </p>
             </section>
 
-            {/* 4. Uçuşu Parçalara Ayır */}
+            {/* 3. Uçuşu Parçalara Ayır */}
             <section className="space-y-3">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. Uçuşu Parçalara Ayır</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Uçuşu Parçalara Ayır</label>
               <div className="flex gap-3">
                 {[false, true].map(val => (
                   <button
@@ -399,60 +377,6 @@ const FlightPlanConfig: React.FC<Props> = ({
       </div>
 
       <GlobalFooter />
-
-      {/* Camera Selection Modal */}
-      {showCameraModal && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 animate-in fade-in">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCameraModal(false)}></div>
-          <div className="bg-slate-100 w-full max-w-md h-[80vh] rounded-[32px] shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
-            <div className="p-8 shrink-0 flex items-center justify-between border-b border-slate-50">
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Kamera Seçimi</h3>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Fotogrametrik Sensörler</p>
-              </div>
-              <button onClick={() => setShowCameraModal(false)} className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-500">
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-2">
-              {CAMERAS.map(cam => (
-                <button
-                  key={cam.name}
-                  onClick={() => {
-                    setSelectedCamera(cam);
-                    setShowCameraModal(false);
-                  }}
-                  className={`w-full p-4 rounded-2xl text-left transition-all border ${
-                    selectedCamera.name === cam.name 
-                    ? 'bg-blue-50 border-blue-200' 
-                    : 'bg-slate-200 border-slate-100 hover:border-blue-100'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className={`font-black text-sm ${selectedCamera.name === cam.name ? 'text-blue-600' : 'text-slate-900'}`}>{cam.name}</p>
-                    {selectedCamera.name === cam.name && <i className="fas fa-check-circle text-blue-500"></i>}
-                  </div>
-                  <div className="flex gap-3 mt-1">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">SW: {cam.sensorWidth}mm</span>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">FL: {cam.focalLength}mm</span>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">RES: {cam.imageWidth}px</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-            
-            <div className="p-6 bg-slate-50 shrink-0">
-              <button 
-                onClick={() => setShowCameraModal(false)}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs"
-              >
-                KAPAT
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

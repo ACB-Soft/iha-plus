@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { FlightConfig } from '../src/types/flight';
+import { FlightConfig, CAMERAS } from '../src/types/flight';
 import { parseKMLorKMZ, KMLData } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
@@ -58,10 +58,10 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
 
     const config: FlightConfig = {
       flightType: 'Normal',
-      camera: { name: 'Default', sensorWidth: 0, focalLength: 0, imageWidth: 0 }, // Placeholder for GCP
+      camera: CAMERAS[0],
       scale: '1/1000',
       gsd: 0,
-      height: 0,
+      height: 150,
       buffer: 0,
       expandToGrid: 0,
       overlapFront: 0,

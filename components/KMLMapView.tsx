@@ -157,18 +157,19 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   };
 
   const handleExport = () => {
-    const feature = processedFeatures.find(f => f.type === 'Polygon');
-    if (!feature) return;
-
-    const coords = feature.rectangleCoords || feature.gridCoords || feature.expandedCoords || feature.originalCoords;
-    if (!coords || coords.length === 0) return;
+    if (processedFeatures.length === 0) return;
 
     const kml = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>${exportName}</name>
+    ${processedFeatures.map((feature, idx) => {
+      const coords = feature.rectangleCoords || feature.gridCoords || feature.expandedCoords || feature.originalCoords;
+      if (!coords || coords.length === 0) return '';
+      
+      return `
     <Placemark>
-      <name>${exportName}</name>
+      <name>${exportName}${processedFeatures.length > 1 ? `_${idx + 1}` : ''}</name>
       <Polygon>
         <outerBoundaryIs>
           <LinearRing>
@@ -178,7 +179,8 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
           </LinearRing>
         </outerBoundaryIs>
       </Polygon>
-    </Placemark>
+    </Placemark>`;
+    }).join('')}
   </Document>
 </kml>`;
 
@@ -191,6 +193,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    setShowExportModal(false);
   };
 
   return (
