@@ -1,5 +1,7 @@
 import L from 'leaflet';
 
+import * as turf from '@turf/turf';
+
 export interface Point {
   lat: number;
   lng: number;
@@ -192,6 +194,39 @@ export const expandLineToPolygon = (coords: Point[], bufferMeters: number) => {
   // Combine to form a closed polygon
   // Start with left side, then reverse right side
   return [...leftSide, ...rightSide.reverse(), leftSide[0]];
+};
+
+/**
+ * Splits a line into segments of a given distance with a specified overlap.
+ */
+export const splitLineByDistance = (coords: Point[], segmentLengthMeters: number, overlapMeters: number = 10) => {
+  if (coords.length < 2) return [coords];
+
+  const line = turf.lineString(coords.map(c => [c.lng, c.lat]));
+  const totalLength = turf.length(line, { units: 'meters' });
+
+  if (totalLength <= segmentLengthMeters) return [coords];
+
+  const segments: Point[][] = [];
+  let currentStart = 0;
+
+  while (currentStart < totalLength) {
+    let currentEnd = currentStart + segmentLengthMeters;
+    
+    // If it's not the first segment, start overlapMeters before
+    const actualStart = Math.max(0, currentStart - (segments.length > 0 ? overlapMeters : 0));
+    const actualEnd = Math.min(totalLength, currentEnd);
+
+    const sliced = turf.lineSliceAlong(line, actualStart, actualEnd, { units: 'meters' });
+    const segmentCoords = sliced.geometry.coordinates.map(c => ({ lng: c[0], lat: c[1] }));
+    
+    segments.push(segmentCoords);
+    
+    if (actualEnd >= totalLength) break;
+    currentStart = actualEnd;
+  }
+
+  return segments;
 };
 
 /**

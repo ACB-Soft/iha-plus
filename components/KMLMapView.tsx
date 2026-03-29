@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Popup, Polyline, Polygon, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -6,7 +6,7 @@ import { KMLData, KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { SCALE_TARGET_GSD, FlightConfig } from '../src/types/flight';
-import { getBoundingBox, expandPolygon, expandLineToPolygon, getGridPolygon, getSteppedGridPolygon, generateFlightLines, calculateDistance, calculatePolygonArea } from './GeometryUtils';
+import { getBoundingBox, expandPolygon, expandLineToPolygon, splitLineByDistance, getGridPolygon, getSteppedGridPolygon, generateFlightLines, calculateDistance, calculatePolygonArea } from './GeometryUtils';
 
 // Fix Leaflet icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -75,38 +75,46 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   };
 
   // Calculate all geometry and flight lines once
-  const processedFeatures = features.map(f => {
+  const processedFeatures = useMemo(() => features.flatMap(f => {
     const originalCoords = f.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
 
     if (f.type === 'LineString' && config.flightType === 'Strip') {
+      const splitDistance = config.stripSplitDistance || 1000;
       const buffer = config.stripBuffer || 50;
-      const expandedCoords = expandLineToPolygon(originalCoords, buffer);
-      const initialArea = calculatePolygonArea(expandedCoords);
       
-      const flightLines = config.showRoute 
-        ? generateFlightLines(
-            expandedCoords, 
-            config.height, 
-            config.camera.sensorWidth, 
-            config.camera.focalLength, 
-            config.overlapSide
-          )
-        : [];
+      // Split the line into segments with 10m overlap
+      const segments = splitLineByDistance(originalCoords, splitDistance, 10);
+      
+      return segments.map((segCoords, idx) => {
+        const expandedCoords = expandLineToPolygon(segCoords, buffer);
+        const initialArea = calculatePolygonArea(expandedCoords);
+        
+        const flightLines = config.showRoute 
+          ? generateFlightLines(
+              expandedCoords, 
+              altitude, 
+              config.camera.sensorWidth, 
+              config.camera.focalLength, 
+              config.overlapSide
+            )
+          : [];
 
-      return {
-        ...f,
-        originalCoords,
-        expandedCoords,
-        gridCoords: null,
-        rectangleCoords: null,
-        flightLines,
-        initialFlightLines: [originalCoords],
-        initialArea,
-        finalArea: initialArea
-      };
+        return {
+          ...f,
+          name: `${f.name} (Parça ${idx + 1})`,
+          originalCoords: segCoords,
+          expandedCoords,
+          gridCoords: null,
+          rectangleCoords: null,
+          flightLines,
+          initialFlightLines: [segCoords],
+          initialArea,
+          finalArea: initialArea
+        };
+      });
     }
 
-    if (f.type !== 'Polygon') return { ...f, originalCoords: [], expandedCoords: null, gridCoords: null, rectangleCoords: null, flightLines: [], initialFlightLines: [], initialArea: 0, finalArea: 0 };
+    if (f.type !== 'Polygon') return [{ ...f, originalCoords: [], expandedCoords: null, gridCoords: null, rectangleCoords: null, flightLines: [], initialFlightLines: [], initialArea: 0, finalArea: 0 }];
     
     const initialArea = calculatePolygonArea(originalCoords);
     
@@ -147,7 +155,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
         )
       : [];
       
-    return {
+    return [{
       ...f,
       originalCoords,
       expandedCoords,
@@ -157,8 +165,8 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       initialFlightLines,
       initialArea,
       finalArea
-    };
-  });
+    }];
+  }), [features, config, altitude]);
 
   // Update stats
   useEffect(() => {
@@ -195,7 +203,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       photoCount: distanceBetweenPhotos > 0 ? Math.ceil(fDist / distanceBetweenPhotos) : 0,
       time: Math.ceil(fDist / (speed * 60))
     });
-  }, [altitude, config.overlapSide, config.overlapFront, config.showRoute, config.buffer, config.expandToGrid, features]);
+  }, [processedFeatures, altitude, config.overlapFront]);
 
   const getTileLayer = () => {
     switch (mapProvider) {
