@@ -10,11 +10,8 @@ interface Props {
 
 const SettingsView: React.FC<Props> = ({ onBack }) => {
   const [coordinateSystem, setCoordinateSystem] = useState(localStorage.getItem('default_coord_system') || 'WGS84');
-  const [accuracyLimit, setAccuracyLimit] = useState(localStorage.getItem('default_accuracy_limit') || '5');
-  const [measurementDuration, setMeasurementDuration] = useState(localStorage.getItem('default_duration') || '5');
   const [mapProvider, setMapProvider] = useState(localStorage.getItem('default_map_provider') || 'Google Hybrid');
   const [audioEnabled, setAudioEnabled] = useState(localStorage.getItem('default_audio_feedback_enabled') !== 'false');
-  const [vibrationEnabled, setVibrationEnabled] = useState(localStorage.getItem('default_vibration_feedback_enabled') !== 'false');
   const [screenAlwaysOn, setScreenAlwaysOn] = useState(localStorage.getItem('default_screen_always_on') === 'true');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   
@@ -33,13 +30,23 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
 
   useEffect(() => {
     localStorage.setItem('default_coord_system', coordinateSystem);
-    localStorage.setItem('default_accuracy_limit', accuracyLimit);
-    localStorage.setItem('default_duration', measurementDuration);
     localStorage.setItem('default_map_provider', mapProvider);
     localStorage.setItem('default_audio_feedback_enabled', audioEnabled.toString());
-    localStorage.setItem('default_vibration_feedback_enabled', vibrationEnabled.toString());
     localStorage.setItem('default_screen_always_on', screenAlwaysOn.toString());
-  }, [coordinateSystem, accuracyLimit, measurementDuration, mapProvider, audioEnabled, vibrationEnabled, screenAlwaysOn]);
+  }, [coordinateSystem, mapProvider, audioEnabled, screenAlwaysOn]);
+
+  const handleReset = () => {
+    setModal({
+      isOpen: true,
+      title: 'Ayarları Sıfırla',
+      message: 'Tüm ayarlar varsayılan değerlerine döndürülecektir. Emin misiniz?',
+      type: 'confirm',
+      onConfirm: () => {
+        localStorage.clear();
+        window.location.reload();
+      }
+    });
+  };
 
   const handleUpdateCheck = async () => {
     if (isCheckingUpdate) return;
@@ -95,7 +102,7 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
         title={modal.title}
         type={modal.type}
         onConfirm={modal.onConfirm}
-        confirmLabel={modal.type === 'confirm' ? 'Güncelle' : undefined}
+        confirmLabel={modal.type === 'confirm' ? (modal.title === 'Ayarları Sıfırla' ? 'Sıfırla' : 'Güncelle') : undefined}
       >
         <p className="whitespace-pre-line">{modal.message}</p>
       </Modal>
@@ -112,7 +119,7 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
               <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Sistem</h3>
             </div>
             
-            <div className="soft-card p-5">
+            <div className="soft-card p-5 space-y-3">
               <button 
                 onClick={handleUpdateCheck}
                 disabled={isCheckingUpdate}
@@ -126,57 +133,17 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
                 </div>
                 {!isCheckingUpdate && <i className="fas fa-chevron-right text-blue-300 text-xs"></i>}
               </button>
-            </div>
-          </section>
 
-          {/* Ölçüm Ayarları */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                <i className="fas fa-satellite-dish"></i>
-              </div>
-              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Ölçüm Ayarları</h3>
-            </div>
-            
-            <div className="soft-card p-5 space-y-4">
-              {/* Koordinat Sistemi */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Koordinat Sistemi</label>
-                <select 
-                  value={coordinateSystem}
-                  onChange={(e) => setCoordinateSystem(e.target.value)}
-                  className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none shadow-sm"
-                >
-                  <option value="WGS84">WGS84 (Enlem-Boylam)</option>
-                  <option value="ITRF96_3">ITRF96 - 3°</option>
-                  <option value="ED50_3">ED50 - 3°</option>
-                  <option value="ED50_6">ED50 - 6°</option>
-                </select>
-              </div>
-
-              {/* Ölçüm Hassasiyeti */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hassasiyet Limiti</label>
-                <select 
-                  value={accuracyLimit}
-                  onChange={(e) => setAccuracyLimit(e.target.value)}
-                  className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none shadow-sm"
-                >
-                  {[2, 3, 5, 10, 20, 50, 100].map(v => <option key={v} value={v}>{v} metre</option>)}
-                </select>
-              </div>
-
-              {/* Ölçüm Süresi */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ölçüm Süresi</label>
-                <select 
-                  value={measurementDuration}
-                  onChange={(e) => setMeasurementDuration(e.target.value)}
-                  className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none shadow-sm"
-                >
-                  {[5, 10, 15, 20, 30].map(v => <option key={v} value={v}>{v} saniye</option>)}
-                </select>
-              </div>
+              <button 
+                onClick={handleReset}
+                className="w-full h-12 px-5 bg-rose-50 text-rose-600 rounded-2xl font-bold flex items-center justify-between shadow-sm border border-rose-100 active:scale-[0.98] transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <i className="fas fa-trash-alt"></i>
+                  <span className="text-[13px]">Ayarları Sıfırla</span>
+                </div>
+                <i className="fas fa-chevron-right text-rose-200 text-xs"></i>
+              </button>
             </div>
           </section>
 
@@ -190,6 +157,19 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
             </div>
             
             <div className="soft-card p-5 space-y-4">
+              {/* Koordinat Sistemi */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Varsayılan Koordinat Sistemi</label>
+                <select 
+                  value={coordinateSystem}
+                  onChange={(e) => setCoordinateSystem(e.target.value)}
+                  className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none shadow-sm"
+                >
+                  <option value="WGS84">WGS84 (Coğrafi)</option>
+                  <option value="UTM">UTM (Projeksiyon)</option>
+                </select>
+              </div>
+
               {/* Harita Sağlayıcısı */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Harita Sağlayıcısı</label>
@@ -208,7 +188,7 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
               <div className="flex items-center justify-between h-12 px-4 bg-slate-100 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-slate-900 leading-none">Sesli Bildirim</span>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Ölçüm Sırasında</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Uygulama İçi</span>
                 </div>
                 <button 
                   onClick={() => setAudioEnabled(!audioEnabled)}
@@ -218,25 +198,11 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
                 </button>
               </div>
 
-              {/* Titreşimli Geri Bildirim */}
-              <div className="flex items-center justify-between h-12 px-4 bg-slate-100 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-slate-900 leading-none">Titreşimli Bildirim</span>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Ölçüm Sırasında</span>
-                </div>
-                <button 
-                  onClick={() => setVibrationEnabled(!vibrationEnabled)}
-                  className={`w-12 h-6 rounded-full transition-all relative ${vibrationEnabled ? 'bg-blue-600' : 'bg-slate-300'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${vibrationEnabled ? 'right-1' : 'left-1'}`}></div>
-                </button>
-              </div>
-
               {/* Ekran Her Zaman Açık */}
               <div className="flex items-center justify-between h-12 px-4 bg-slate-100 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-slate-900 leading-none">Ekran Her Zaman Açık</span>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Ölçüm ve Aplikasyon Sırasında</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Planlama Sırasında</span>
                 </div>
                 <button 
                   onClick={() => setScreenAlwaysOn(!screenAlwaysOn)}

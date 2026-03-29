@@ -30,197 +30,46 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                 Uçuş Planı Oluştur
               </h4>
               <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
-                Saha çalışmasına başlamak için ana ekrandaki <b>"Uçuş Planı Oluştur"</b> butonuna tıklayın.
+                İnsansız Hava Araçları için profesyonel uçuş planları hazırlamak için <b>"Uçuş Planı Oluştur"</b> modülünü kullanın.
                 <br/><br/>
-                • <b>Proje Bilgisi:</b> "Yeni Uçuş Planı" ile yeni bir isim verebilir veya "KML/KMZ Yükle" ile önceki çalışmalarınıza devam edebilirsiniz.
+                • <b>Uçuş Tipleri:</b> "Normal Uçuş" (alan bazlı) veya "Şeritvari Uçuş" (koridor bazlı) seçeneklerinden projenize uygun olanı seçin.
                 <br/>
-                • <b>Koordinat Sistemi:</b> WGS84 (Enlem-Boylam), ITRF96 (3 derece), ED50 (3 derece) veya ED50 (6 derece) sistemlerinden birini seçin. Proje bir kez oluşturulduğunda sistem değiştirilemez.
+                • <b>Tahdit Dosyası:</b> Uçuş alanınızı belirleyen KML veya KMZ dosyasını yükleyin. Eğer dosyanız yoksa <b>KML Plus</b> yardımcısını kullanabilirsiniz.
                 <br/>
-                • <b>Ölçüm Süreci:</b> "Ölçümü Başlat" dediğinizde belirlediğiniz hassasiyette (2-100 m) ve belirlediğiniz sürede (5-30 sn) veri toplama süreci başlatılır. Uygulama bu aşamada konum örneği alarak verilerin ortalamasını hesaplar. En doğru sonuç için cihazı sabit bir zeminde ve açık bir alanda tutun.
+                • <b>Genişletme ve Ayarlar:</b> Uçuş hattı genişliği, emniyet mesafesi ve uçuş yönü gibi parametreleri arazinin durumuna göre özelleştirin.
                 <br/>
-                • <b>Hızlı Erişim:</b> Uygulama, ana ekrandayken GPS sinyalini arka planda hazırlamaya başlar. Bu sayede ölçüme geçtiğinizde daha hızlı sonuç alırsınız.
-              </p>
-            </div>
-
-            {/* Aplikasyon Yap */}
-            <div className="soft-card p-4 space-y-3 border-l-4 border-l-indigo-500">
-              <h4 className="font-black text-slate-900 text-base uppercase flex items-center gap-2">
-                <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs">2</span>
-                Aplikasyon Yap
-              </h4>
-              <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
-                Kayıtlı noktaları arazide fiziksel olarak bulmak için <b>"Aplikasyon Yap"</b> modülünü kullanın.
-                <br/><br/>
-                • <b>Nokta Seçimi:</b> Proje listenizden hedeflediğiniz noktayı seçin.
-                <br/>
-                • <b>Canlı Rehberlik:</b> Ekranın ortasındaki pusula benzeri gösterge size gitmeniz gereken yönü gösterir.
-                <br/>
-                • <b>Ekranı Açık Tut:</b> Aplikasyon sırasında ekranın kapanmasını önlemek için güneş/ay ikonuna tıklayarak "Ekranı Açık Tut" özelliğini aktif edebilirsiniz.
-                <br/>
-                • <b>Mesafe Takibi:</b> Hedefe olan kuş uçuşu mesafeniz (metre cinsinden) anlık olarak güncellenir. Uygulamanın metre hassasiyetinde çalıştığını unutmayın.
-                <br/>
-                • <b>Yaklaşma Modu:</b> Hedefe 5 metreden fazla yaklaştığınızda gösterge daha hassas bir "yakın çekim" moduna geçer. Mobil cihazların GPS kısıtları nedeniyle 2 metre ve altına ulaştığınızda "Hedefe Ulaşıldı" sinyali ve görsel bildirim alırsınız.
-              </p>
-            </div>
-
-            {/* Kayıtlı Projeler */}
-            <div className="soft-card p-4 space-y-3 border-l-4 border-l-indigo-500">
-              <h4 className="font-black text-slate-900 text-base uppercase flex items-center gap-2">
-                <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs">3</span>
-                Kayıtlı Projeler
-              </h4>
-              <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
-                Tüm saha verilerinizi <b>"Kayıtlı Projeler"</b> menüsünden yönetebilirsiniz.
-                <br/><br/>
-                • <b>Görüntüleme:</b> Noktalarınızı proje klasörleri altında gruplanmış şekilde görün.
-                <br/>
-                • <b>Detaylar:</b> Bir noktaya tıkladığınızda koordinatlarını, yüksekliğini, hassasiyetini ve harita üzerindeki konumunu görebilirsiniz.
-                <br/>
-                • <b>Düzenleme:</b> Gereksiz noktaları veya tüm proje klasörlerini silebilirsiniz.Projelere yeniden isim verebilirsiniz.
+                • <b>Dışarı Aktarma:</b> Hazırlanan planı KML formatında indirin. Şeritvari uçuşlarda, uçuşun parçalara ayrılması durumunda hem tam plan hem de her bir parça ayrı dosyalar olarak (örn: Proje1, Proje2...) otomatik olarak indirilir.
               </p>
             </div>
 
             {/* YKN Planı Oluştur */}
             <div className="soft-card p-4 space-y-3 border-l-4 border-l-indigo-500">
               <h4 className="font-black text-slate-900 text-base uppercase flex items-center gap-2">
-                <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs">4</span>
+                <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs">2</span>
                 YKN Planı Oluştur
               </h4>
               <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
-                Fotogrametrik uçuşlarınız için Yer Kontrol Noktası (YKN) planlaması yapmak için <b>"YKN Planı Oluştur"</b> menüsünü kullanın.
+                Fotogrametrik projeleriniz için Yer Kontrol Noktası (YKN) dağılımını optimize edin.
                 <br/><br/>
-                • <b>KML Yükleme:</b> Uçuş alanınızın tahdit dosyasını yükleyerek planlamaya başlayın.
+                • <b>GSD Hesaplama:</b> Kamera sensörü ve uçuş yüksekliğine bağlı olarak Yer Örnekleme Aralığı (GSD) otomatik hesaplanır.
                 <br/>
-                • <b>GSD Hesaplama:</b> Seçtiğiniz kamera sensörü ve uçuş yüksekliğine göre Yer Örnekleme Aralığı (GSD) otomatik hesaplanır.
+                • <b>Grid Planlama:</b> Belirlediğiniz aralıklarla (metre) çalışma alanınıza homojen YKN noktaları yerleştirin.
                 <br/>
-                • <b>Otomatik Grid:</b> Belirlediğiniz aralıklarla (metre) çalışma alanınıza otomatik YKN noktaları yerleştirin.
-                <br/>
-                • <b>Manuel Düzenleme:</b> Harita üzerindeki noktaları sürükleyerek en uygun konuma yerleştirin ve KML olarak dışa aktarın.
+                • <b>Manuel Düzenleme:</b> Harita üzerindeki noktaları sürükleyerek arazi şartlarına en uygun konuma yerleştirin.
               </p>
             </div>
-          </div>
-        </section>
 
-        {/* Hassasiyet İpuçları */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
-              <i className="fas fa-signal"></i>
-            </div>
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Hassasiyet İpuçları</h3>
-          </div>
-          
-          <div className="soft-card p-6 space-y-4 border-l-4 border-l-amber-500">
-            <div className="flex gap-4">
-              <i className="fas fa-cloud-sun text-amber-600 mt-1 text-lg"></i>
-              <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify">
-                <b>Açık Gökyüzü:</b> En iyi sonuçlar için binalardan, ağaçlardan ve metal yapılardan uzak, gökyüzünü doğrudan gören alanlarda ölçüm yapın.
+            {/* KML Plus Entegrasyonu */}
+            <div className="soft-card p-4 space-y-3 border-l-4 border-l-indigo-500">
+              <h4 className="font-black text-slate-900 text-base uppercase flex items-center gap-2">
+                <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs">3</span>
+                KML Plus Desteği
+              </h4>
+              <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
+                Uçuş planı için gerekli olan tahdit dosyasını (KML/KMZ) hazırlamak için <b>ACB Software</b> tarafından geliştirilen <b>KML Plus</b> uygulamasını kullanabilirsiniz.
+                <br/><br/>
+                • Uçuş tipi seçimi ekranındaki butona tıklayarak yardımcı uygulamaya hızlıca erişebilirsiniz.
               </p>
-            </div>
-            <div className="flex gap-4">
-              <i className="fas fa-mobile-alt text-amber-600 mt-1 text-lg"></i>
-              <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify">
-                <b>Bekleme Süresi:</b> Uygulamayı açtıktan sonra GPS sinyalinin "oturması" için yaklaşık 30 saniye beklemek hassasiyeti 2-5 metreye kadar düşürebilir.
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <i className="fas fa-battery-three-quarters text-amber-600 mt-1 text-lg"></i>
-              <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify">
-                <b>Güç Modu:</b> Cihazınızın "Düşük Güç Modu"nda olmaması gerekir, çünkü bu mod GPS güncelleme sıklığını azaltabilir.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Konum Teknolojisi */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-slate-300">
-              <i className="fas fa-satellite-dish"></i>
-            </div>
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Konum Teknolojisi</h3>
-          </div>
-          
-          <div className="soft-card p-6 space-y-4 border-l-4 border-l-slate-700">
-            <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify mb-4">
-              Uygulama, en yüksek hassasiyeti sağlamak için <b>Hibrit (Karma) Konumlama</b> teknolojisini kullanır. Bu teknoloji, aşağıdaki 4 kaynağı birleştirerek çalışır:
-            </p>
-            
-            <div className="space-y-4">
-              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <i className="fas fa-satellite text-indigo-600"></i>
-                  <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">1. GNSS (Uydu)</h4>
-                </div>
-                <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                  GPS, GLONASS, Galileo ve BeiDou uydularından gelen sinyalleri kullanır. Açık alanda hassas (±2m) konum verisi sağlar.
-                </p>
-              </div>
-
-              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <i className="fas fa-broadcast-tower text-indigo-600"></i>
-                  <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">2. Baz İstasyonları</h4>
-                </div>
-                <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                  Uyduların görülemediği kapalı alanlarda veya tünellerde, telefonunuzun bağlı olduğu baz istasyonlarına göre yaklaşık konum belirler.
-                </p>
-              </div>
-
-              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <i className="fas fa-wifi text-indigo-600"></i>
-                  <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">3. Wi-Fi Ağları</h4>
-                </div>
-                <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                  Şehir içinde bina aralarında, çevredeki kablosuz ağların sinyal gücünü kullanarak konumu keskinleştirir (IPS).
-                </p>
-              </div>
-
-              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <i className="fas fa-bolt text-indigo-600"></i>
-                  <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">4. A-GPS (İnternet)</h4>
-                </div>
-                <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                  İnternet üzerinden güncel uydu yörünge verilerini (almanak) indirerek, GPS'in saniyeler içinde kilitlenmesini (Fix) sağlar.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Teknik Bilgiler */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-white shadow-lg shadow-slate-400">
-              <i className="fas fa-microchip"></i>
-            </div>
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Teknik Altyapı</h3>
-          </div>
-          
-          <div className="bg-slate-100 border border-slate-200 rounded-2xl p-6 space-y-6 shadow-inner">
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-base font-black text-indigo-700 uppercase tracking-tight mb-1">ED50 Dönüşümü</h4>
-                <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify">
-                  WGS84 ile ED50 (European Datum 1950) arasındaki dönüşümler, Türkiye geneli için optimize edilmiş 7 Parametreli (dX, dY, dZ, Rx, Ry, Rz, dS "HGM/EPSG Standartları") Helmert Dönüşümü kullanılarak yapılmaktadır.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="text-base font-black text-indigo-700 uppercase tracking-tight mb-1">ITRF96 Dönüşümü</h4>
-                <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify">
-                  ITRF96 (GRS80 Elipsoidi) koordinatları, Transversal Mercator (TM) projeksiyonu ile hesaplanmaktadır. 3° dilim genişliği ve dilim orta meridyenleri (DOM) otomatik belirlenir.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="text-base font-black text-indigo-700 uppercase tracking-tight mb-1">Düşey Datum (Yükseklik)</h4>
-                <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify">
-                  Ortometrik yükseklik (H), GPS'ten alınan Elipsoid yüksekliğinden (h), TG-20 Jeoid Modeli ondülasyon değeri (N) çıkarılarak hesaplanır.
-                </p>
-              </div>
             </div>
           </div>
         </section>
@@ -235,7 +84,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
           </div>
           <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6">
             <p className="text-emerald-900 text-sm leading-relaxed font-medium text-justify">
-              Verileriniz tamamen cihazınızda saklanır. Uygulama, konum verilerinizi hiçbir uzak sunucuya göndermez. Mobil cihazınızdan uygulamayı sildiğinizde veya tarayıcı önbelliğini temizlediğinizde cihazınızdaki veriler de silinecektir. Ölçüm sonrası verilerinizi yedeklemeyi unutmayın.
+              Verileriniz tamamen cihazınızda saklanır. Uygulama, konum verilerinizi hiçbir uzak sunucuya göndermez. Mobil cihazınızdan uygulamayı sildiğinizde veya tarayıcı önbelliğini temizlediğinizde cihazınızdaki veriler de silinecektir. Planlama sonrası verilerinizi yedeklemeyi unutmayın.
             </p>
           </div>
         </section>
@@ -273,15 +122,6 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                 <span className="text-xs font-bold text-slate-900">Mobil Cihazın GPS Verisi (WGS84 Format)</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Koordinat Dönüşümleri</span>
-                <span className="text-xs font-bold text-slate-900">Custom Helmert & TM Projection Formulas (HGM/EPSG Standards)</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Jeoid Modeli</span>
-                <span className="text-xs font-bold text-slate-900">TG-20 (Çözünürlük: 5'x5')</span>
-                <span className="text-xs font-bold text-slate-900">EGM96 (Çözünürlük: 5'x5')</span>
-              </div>
-              <div className="flex flex-col">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Harita Servisleri</span>
                 <span className="text-xs font-bold text-slate-900">Leaflet JS Open-Source Library</span>
                 <span className="text-xs font-bold text-slate-900">Google Maps API (Satellite/Hybrid)</span>
@@ -289,8 +129,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Yazılım Kütüphaneleri</span>
-                <span className="text-xs font-bold text-slate-900">Proj4js (Coordinate Transformations)</span>
-                <span className="text-xs font-bold text-slate-900">SheetJS & JSZip (Data Export Services)</span>
+                <span className="text-xs font-bold text-slate-900">JSZip (Data Export Services)</span>
                 <span className="text-xs font-bold text-slate-900">Lucide React & Font Awesome (Icons)</span>
               </div>
             </div>
@@ -298,7 +137,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
         </section>
 
         {/* Hakkında */}
-        <section className="space-y-4 pb-10">
+        <section className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-white shadow-lg shadow-slate-400">
               <i className="fas fa-info-circle"></i>
@@ -307,12 +146,35 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
           </div>
           <div className="soft-card p-6 space-y-4">
             <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify">
-              Bu uygulama, saha çalışmalarında hızlı ve pratik koordinat ölçümü, aplikasyon ve veri yönetimi sağlamak amacıyla geliştirilmiştir. Uygulama ile ilgili herhangi bir sorun yaşıyorsanız veya bir özellik isteğiniz varsa e-posta yoluyla iletişime geçebilirsiniz.
+              Bu uygulama, İHA saha çalışmalarında hızlı ve pratik uçuş planlama ve YKN yönetimi sağlamak amacıyla geliştirilmiştir. Uygulama ile ilgili herhangi bir sorun yaşıyorsanız veya bir özellik isteğiniz varsa e-posta yoluyla iletişime geçebilirsiniz.
             </p>
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">İletişim</span>
-              <span className="text-xs font-bold text-slate-900">e-posta@e-posta</span>
+              <span className="text-xs font-bold text-slate-900">info@ihaplus.app</span>
             </div>
+          </div>
+        </section>
+
+        {/* Sürüm Notları */}
+        <section className="space-y-4 pb-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+              <i className="fas fa-list-ul"></i>
+            </div>
+            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Sürüm Notları</h3>
+          </div>
+          <div className="soft-card p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-black text-slate-900">v1.2</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Mart 2026</span>
+            </div>
+            <ul className="text-xs text-slate-600 space-y-2 list-disc ml-4 font-medium">
+              <li>Uçuş planlama motoru optimize edildi.</li>
+              <li>Kullanılmayan modüller kaldırılarak uygulama boyutu küçültüldü.</li>
+              <li>Ayarlar sayfasına "Sıfırla" özelliği eklendi.</li>
+              <li>KML dışa aktarma performansı iyileştirildi.</li>
+              <li>Arayüz iyileştirmeleri ve hata düzeltmeleri yapıldı.</li>
+            </ul>
           </div>
         </section>
       </div>

@@ -1,24 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
-import PointMeasurement from './components/PointMeasurement';
-import SavedLocationsList from './components/SavedLocationsList';
 import GCPPlanConfig from './components/GCPPlanConfig';
-import ResultCard from './components/ResultCard';
 import HelpView from './components/HelpView';
 import SettingsView from './components/SettingsView';
 import KMLMapView from './components/KMLMapView';
 import FlightPlanConfig from './components/FlightPlanConfig';
 import GCPPlanDisplay from './components/GCPPlanDisplay';
 import GlobalFooter from './components/GlobalFooter';
-import Header from './components/Header';
-import { SavedLocation, Coordinate, AppSettings } from './types';
-import { KMLFeature, KMLData } from './components/KMLUtils';
+import { AppSettings } from './types';
+import { KMLData } from './components/KMLUtils';
 import { FlightConfig } from './src/types/flight';
-import { geoidService } from './services/GeoidService';
 
 const App = () => {
-  type ViewType = 'onboarding' | 'dashboard' | 'capture' | 'list' | 'flightPlanner' | 'result' | 'help' | 'settings' | 'kmlMap' | 'flightConfig' | 'gcpMap';
+  type ViewType = 'onboarding' | 'dashboard' | 'flightPlanner' | 'help' | 'settings' | 'kmlMap' | 'flightConfig' | 'gcpMap';
   const [view, setView] = useState<ViewType>('onboarding');
   const [subView, setSubView] = useState<string | null>(null);
   const [normalKmlData, setNormalKmlData] = useState<KMLData | null>(null);
@@ -36,16 +31,8 @@ const App = () => {
     subViewRef.current = subView;
   }, [view, subView]);
 
-  const [locations, setLocations] = useState<SavedLocation[]>([]);
-  const [lastResult, setLastResult] = useState<SavedLocation | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [resultSource, setResultSource] = useState<'capture' | 'list'>('capture');
-  const [autoShowMap, setAutoShowMap] = useState(false);
-  const [isContinuing, setIsContinuing] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(() => ({
     defaultCoordinateSystem: localStorage.getItem('default_coord_system') || 'WGS84',
-    defaultAccuracyLimit: parseFloat(localStorage.getItem('default_accuracy_limit') || '5'),
-    defaultMeasurementDuration: parseInt(localStorage.getItem('default_duration') || '5'),
     alertsEnabled: localStorage.getItem('default_audio_feedback_enabled') !== 'false',
     screenAlwaysOn: localStorage.getItem('default_screen_always_on') === 'true',
     mapProvider: localStorage.getItem('default_map_provider') || 'Google Hybrid',
@@ -76,8 +63,6 @@ const App = () => {
   };
 
   useEffect(() => {
-    geoidService.initialize();
-
     // Always start with onboarding as requested
     setView('onboarding');
     setSubView(null);
@@ -98,69 +83,9 @@ const App = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  useEffect(() => {
-    const CURRENT_KEY = 'iha_locations_v1.1';
-    const PREV_KEY = 'gps_locations_v5.0';
-    const OLD_KEY = 'gps_locations_v7.8.8';
-    
-    let saved = localStorage.getItem(CURRENT_KEY);
-    if (!saved) {
-      const prevData = localStorage.getItem(PREV_KEY);
-      if (prevData) {
-        localStorage.setItem(CURRENT_KEY, prevData);
-        saved = prevData;
-      } else {
-        const oldData = localStorage.getItem(OLD_KEY);
-        if (oldData) {
-          localStorage.setItem(CURRENT_KEY, oldData);
-          saved = oldData;
-        }
-      }
-    }
-    
-    if (saved) setLocations(JSON.parse(saved));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('iha_locations_v1.1', JSON.stringify(locations));
-  }, [locations]);
-
   const handleFinishOnboarding = () => {
-    localStorage.setItem('onboarding_v1.1_done', 'true');
+    localStorage.setItem('onboarding_v1.2_done', 'true');
     navigateTo('dashboard');
-  };
-
-  const handleGPSComplete = (coord: Coordinate, folderName: string, pointName: string, description: string, coordinateSystem: string) => {
-    const newLoc: SavedLocation = {
-      ...coord,
-      id: Date.now().toString(),
-      name: pointName,
-      folderName: folderName,
-      description: description,
-      coordinateSystem: coordinateSystem
-    };
-    setLocations(prev => [newLoc, ...prev]);
-    setLastResult(newLoc);
-    setAutoShowMap(false);
-    setResultSource('capture');
-    navigateTo('result');
-  };
-
-  const resetToDashboard = () => {
-    setIsContinuing(false);
-    navigateTo('dashboard');
-  };
-
-  const handleNewMeasurement = (continuing: boolean) => {
-    setIsContinuing(continuing);
-    navigateTo('capture', continuing ? 'READY' : 'SELECT_MODE');
-  };
-
-  const handleViewOnMap = (l: SavedLocation) => {
-    setLastResult(l);
-    setAutoShowMap(true);
-    setResultSource('list');
-    navigateTo('result');
   };
 
   return (
@@ -178,7 +103,6 @@ const App = () => {
           <div className="flex-1 flex flex-col overflow-y-auto h-full no-scrollbar">
             <Dashboard 
               onStartFlightConfig={() => navigateTo('flightConfig')} 
-              onShowList={() => navigateTo('list')}
               onShowFlightPlanner={() => navigateTo('flightPlanner')}
               onShowHelp={() => navigateTo('help')}
               onShowSettings={() => navigateTo('settings')}
@@ -197,8 +121,6 @@ const App = () => {
               // Refresh settings when coming back from settings
               setSettings({
                 defaultCoordinateSystem: localStorage.getItem('default_coord_system') || 'WGS84',
-                defaultAccuracyLimit: parseFloat(localStorage.getItem('default_accuracy_limit') || '5'),
-                defaultMeasurementDuration: parseInt(localStorage.getItem('default_duration') || '5'),
                 alertsEnabled: localStorage.getItem('default_audio_feedback_enabled') !== 'false',
                 screenAlwaysOn: localStorage.getItem('default_screen_always_on') === 'true',
                 mapProvider: localStorage.getItem('default_map_provider') || 'Google Hybrid',
@@ -206,20 +128,6 @@ const App = () => {
               window.history.back();
             }} 
           />
-        )}
-
-        {view === 'capture' && (
-          <div className="flex-1 flex flex-col overflow-y-auto h-full">
-            <PointMeasurement 
-              existingLocations={locations}
-              onComplete={handleGPSComplete}
-              onCancel={() => window.history.back()}
-              isContinuing={isContinuing}
-              currentStep={subView as any}
-              onNavigate={(step) => navigateTo('capture', step)}
-              onStartFlightConfig={() => navigateTo('flightConfig')}
-            />
-          </div>
         )}
 
         {view === 'flightConfig' && (
@@ -258,27 +166,6 @@ const App = () => {
           />
         )}
 
-        {view === 'list' && (
-          <div className="flex-1 flex flex-col animate-in h-full overflow-y-auto no-scrollbar bg-slate-200">
-            <Header title="Kayıtlı Projeler" onBack={() => window.history.back()} />
-            <div className="px-8 pt-4 pb-4 w-full">
-              <div className="max-w-sm mx-auto w-full">
-                <SavedLocationsList 
-                  locations={locations} 
-                  onDelete={(id) => setLocations(prev => prev.filter(l => l.id !== id))}
-                onDeleteFolder={(name) => setLocations(prev => prev.filter(l => l.folderName !== name))}
-                onRenameFolder={(oldName, newName) => setLocations(prev => prev.map(l => 
-                  l.folderName === oldName ? { ...l, folderName: newName } : l
-                ))}
-                onBulkDelete={(ids) => setLocations(prev => prev.filter(l => !ids.includes(l.id)))}
-                onViewOnMap={handleViewOnMap}
-              />
-            </div>
-            </div>
-            <GlobalFooter />
-          </div>
-        )}
-
         {view === 'flightPlanner' && (
           <GCPPlanConfig 
             onBack={() => window.history.back()} 
@@ -299,33 +186,6 @@ const App = () => {
             config={flightConfig}
             onBack={() => window.history.back()}
           />
-        )}
-
-        {view === 'result' && lastResult && (
-          <div className="flex-1 flex flex-col animate-in h-full overflow-y-auto no-scrollbar bg-slate-200 px-8">
-            <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full pt-8">
-              <ResultCard 
-                location={lastResult} 
-                initialShowMap={autoShowMap} 
-                onCloseMap={resultSource === 'list' ? () => window.history.back() : undefined}
-              />
-              <div className="mt-8 space-y-4">
-                 <button 
-                   onClick={() => handleNewMeasurement(true)} 
-                   className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-2xl shadow-indigo-200 active:scale-95 transition-all text-[13px] uppercase tracking-[0.2em] leading-none"
-                 >
-                   YENİ NOKTA EKLE
-                 </button>
-                 <button 
-                   onClick={resetToDashboard} 
-                   className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] transition-all leading-none shadow-xl shadow-slate-300"
-                 >
-                   ÖLÇÜMÜ BİTİR
-                 </button>
-              </div>
-            </div>
-            <GlobalFooter noPadding={true} />
-          </div>
         )}
 
       </div>
