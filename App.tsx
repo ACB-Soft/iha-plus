@@ -32,9 +32,6 @@ const App = () => {
   }, [view, subView]);
 
   const [settings, setSettings] = useState<AppSettings>(() => ({
-    defaultCoordinateSystem: localStorage.getItem('default_coord_system') || 'WGS84',
-    alertsEnabled: localStorage.getItem('default_audio_feedback_enabled') !== 'false',
-    screenAlwaysOn: localStorage.getItem('default_screen_always_on') === 'true',
     mapProvider: localStorage.getItem('default_map_provider') || 'Google Hybrid',
   }));
 
@@ -120,9 +117,6 @@ const App = () => {
             onBack={() => {
               // Refresh settings when coming back from settings
               setSettings({
-                defaultCoordinateSystem: localStorage.getItem('default_coord_system') || 'WGS84',
-                alertsEnabled: localStorage.getItem('default_audio_feedback_enabled') !== 'false',
-                screenAlwaysOn: localStorage.getItem('default_screen_always_on') === 'true',
                 mapProvider: localStorage.getItem('default_map_provider') || 'Google Hybrid',
               });
               window.history.back();

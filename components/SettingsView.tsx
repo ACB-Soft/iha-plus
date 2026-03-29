@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { APP_VERSION, FULL_BRAND } from '../version';
+import { APP_VERSION } from '../version';
 import GlobalFooter from './GlobalFooter';
 import Modal from './Modal';
 import Header from './Header';
@@ -9,10 +9,7 @@ interface Props {
 }
 
 const SettingsView: React.FC<Props> = ({ onBack }) => {
-  const [coordinateSystem, setCoordinateSystem] = useState(localStorage.getItem('default_coord_system') || 'WGS84');
   const [mapProvider, setMapProvider] = useState(localStorage.getItem('default_map_provider') || 'Google Hybrid');
-  const [audioEnabled, setAudioEnabled] = useState(localStorage.getItem('default_audio_feedback_enabled') !== 'false');
-  const [screenAlwaysOn, setScreenAlwaysOn] = useState(localStorage.getItem('default_screen_always_on') === 'true');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   
   const [modal, setModal] = useState<{
@@ -29,24 +26,8 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
   });
 
   useEffect(() => {
-    localStorage.setItem('default_coord_system', coordinateSystem);
     localStorage.setItem('default_map_provider', mapProvider);
-    localStorage.setItem('default_audio_feedback_enabled', audioEnabled.toString());
-    localStorage.setItem('default_screen_always_on', screenAlwaysOn.toString());
-  }, [coordinateSystem, mapProvider, audioEnabled, screenAlwaysOn]);
-
-  const handleReset = () => {
-    setModal({
-      isOpen: true,
-      title: 'Ayarları Sıfırla',
-      message: 'Tüm ayarlar varsayılan değerlerine döndürülecektir. Emin misiniz?',
-      type: 'confirm',
-      onConfirm: () => {
-        localStorage.clear();
-        window.location.reload();
-      }
-    });
-  };
+  }, [mapProvider]);
 
   const handleUpdateCheck = async () => {
     if (isCheckingUpdate) return;
@@ -102,7 +83,7 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
         title={modal.title}
         type={modal.type}
         onConfirm={modal.onConfirm}
-        confirmLabel={modal.type === 'confirm' ? (modal.title === 'Ayarları Sıfırla' ? 'Sıfırla' : 'Güncelle') : undefined}
+        confirmLabel={modal.type === 'confirm' ? 'Güncelle' : undefined}
       >
         <p className="whitespace-pre-line">{modal.message}</p>
       </Modal>
@@ -133,43 +114,19 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
                 </div>
                 {!isCheckingUpdate && <i className="fas fa-chevron-right text-blue-300 text-xs"></i>}
               </button>
-
-              <button 
-                onClick={handleReset}
-                className="w-full h-12 px-5 bg-rose-50 text-rose-600 rounded-2xl font-bold flex items-center justify-between shadow-sm border border-rose-100 active:scale-[0.98] transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <i className="fas fa-trash-alt"></i>
-                  <span className="text-[13px]">Ayarları Sıfırla</span>
-                </div>
-                <i className="fas fa-chevron-right text-rose-200 text-xs"></i>
-              </button>
             </div>
           </section>
 
-          {/* Görünüm ve Bildirim Ayarları */}
+          {/* Görünüm Ayarları */}
           <section className="space-y-3 pb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                <i className="fas fa-bell"></i>
+                <i className="fas fa-map"></i>
               </div>
-              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Görünüm & Bildirim</h3>
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Görünüm</h3>
             </div>
             
             <div className="soft-card p-5 space-y-4">
-              {/* Koordinat Sistemi */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Varsayılan Koordinat Sistemi</label>
-                <select 
-                  value={coordinateSystem}
-                  onChange={(e) => setCoordinateSystem(e.target.value)}
-                  className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none shadow-sm"
-                >
-                  <option value="WGS84">WGS84 (Coğrafi)</option>
-                  <option value="UTM">UTM (Projeksiyon)</option>
-                </select>
-              </div>
-
               {/* Harita Sağlayıcısı */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Harita Sağlayıcısı</label>
@@ -182,34 +139,6 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
                   <option value="Google Satellite">Google Satellite</option>
                   <option value="OpenTopoMap">OpenTopoMap</option>
                 </select>
-              </div>
-
-              {/* Sesli Geri Bildirim */}
-              <div className="flex items-center justify-between h-12 px-4 bg-slate-100 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-slate-900 leading-none">Sesli Bildirim</span>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Uygulama İçi</span>
-                </div>
-                <button 
-                  onClick={() => setAudioEnabled(!audioEnabled)}
-                  className={`w-12 h-6 rounded-full transition-all relative ${audioEnabled ? 'bg-blue-600' : 'bg-slate-300'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${audioEnabled ? 'right-1' : 'left-1'}`}></div>
-                </button>
-              </div>
-
-              {/* Ekran Her Zaman Açık */}
-              <div className="flex items-center justify-between h-12 px-4 bg-slate-100 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-slate-900 leading-none">Ekran Her Zaman Açık</span>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Planlama Sırasında</span>
-                </div>
-                <button 
-                  onClick={() => setScreenAlwaysOn(!screenAlwaysOn)}
-                  className={`w-12 h-6 rounded-full transition-all relative ${screenAlwaysOn ? 'bg-blue-600' : 'bg-slate-300'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${screenAlwaysOn ? 'right-1' : 'left-1'}`}></div>
-                </button>
               </div>
             </div>
           </section>
