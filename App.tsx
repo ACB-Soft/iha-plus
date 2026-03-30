@@ -13,19 +13,7 @@ import { KMLData } from './components/KMLUtils';
 import { FlightConfig } from './src/types/flight';
 
 const getInitialSettings = (): AppSettings => ({
-  mapProvider: localStorage.getItem('default_map_provider') || 'Google Satellite',
-  flightPlan: {
-    defaultHeight: Number(localStorage.getItem('fp_default_height')) || 150,
-    defaultBuffer: Number(localStorage.getItem('fp_default_buffer')) || 0,
-    defaultExpandToGrid: Number(localStorage.getItem('fp_default_expand_to_grid')) || 0,
-    defaultExpandToRectangle: localStorage.getItem('fp_default_expand_to_rectangle') === 'true',
-    defaultStripBuffer: Number(localStorage.getItem('fp_default_strip_buffer')) || 50,
-    defaultStripSplitDistance: Number(localStorage.getItem('fp_default_strip_split_distance')) || 1000,
-  },
-  gcpPlan: {
-    defaultDistance: Number(localStorage.getItem('gcp_default_distance')) || 400,
-    defaultStartOffset: Number(localStorage.getItem('gcp_default_start_offset')) || 10,
-  }
+  mapProvider: localStorage.getItem('default_map_provider') || 'Google Satellite'
 });
 
 const App = () => {

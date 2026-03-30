@@ -30,15 +30,15 @@ const FlightPlanConfig: React.FC<Props> = ({
 }) => {
   const [selectedCamera, setSelectedCamera] = useState<Camera>(CAMERAS[0]);
   const [selectedScale, setSelectedScale] = useState(SCALES[0]);
-  const [height, setHeight] = useState(settings.flightPlan.defaultHeight);
-  const [buffer, setBuffer] = useState(settings.flightPlan.defaultBuffer);
-  const [expandToGrid, setExpandToGrid] = useState<number>(settings.flightPlan.defaultExpandToGrid);
+  const [height, setHeight] = useState(150);
+  const [buffer, setBuffer] = useState(0);
+  const [expandToGrid, setExpandToGrid] = useState<number>(0);
   const [overlapFront, setOverlapFront] = useState(80);
   const [overlapSide, setOverlapSide] = useState(70);
-  const [stripBuffer, setStripBuffer] = useState(settings.flightPlan.defaultStripBuffer);
+  const [stripBuffer, setStripBuffer] = useState(50);
   const [isStripSplitEnabled, setIsStripSplitEnabled] = useState(false);
-  const [stripSplitDistance, setStripSplitDistance] = useState(settings.flightPlan.defaultStripSplitDistance);
-  const [expandToRectangle, setExpandToRectangle] = useState(settings.flightPlan.defaultExpandToRectangle);
+  const [stripSplitDistance, setStripSplitDistance] = useState(1000);
+  const [expandToRectangle, setExpandToRectangle] = useState(false);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   
   // Sync kmlData with initialKmlData when flightType or initialKmlData changes

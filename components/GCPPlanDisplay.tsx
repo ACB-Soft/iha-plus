@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Popup, Polygon, Marker, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Popup, Polygon, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
@@ -35,6 +35,17 @@ interface Props {
   onBack: () => void;
 }
 
+const MapClickHandler: React.FC<{ onMapClick: (lat: number, lng: number) => void; active: boolean }> = ({ onMapClick, active }) => {
+  useMapEvents({
+    click(e) {
+      if (active) {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      }
+    },
+  });
+  return null;
+};
+
 const FitBounds: React.FC<{ features: KMLFeature[] }> = ({ features }) => {
   const map = useMap();
   
@@ -59,184 +70,147 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
   const mapProvider = localStorage.getItem('default_map_provider') || 'Google Satellite';
   const [points, setPoints] = useState<YKNPoint[]>([]);
   const [shrunkPolygon, setShrunkPolygon] = useState<[number, number][] | null>(null);
+  const [isAddingPoint, setIsAddingPoint] = useState(false);
 
   // Initial Point Generation
   useEffect(() => {
-    const polygonFeature = features.find(f => f.type === 'Polygon');
-    if (!polygonFeature) return;
+    const generatePoints = (dist: number): YKNPoint[] => {
+      const polygonFeature = features.find(f => f.type === 'Polygon');
+      if (!polygonFeature) return [];
 
-    // 1. Convert to Turf Polygon
-    const coords = polygonFeature.coordinates.map(c => [c.lng, c.lat]);
-    // Ensure polygon is closed
-    if (coords.length > 0 && (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])) {
-      coords.push(coords[0]);
-    }
-    const poly = turf.polygon([coords]);
-
-    // 2. Apply Start Offset (Negative Buffer)
-    const offsetMeters = config.gcpStartOffset || 0;
-    let targetPoly = poly;
-    let shrunkCoords: [number, number][] | null = null;
-
-    if (offsetMeters > 0) {
-      try {
-        const buffered = turf.buffer(poly, -offsetMeters, { units: 'meters' });
-        if (buffered && buffered.geometry.type === 'Polygon') {
-          targetPoly = buffered as any;
-          shrunkCoords = (buffered.geometry.coordinates[0] as any[]).map((c: any) => [c[1], c[0]] as [number, number]);
-        } else if (buffered && buffered.geometry.type === 'MultiPolygon') {
-           // Take the largest polygon if it split
-           const polys = (buffered.geometry.coordinates as any[][][]).map(c => turf.polygon(c));
-           const largest = polys.reduce((prev, current) => (turf.area(prev) > turf.area(current) ? prev : current));
-           targetPoly = largest as any;
-           shrunkCoords = (largest.geometry.coordinates[0] as any[]).map((c: any) => [c[1], c[0]] as [number, number]);
-        }
-      } catch (e) {
-        console.error("Buffer error", e);
+      // 1. Convert to Turf Polygon
+      const coords = polygonFeature.coordinates.map(c => [c.lng, c.lat]);
+      if (coords.length > 0 && (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])) {
+        coords.push(coords[0]);
       }
-    }
-    setShrunkPolygon(shrunkCoords);
+      const poly = turf.polygon([coords]);
 
-    // 3. Generate Grid
-    const distanceMeters = config.gcpDistance || 400;
-    const bbox = turf.bbox(targetPoly);
-    const grid = turf.pointGrid(bbox, distanceMeters / 1000, { units: 'kilometers', mask: targetPoly });
+      // 2. Apply Start Offset (Negative Buffer)
+      const offsetMeters = config.gcpStartOffset || 0;
+      let targetPoly = poly;
+      let shrunkCoords: [number, number][] | null = null;
 
-    // 4. Map to YKN Points with Zigzag sorting
-    const rawPoints = grid.features.map(f => ({
-      lng: f.geometry.coordinates[0],
-      lat: f.geometry.coordinates[1]
-    }));
+      if (offsetMeters > 0) {
+        try {
+          const buffered = turf.buffer(poly, -offsetMeters, { units: 'meters' });
+          if (buffered) {
+            if (buffered.geometry.type === 'Polygon') {
+              targetPoly = buffered as any;
+              shrunkCoords = (buffered.geometry.coordinates[0] as any[]).map((c: any) => [c[1], c[0]] as [number, number]);
+            } else if (buffered.geometry.type === 'MultiPolygon') {
+              const polys = (buffered.geometry.coordinates as any[][][]).map(c => turf.polygon(c));
+              const largest = polys.reduce((prev, current) => (turf.area(prev) > turf.area(current) ? prev : current));
+              targetPoly = largest as any;
+              shrunkCoords = (largest.geometry.coordinates[0] as any[]).map((c: any) => [c[1], c[0]] as [number, number]);
+            }
+          }
+        } catch (e) {
+          console.error("Buffer error", e);
+        }
+      }
+      setShrunkPolygon(shrunkCoords);
 
-    // Group points by latitude (rows)
-    const rows: Record<string, typeof rawPoints> = {};
-    rawPoints.forEach(p => {
-      const key = p.lat.toFixed(6); // Use fixed precision for grouping
-      if (!rows[key]) rows[key] = [];
-      rows[key].push(p);
-    });
+      // 3. Generate Grid (Row-Based Alignment)
+      const bbox = turf.bbox(targetPoly);
+      const rows: { lat: number, points: { lat: number, lng: number }[] }[] = [];
+      let sideToggle = false; // false = left, true = right
 
-    // Center points in each row according to polygon width at that latitude
-    const polyBbox = turf.bbox(targetPoly);
-    Object.keys(rows).forEach(latKey => {
-      const rowPoints = rows[latKey];
-      if (rowPoints.length > 1) {
-        const lat = parseFloat(latKey);
-        // Create a horizontal line across the polygon at this latitude
+      // Start exactly at the top boundary (Max Lat)
+      let currentLat = bbox[3];
+      while (currentLat >= bbox[1] - 0.00001) {
         const horizontalLine = turf.lineString([
-          [polyBbox[0] - 0.1, lat],
-          [polyBbox[2] + 0.1, lat]
+          [bbox[0] - 1, currentLat],
+          [bbox[2] + 1, currentLat]
         ]);
         
-        const intersections = turf.lineIntersect(horizontalLine, targetPoly);
-        if (intersections.features.length >= 2) {
-          const xCoords = intersections.features.map(f => f.geometry.coordinates[0]);
-          const minX = Math.min(...xCoords);
-          const maxX = Math.max(...xCoords);
-          const polyMid = (minX + maxX) / 2;
-
-          const ptsX = rowPoints.map(p => p.lng);
-          const ptsMid = (Math.min(...ptsX) + Math.max(...ptsX)) / 2;
-
-          const shift = polyMid - ptsMid;
-          rowPoints.forEach(p => {
-            p.lng += shift;
-          });
-        }
-      }
-    });
-
-    // Sort row latitudes descending (top to bottom)
-    const sortedLatKeys = Object.keys(rows).sort((a, b) => parseFloat(b) - parseFloat(a));
-
-    // Special Rules for Single-Point Rows
-    sortedLatKeys.forEach((latKey, i) => {
-      const rowPoints = rows[latKey];
-      if (rowPoints.length === 1) {
-        const lat = parseFloat(latKey);
-        // Find polygon center at this latitude
-        const horizontalLine = turf.lineString([
-          [polyBbox[0] - 0.1, lat],
-          [polyBbox[2] + 0.1, lat]
-        ]);
-        const intersections = turf.lineIntersect(horizontalLine, targetPoly);
-        
-        if (intersections.features.length >= 2) {
-          const xCoords = intersections.features.map(f => f.geometry.coordinates[0]);
-          const minX = Math.min(...xCoords);
-          const maxX = Math.max(...xCoords);
-          const polyMid = (minX + maxX) / 2;
-
-          // Rule: Center single points (including top and bottom)
-          rowPoints[0].lng = polyMid;
-        }
-      }
-    });
-
-    let zigzagSorted: typeof rawPoints = [];
-    sortedLatKeys.forEach((key, index) => {
-      const rowPoints = rows[key].sort((a, b) => a.lng - b.lng);
-      if (index % 2 === 1) {
-        rowPoints.reverse(); // Reverse every second row for zigzag
-      }
-      zigzagSorted = zigzagSorted.concat(rowPoints);
-    });
-
-    let finalPoints: YKNPoint[] = zigzagSorted.map((p, i) => ({
-      id: `ykn-${i}`,
-      name: `YKN${i + 1}`,
-      lng: p.lng,
-      lat: p.lat
-    }));
-
-    // 5. Ensure at least 5 points for photogrammetric balancing by reducing distance if needed
-    const minCount = 5;
-    
-    if (finalPoints.length < minCount) {
-      // Try to reduce distance until we have enough points
-      let currentDist = distanceMeters;
-      let tempPoints: YKNPoint[] = [];
-      let attempts = 0;
-      
-      while (tempPoints.length < minCount && attempts < 15) {
-        currentDist *= 0.7; // More aggressive reduction
-        const newGrid = turf.pointGrid(bbox, currentDist / 1000, { units: 'kilometers', mask: targetPoly });
-        
-        if (newGrid.features.length >= minCount) {
-          // Re-apply zigzag sorting for the new denser grid
-          const newRaw = newGrid.features.map(f => ({
-            lng: f.geometry.coordinates[0],
-            lat: f.geometry.coordinates[1]
-          }));
-          
-          const newRows: Record<string, typeof newRaw> = {};
-          newRaw.forEach(p => {
-            const key = p.lat.toFixed(6);
-            if (!newRows[key]) newRows[key] = [];
-            newRows[key].push(p);
-          });
-          
-          const newLatKeys = Object.keys(newRows).sort((a, b) => parseFloat(b) - parseFloat(a));
-          let newZigzag: typeof newRaw = [];
-          newLatKeys.forEach((key, idx) => {
-            const rowPts = newRows[key].sort((a, b) => a.lng - b.lng);
-            if (idx % 2 === 1) rowPts.reverse();
-            newZigzag = newZigzag.concat(rowPts);
-          });
-          
-          tempPoints = newZigzag.map((p, i) => ({
-            id: `ykn-${i}`,
-            name: `YKN${i + 1}`,
-            lng: p.lng,
-            lat: p.lat
-          }));
+        let intersections;
+        try {
+          intersections = turf.lineIntersect(horizontalLine, targetPoly);
+        } catch (e) {
           break;
         }
-        attempts++;
+
+        if (intersections.features.length >= 1) {
+          const xCoords = intersections.features.map(f => f.geometry.coordinates[0]);
+          const minX = Math.min(...xCoords);
+          const maxX = Math.max(...xCoords);
+          const rowWidthInMeters = turf.distance([minX, currentLat], [maxX, currentLat], { units: 'meters' });
+          
+          const count = Math.floor(rowWidthInMeters / dist) + 1;
+          const rowPoints: { lat: number, lng: number }[] = [];
+
+          if (count > 1) {
+            const usedWidthMeters = (count - 1) * dist;
+            const startOffsetMeters = (rowWidthInMeters - usedWidthMeters) / 2;
+            
+            // İSTİSNA: İlk satırda tam sol üstten başla
+            let startPoint;
+            if (rows.length === 0) {
+              startPoint = [minX, currentLat];
+            } else {
+              startPoint = turf.destination([minX, currentLat], startOffsetMeters, 90, { units: 'meters' }).geometry.coordinates;
+            }
+
+            for (let i = 0; i < count; i++) {
+              const p = turf.destination(startPoint, i * dist, 90, { units: 'meters' }).geometry.coordinates;
+              rowPoints.push({ lat: p[1], lng: p[0] });
+            }
+          } else {
+            // Tek YKN durumu
+            if (rows.length === 0) {
+              rowPoints.push({ lat: currentLat, lng: minX });
+            } else {
+              const ratio = sideToggle ? 0.85 : 0.15;
+              const offset = rowWidthInMeters * ratio;
+              const p = turf.destination([minX, currentLat], offset, 90, { units: 'meters' }).geometry.coordinates;
+              rowPoints.push({ lat: p[1], lng: p[0] });
+            }
+          }
+          
+          if (rowPoints.length > 0) {
+            rows.push({ lat: currentLat, points: rowPoints });
+            sideToggle = !sideToggle;
+          }
+        }
+
+        // Move to the next row latitude
+        const nextLatPoint = turf.destination([bbox[0], currentLat], dist, 180, { units: 'meters' }).geometry.coordinates;
+        currentLat = nextLatPoint[1];
+        
+        // Safety break
+        if (rows.length > 1000) break;
       }
-      
-      if (tempPoints.length >= minCount) {
-        finalPoints = tempPoints;
+
+      // 4. Zigzag Sıralama (Kesin Alternatifli)
+      let zigzagSorted: { lat: number, lng: number }[] = [];
+      rows.forEach((row, index) => {
+        let sortedRow = [...row.points].sort((a, b) => a.lng - b.lng);
+        // Çift dizinli satırlar (0, 2, 4...) soldan sağa
+        // Tek dizinli satırlar (1, 3, 5...) sağdan sola
+        if (index % 2 === 1) {
+          sortedRow.reverse();
+        }
+        zigzagSorted = zigzagSorted.concat(sortedRow);
+      });
+
+      return zigzagSorted.map((p, i) => ({
+        id: `ykn-${i}`,
+        name: `YKN${i + 1}`,
+        lng: p.lng,
+        lat: p.lat
+      }));
+    };
+
+    let distance = config.gcpDistance || 400;
+    let finalPoints = generatePoints(distance);
+
+    // 5. Min 5 Points Fallback
+    if (finalPoints.length < 5) {
+      let attempts = 0;
+      while (finalPoints.length < 5 && attempts < 10) {
+        distance *= 0.8;
+        finalPoints = generatePoints(distance);
+        attempts++;
       }
     }
 
@@ -245,6 +219,21 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
 
   const handleMarkerDragEnd = (id: string, newLat: number, newLng: number) => {
     setPoints(prev => prev.map(p => p.id === id ? { ...p, lat: newLat, lng: newLng } : p));
+  };
+
+  const handleAddPoint = (lat: number, lng: number) => {
+    const newId = `ykn-${Date.now()}`;
+    const newName = `YKN${points.length + 1}`;
+    setPoints(prev => [...prev, { id: newId, name: newName, lat, lng }]);
+    setIsAddingPoint(false);
+  };
+
+  const handleDeletePoint = (id: string) => {
+    setPoints(prev => {
+      const filtered = prev.filter(p => p.id !== id);
+      // Re-index names
+      return filtered.map((p, i) => ({ ...p, name: `YKN${i + 1}` }));
+    });
   };
 
   const getTileLayer = () => {
@@ -305,7 +294,19 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
 
       <div className="flex-1 relative z-10">
         {/* Top Right Export Button Overlay */}
-        <div className="absolute top-6 right-6 z-[1000] pointer-events-none">
+        <div className="absolute top-6 right-6 z-[1000] pointer-events-none flex flex-col gap-2 items-end">
+          <button 
+            onClick={() => setIsAddingPoint(!isAddingPoint)}
+            className={`px-4 py-3 rounded-xl flex items-center gap-2 shadow-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all pointer-events-auto border ${
+              isAddingPoint 
+                ? 'bg-orange-500 text-white border-orange-400 animate-pulse' 
+                : 'bg-white text-slate-900 border-slate-200'
+            }`}
+          >
+            <i className={`fas ${isAddingPoint ? 'fa-times' : 'fa-plus'}`}></i>
+            {isAddingPoint ? 'İptal Et' : 'Yeni YKN Ekle'}
+          </button>
+
           <button 
             onClick={handleExport}
             className="px-4 py-3 bg-blue-600 rounded-xl flex items-center gap-2 shadow-xl text-white font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all pointer-events-auto border border-blue-500/50"
@@ -314,6 +315,16 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
             YKN'leri Dışa Aktar
           </button>
         </div>
+
+        {/* Add Point Instructions Overlay */}
+        {isAddingPoint && (
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+            <div className="bg-orange-500 text-white px-4 py-2 rounded-full shadow-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 border border-orange-400">
+              <i className="fas fa-mouse-pointer"></i>
+              Harita üzerinde bir noktaya tıklayın
+            </div>
+          </div>
+        )}
 
         {/* Bottom Stats Overlay */}
         <div className="absolute bottom-6 left-4 right-4 z-[1000] pointer-events-none flex items-end gap-3 justify-center">
@@ -344,6 +355,7 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
         >
           {getTileLayer()}
           <FitBounds features={features} />
+          <MapClickHandler active={isAddingPoint} onMapClick={handleAddPoint} />
           
           {features.map((f, i) => {
             if (f.type === 'Polygon') {
@@ -394,7 +406,13 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
             >
               <Popup>
                 <div className="font-black text-slate-900">{p.name}</div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider">Sürükleyerek konumlandırın</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Sürükleyerek konumlandırın</div>
+                <button 
+                  onClick={() => handleDeletePoint(p.id)}
+                  className="w-full py-1.5 bg-red-50 text-red-600 rounded border border-red-100 text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors"
+                >
+                  SİL
+                </button>
               </Popup>
             </Marker>
           ))}

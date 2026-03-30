@@ -88,11 +88,12 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     const originalCoords = f.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
 
     if (f.type === 'LineString' && config.flightType === 'Strip') {
-      const splitDistance = config.stripSplitDistance || 1000;
       const buffer = config.stripBuffer || 50;
       
-      // Split the line into segments with 20m overlap
-      const segments = splitLineByDistance(originalCoords, splitDistance, 20);
+      // Split the line into segments with 20m overlap ONLY if stripSplitDistance is defined
+      const segments = config.stripSplitDistance 
+        ? splitLineByDistance(originalCoords, config.stripSplitDistance, 20)
+        : [originalCoords];
       
       return segments.map((segCoords, idx) => {
         const expandedCoords = expandLineToPolygon(segCoords, buffer);

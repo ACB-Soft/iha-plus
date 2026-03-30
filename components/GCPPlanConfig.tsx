@@ -14,8 +14,8 @@ interface Props {
 }
 
 const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange, settings }) => {
-  const [gcpDistance, setGcpDistance] = useState(settings.gcpPlan.defaultDistance);
-  const [gcpStartOffset, setGcpStartOffset] = useState(settings.gcpPlan.defaultStartOffset);
+  const [gcpDistance, setGcpDistance] = useState(400);
+  const [gcpStartOffset, setGcpStartOffset] = useState(10);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   
   // Sync kmlData with initialKmlData when it changes
