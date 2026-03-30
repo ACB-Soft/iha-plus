@@ -84,60 +84,13 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
           </div>
           <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6">
             <p className="text-emerald-900 text-sm leading-relaxed font-medium text-justify">
-              Verileriniz tamamen cihazınızda saklanır. Uygulama, konum verilerinizi hiçbir uzak sunucuya göndermez. Mobil cihazınızdan uygulamayı sildiğinizde veya tarayıcı önbelliğini temizlediğinizde cihazınızdaki veriler de silinecektir. Planlama sonrası verilerinizi yedeklemeyi unutmayın.
+              Mobil cihazınızdan uygulamayı sildiğinizde veya tarayıcı önbelliğini temizlediğinizde cihazınızdaki veriler de silinecektir. Planlama sonrası verilerinizi yedeklemeyi unutmayın.
             </p>
-          </div>
-        </section>
-
-        {/* Sorumluluk Reddi */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-rose-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-200">
-              <i className="fas fa-exclamation-triangle"></i>
-            </div>
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Sorumluluk Reddi</h3>
-          </div>
-          <div className="bg-rose-50 border border-rose-100 rounded-2xl p-6">
-            <p className="text-sm text-rose-900 font-medium leading-relaxed text-justify">
-              Uygulama tarafından sağlanan verilerin doğruluğu ve hassasiyeti, mobil cihazınızın donanımsal (GPS/GNSS) alıcı kapasitesine, uydu görünürlüğüne ve çevresel faktörlere bağlıdır. Uygulama, profesyonel jeodezik ekipmanların yerini tutmaz. Elde edilen verilerin kritik mühendislik projelerinde kullanılmadan önce profesyonel ekipmanlarla doğrulanması önerilir. Oluşabilecek hatalardan veya veri kayıplarından yazılım geliştiricisi sorumlu tutulamaz.
-            </p>
-          </div>
-        </section>
-
-        {/* Veri Kaynakları */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-              <i className="fas fa-copyright"></i>
-            </div>
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Veri Kaynakları</h3>
-          </div>
-          <div className="soft-card p-6 space-y-4">
-            <p className="text-sm text-slate-600 font-medium leading-relaxed text-justify">
-              Uygulamada kullanılan tüm veriler açık kaynaklı veya lisanslı servislerden sağlanmaktadır. Telif ihlali barındıran herhangi bir içerik bulunmamaktadır.
-            </p>
-            <div className="space-y-3">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Konum Verisi</span>
-                <span className="text-xs font-bold text-slate-900">Mobil Cihazın GPS Verisi (WGS84 Format)</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Harita Servisleri</span>
-                <span className="text-xs font-bold text-slate-900">Leaflet JS Open-Source Library</span>
-                <span className="text-xs font-bold text-slate-900">Google Maps API (Satellite/Hybrid)</span>
-                <span className="text-xs font-bold text-slate-900">OpenStreetMap Contributors</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Yazılım Kütüphaneleri</span>
-                <span className="text-xs font-bold text-slate-900">JSZip (Data Export Services)</span>
-                <span className="text-xs font-bold text-slate-900">Lucide React & Font Awesome (Icons)</span>
-              </div>
-            </div>
           </div>
         </section>
 
         {/* Hakkında */}
-        <section className="space-y-4">
+        <section className="space-y-4 pb-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-white shadow-lg shadow-slate-400">
               <i className="fas fa-info-circle"></i>
@@ -152,29 +105,6 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">İletişim</span>
               <span className="text-xs font-bold text-slate-900">info@ihaplus.app</span>
             </div>
-          </div>
-        </section>
-
-        {/* Sürüm Notları */}
-        <section className="space-y-4 pb-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-              <i className="fas fa-list-ul"></i>
-            </div>
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Sürüm Notları</h3>
-          </div>
-          <div className="soft-card p-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-black text-slate-900">v1.2</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Mart 2026</span>
-            </div>
-            <ul className="text-xs text-slate-600 space-y-2 list-disc ml-4 font-medium">
-              <li>Uçuş planlama motoru optimize edildi.</li>
-              <li>Kullanılmayan modüller kaldırılarak uygulama boyutu küçültüldü.</li>
-              <li>Ayarlar sayfasına "Sıfırla" özelliği eklendi.</li>
-              <li>KML dışa aktarma performansı iyileştirildi.</li>
-              <li>Arayüz iyileştirmeleri ve hata düzeltmeleri yapıldı.</li>
-            </ul>
           </div>
         </section>
       </div>
