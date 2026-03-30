@@ -131,62 +131,39 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
         }
 
         if (intersections.features.length >= 1) {
-          // Sort intersections by longitude to identify segments
-          const xCoords = intersections.features
-            .map(f => f.geometry.coordinates[0])
-            .sort((a, b) => a - b);
+          const xCoords = intersections.features.map(f => f.geometry.coordinates[0]);
+          const minX = Math.min(...xCoords);
+          const maxX = Math.max(...xCoords);
+          const rowWidthInMeters = turf.distance([minX, currentLat], [maxX, currentLat], { units: 'meters' });
           
+          const count = Math.floor(rowWidthInMeters / dist) + 1;
           const rowPoints: { lat: number, lng: number }[] = [];
 
-          // Identify valid segments (parts of the line inside the polygon)
-          for (let i = 0; i < xCoords.length - 1; i++) {
-            const segMinX = xCoords[i];
-            const segMaxX = xCoords[i + 1];
-            const midX = (segMinX + segMaxX) / 2;
+          if (count > 1) {
+            const usedWidthMeters = (count - 1) * dist;
+            const startOffsetMeters = (rowWidthInMeters - usedWidthMeters) / 2;
             
-            // Check if this segment is inside the polygon
-            const midPoint = turf.point([midX, currentLat]);
-            if (!turf.booleanPointInPolygon(midPoint, targetPoly)) {
-              continue; // Skip segments that are outside (the "gap" in U/O shapes)
+            // İSTİSNA: İlk satırda tam sol üstten başla
+            let startPoint;
+            if (rows.length === 0) {
+              startPoint = [minX, currentLat];
+            } else {
+              startPoint = turf.destination([minX, currentLat], startOffsetMeters, 90, { units: 'meters' }).geometry.coordinates;
             }
 
-            const segWidthMeters = turf.distance([segMinX, currentLat], [segMaxX, currentLat], { units: 'meters' });
-            const count = Math.floor(segWidthMeters / dist) + 1;
-
-            if (count > 1) {
-              const usedWidthMeters = (count - 1) * dist;
-              const startOffsetMeters = (segWidthMeters - usedWidthMeters) / 2;
-              
-              // İSTİSNA: İlk satırın ilk segmentinde tam sol üstten başla
-              let startPoint;
-              if (rows.length === 0 && rowPoints.length === 0) {
-                startPoint = [segMinX, currentLat];
-              } else {
-                startPoint = turf.destination([segMinX, currentLat], startOffsetMeters, 90, { units: 'meters' }).geometry.coordinates;
-              }
-
-              for (let j = 0; j < count; j++) {
-                const p = turf.destination(startPoint, j * dist, 90, { units: 'meters' }).geometry.coordinates;
-                // Double check point is inside (extra safety)
-                if (turf.booleanPointInPolygon(turf.point(p), targetPoly)) {
-                  rowPoints.push({ lat: p[1], lng: p[0] });
-                }
-              }
+            for (let i = 0; i < count; i++) {
+              const p = turf.destination(startPoint, i * dist, 90, { units: 'meters' }).geometry.coordinates;
+              rowPoints.push({ lat: p[1], lng: p[0] });
+            }
+          } else {
+            // Tek YKN durumu
+            if (rows.length === 0) {
+              rowPoints.push({ lat: currentLat, lng: minX });
             } else {
-              // Tek YKN durumu
-              let pCoords;
-              if (rows.length === 0 && rowPoints.length === 0) {
-                // İlk nokta her zaman en sol
-                pCoords = [segMinX, currentLat];
-              } else {
-                const ratio = sideToggle ? 0.85 : 0.15;
-                const offset = segWidthMeters * ratio;
-                pCoords = turf.destination([segMinX, currentLat], offset, 90, { units: 'meters' }).geometry.coordinates;
-              }
-              
-              if (turf.booleanPointInPolygon(turf.point(pCoords), targetPoly)) {
-                rowPoints.push({ lat: pCoords[1], lng: pCoords[0] });
-              }
+              const ratio = sideToggle ? 0.85 : 0.15;
+              const offset = rowWidthInMeters * ratio;
+              const p = turf.destination([minX, currentLat], offset, 90, { units: 'meters' }).geometry.coordinates;
+              rowPoints.push({ lat: p[1], lng: p[0] });
             }
           }
           
@@ -285,10 +262,36 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
   }, [points]);
 
   const handleExport = () => {
+    const polygonFeature = features.find(f => f.type === 'Polygon');
+    const polygonKml = polygonFeature ? `
+    <Placemark>
+      <name>Tahdit Sınırı</name>
+      <Style>
+        <LineStyle>
+          <color>ff0000ff</color>
+          <width>3</width>
+        </LineStyle>
+        <PolyStyle>
+          <fill>0</fill>
+        </PolyStyle>
+      </Style>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              ${polygonFeature.coordinates.map(c => `${c.lng},${c.lat},0`).join(' ')}
+              ${polygonFeature.coordinates[0].lng},${polygonFeature.coordinates[0].lat},0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>` : '';
+
     const kml = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>${projectName} - YKN Noktaları</name>
+    <name>${projectName} - YKN Planı</name>
+    ${polygonKml}
     ${points.map(p => `
     <Placemark>
       <name>${p.name}</name>
@@ -304,7 +307,7 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
     const cleanName = projectName.replace(/\.(kml|kmz)$/i, '');
     const a = document.createElement('a');
     a.href = url;
-    a.download = `YKN_${cleanName}.kml`;
+    a.download = `YKN_PLANI_${cleanName}.kml`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
