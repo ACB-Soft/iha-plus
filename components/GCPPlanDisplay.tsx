@@ -119,79 +119,89 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
       }
       setShrunkPolygon(shrunkCoords);
 
-      // 3. Greedy Distance-Based Sampling (Optimized for Narrow/Long Polygons)
+      // 3. Robust Candidate Generation
       const bbox = turf.bbox(targetPoly);
-      
-      // Generate a dense grid of candidate points inside the polygon
       const candidates: [number, number][] = [];
-      const step = Math.min(dist / 4, 50); // Dense sampling for better path finding
+      const stepMeters = Math.min(dist / 6, 40); // Even denser for better axis sorting
       
-      for (let x = bbox[0]; x <= bbox[2]; x += (bbox[2] - bbox[0]) / (turf.distance([bbox[0], bbox[1]], [bbox[2], bbox[1]], {units: 'meters'}) / step)) {
-        for (let y = bbox[1]; y <= bbox[3]; y += (bbox[3] - bbox[1]) / (turf.distance([bbox[0], bbox[1]], [bbox[0], bbox[3]], {units: 'meters'}) / step)) {
-          const pt = turf.point([x, y]);
+      const latMid = (bbox[1] + bbox[3]) / 2;
+      const latStep = stepMeters / 111320;
+      const lngStep = stepMeters / (111320 * Math.cos(latMid * Math.PI / 180));
+
+      for (let x = bbox[0]; x <= bbox[2]; x += lngStep) {
+        for (let y = bbox[1]; y <= bbox[3]; y += latStep) {
+          const pt: [number, number] = [x, y];
           if (turf.booleanPointInPolygon(pt, targetPoly)) {
-            candidates.push([x, y]);
+            candidates.push(pt);
           }
         }
       }
 
-      if (candidates.length === 0) return [];
+      if (candidates.length < 2) return [];
 
-      // Sort candidates primarily by X (West to East) to handle long horizontal areas
-      candidates.sort((a, b) => a[0] - b[0]);
+      // 4. Find the Main Axis (Furthest Points)
+      let p1 = candidates[0];
+      let maxD = 0;
+      candidates.forEach(p => {
+        const d = turf.distance(candidates[0], p);
+        if (d > maxD) { maxD = d; p1 = p; }
+      });
 
+      let p2 = p1;
+      maxD = 0;
+      candidates.forEach(p => {
+        const d = turf.distance(p1, p);
+        if (d > maxD) { maxD = d; p2 = p; }
+      });
+
+      // Ensure start is West-most for consistent numbering
+      let startPt = p1[0] <= p2[0] ? p1 : p2;
+      let endPt = p1[0] <= p2[0] ? p2 : p1;
+
+      // 5. Project Candidates onto Axis and Sort
+      const vx = endPt[0] - startPt[0];
+      const vy = endPt[1] - startPt[1];
+      const vLenSq = vx * vx + vy * vy || 1;
+
+      const projected = candidates.map(p => {
+        const px = p[0] - startPt[0];
+        const py = p[1] - startPt[1];
+        const t = (px * vx + py * vy) / vLenSq;
+        return { point: p, t };
+      }).sort((a, b) => a.t - b.t);
+
+      // 6. Sequential Selection with Zigzag
       const resultPoints: { lat: number, lng: number }[] = [];
-      let currentPoint = candidates[0];
-      resultPoints.push({ lat: currentPoint[1], lng: currentPoint[0] });
+      let lastPicked = projected[0];
+      resultPoints.push({ lat: lastPicked.point[1], lng: lastPicked.point[0] });
 
-      let remainingCandidates = [...candidates];
       let zigzag = 1;
+      let currentIndex = 0;
 
-      while (remainingCandidates.length > 0) {
-        // Find candidates that are approximately 'dist' away
-        // We look for points in a range to allow for polygon curvature
-        const nextCandidates = remainingCandidates.filter(p => {
-          const d = turf.distance(currentPoint, p, { units: 'meters' });
-          return d >= dist * 0.9 && d <= dist * 1.2;
-        });
-
-        if (nextCandidates.length > 0) {
-          // Pick the one that is furthest along the X axis (to keep moving forward)
-          // And apply a slight zigzag by picking from the top or bottom of the available set
-          nextCandidates.sort((a, b) => a[0] - b[0]);
-          
-          // Zigzag logic: alternate between picking the northernmost or southernmost candidate in the range
-          let next;
-          if (zigzag > 0) {
-            next = nextCandidates.reduce((prev, curr) => (curr[1] > prev[1] ? curr : prev));
-          } else {
-            next = nextCandidates.reduce((prev, curr) => (curr[1] < prev[1] ? curr : prev));
-          }
-          
-          resultPoints.push({ lat: next[1], lng: next[0] });
-          currentPoint = next;
-          zigzag *= -1;
-          
-          // Remove candidates that are now behind us or too close
-          remainingCandidates = remainingCandidates.filter(p => {
-            return p[0] > currentPoint[0] + (step / 2);
-          });
-        } else {
-          // If no point found in range, look for the closest point that is at least 'dist' away
-          const furtherPoints = remainingCandidates.filter(p => turf.distance(currentPoint, p, { units: 'meters' }) >= dist);
-          if (furtherPoints.length > 0) {
-            // Sort by distance and pick the closest one that satisfies the minimum distance
-            furtherPoints.sort((a, b) => turf.distance(currentPoint, a) - turf.distance(currentPoint, b));
-            const next = furtherPoints[0];
-            resultPoints.push({ lat: next[1], lng: next[0] });
-            currentPoint = next;
-            remainingCandidates = remainingCandidates.filter(p => p[0] > currentPoint[0] + (step / 2));
-          } else {
-            break;
-          }
+      while (currentIndex < projected.length) {
+        // Find the range of points that are approximately 'dist' away
+        let nextIdx = currentIndex + 1;
+        while (nextIdx < projected.length && 
+               turf.distance(lastPicked.point, projected[nextIdx].point, {units: 'meters'}) < dist * 0.95) {
+          nextIdx++;
         }
+
+        if (nextIdx >= projected.length) break;
+
+        // Look at a small window of points ahead to pick for zigzag
+        const windowSize = Math.max(1, Math.floor(projected.length * 0.03));
+        const window = projected.slice(nextIdx, Math.min(nextIdx + windowSize, projected.length));
         
-        if (resultPoints.length > 500) break; // Safety
+        // Pick based on zigzag (alternate North/South relative to the axis or just raw Latitude)
+        window.sort((a, b) => a.point[1] - b.point[1]);
+        const next = zigzag > 0 ? window[window.length - 1] : window[0];
+        
+        resultPoints.push({ lat: next.point[1], lng: next.point[0] });
+        lastPicked = next;
+        currentIndex = projected.indexOf(next);
+        zigzag *= -1;
+
+        if (resultPoints.length > 500) break;
       }
 
       return resultPoints.map((p, i) => ({
