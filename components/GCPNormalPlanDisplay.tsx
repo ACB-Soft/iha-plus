@@ -117,35 +117,120 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
       }
       setShrunkPolygon(shrunkCoords);
 
-      const resultPoints: { lat: number, lng: number }[] = [];
-
-      // --- NORMAL AREA ALGORITHM (Grid Based) ---
-      const bbox = turf.bbox(targetPoly);
-      const latMid = (bbox[1] + bbox[3]) / 2;
-      const latStep = dist / 111320;
-      const lngStep = dist / (111320 * Math.cos(latMid * Math.PI / 180));
-
-      const gridPoints: [number, number][] = [];
-      let rowIndex = 0;
-      for (let y = bbox[3]; y >= bbox[1]; y -= latStep) {
-        const row: [number, number][] = [];
-        for (let x = bbox[0]; x <= bbox[2]; x += lngStep) {
-          const pt: [number, number] = [x, y];
-          if (turf.booleanPointInPolygon(pt, targetPoly)) {
-            row.push(pt);
-          }
-        }
-        if (rowIndex % 2 === 1) {
-          row.reverse();
-        }
-        if (row.length > 0) {
-          gridPoints.push(...row);
-          rowIndex++;
+      // --- UPGRADED NORMAL AREA ALGORITHM ---
+      
+      // 1. Find the Longest Edge for Rotation
+      const polyCoords = targetPoly.geometry.coordinates[0];
+      let longestEdge = { p1: polyCoords[0], p2: polyCoords[1], length: 0 };
+      for (let i = 0; i < polyCoords.length - 1; i++) {
+        const d = turf.distance(polyCoords[i], polyCoords[i+1]);
+        if (d > longestEdge.length) {
+          longestEdge = { p1: polyCoords[i], p2: polyCoords[i+1], length: d };
         }
       }
 
-      gridPoints.forEach(p => {
-        resultPoints.push({ lat: p[1], lng: p[0] });
+      // Calculate Rotation Angle (radians)
+      const angle = Math.atan2(longestEdge.p2[1] - longestEdge.p1[1], longestEdge.p2[0] - longestEdge.p1[0]);
+      const angleDeg = (angle * 180) / Math.PI;
+
+      // 2. Rotate Polygon to Align with X-Axis
+      const centroid = turf.centroid(targetPoly);
+      const rotatedPoly = turf.transformRotate(targetPoly, -angleDeg, { pivot: centroid });
+      const rotatedBbox = turf.bbox(rotatedPoly);
+
+      // Find Northernmost Vertex in Original Space
+      let northVertex = polyCoords[0];
+      for (const coord of polyCoords) {
+        if (coord[1] > northVertex[1]) northVertex = coord;
+      }
+
+      // Rotate North Vertex to Rotated Space to use as Anchor
+      const anchorRot = turf.transformRotate(turf.point(northVertex), -angleDeg, { pivot: centroid }).geometry.coordinates;
+
+      // 3. Grid Step Calculation
+      const targetStep = dist;
+      const centerLat = centroid.geometry.coordinates[1];
+      const latStepDeg = targetStep / 111320;
+      const lngStepDeg = targetStep / (111320 * Math.cos(centerLat * Math.PI / 180));
+
+      // Generate a wide grid covering the BBOX, aligned to the anchor
+      const gridPointsRaw: [number, number][] = [];
+      
+      // Calculate bounds for the loop to ensure we cover everything
+      const yMin = rotatedBbox[1] - latStepDeg;
+      const yMax = rotatedBbox[3] + latStepDeg;
+      const xMin = rotatedBbox[0] - lngStepDeg;
+      const xMax = rotatedBbox[2] + lngStepDeg;
+
+      for (let y = anchorRot[1] + Math.round((yMax - anchorRot[1]) / latStepDeg) * latStepDeg; y >= yMin; y -= latStepDeg) {
+        for (let x = anchorRot[0] - Math.round((anchorRot[0] - xMin) / lngStepDeg) * lngStepDeg; x <= xMax; x += lngStepDeg) {
+          const pt = turf.point([x, y]);
+          const ptOriginal = turf.transformRotate(pt, angleDeg, { pivot: centroid });
+          
+          // Use a very small buffer for the point-in-polygon check to include vertices
+          if (turf.booleanPointInPolygon(ptOriginal, targetPoly) || turf.pointToLineDistance(ptOriginal, turf.polygonToLine(targetPoly) as any, { units: 'meters' }) < 0.1) {
+            gridPointsRaw.push([x, y]);
+          }
+        }
+      }
+
+      // Ensure the north vertex itself is included and remove duplicates
+      const northPtRot: [number, number] = [anchorRot[0], anchorRot[1]];
+      const hasNorthPt = gridPointsRaw.some(p => Math.abs(p[0] - northPtRot[0]) < 0.000001 && Math.abs(p[1] - northPtRot[1]) < 0.000001);
+      if (!hasNorthPt) {
+        gridPointsRaw.push(northPtRot);
+      }
+
+      // 4. Group into Rows and Sort
+      // Group by Y with a small tolerance
+      const rowsMap = new Map<number, [number, number][]>();
+      gridPointsRaw.forEach(p => {
+        const yKey = Math.round(p[1] * 1000000) / 1000000;
+        if (!rowsMap.has(yKey)) rowsMap.set(yKey, []);
+        rowsMap.get(yKey)!.push(p);
+      });
+
+      // Sort rows by their average latitude (descending for North to South)
+      const sortedYKeys = Array.from(rowsMap.keys()).sort((a, b) => {
+        const avgLatA = rowsMap.get(a)!.reduce((sum, p) => {
+          const pt = turf.transformRotate(turf.point(p), angleDeg, { pivot: centroid });
+          return sum + pt.geometry.coordinates[1];
+        }, 0) / rowsMap.get(a)!.length;
+        const avgLatB = rowsMap.get(b)!.reduce((sum, p) => {
+          const pt = turf.transformRotate(turf.point(p), angleDeg, { pivot: centroid });
+          return sum + pt.geometry.coordinates[1];
+        }, 0) / rowsMap.get(b)!.length;
+        return avgLatB - avgLatA;
+      });
+
+      const finalGridPoints: [number, number][] = [];
+      sortedYKeys.forEach((yKey, rowIndex) => {
+        const row = rowsMap.get(yKey)!;
+        // Sort points in row by X
+        row.sort((a, b) => a[0] - b[0]);
+        
+        // If it's the first row, ensure northVertex is the first point
+        if (rowIndex === 0) {
+          const northIdx = row.findIndex(p => Math.abs(p[0] - northPtRot[0]) < 0.000001 && Math.abs(p[1] - northPtRot[1]) < 0.000001);
+          if (northIdx !== -1) {
+            const [nP] = row.splice(northIdx, 1);
+            row.unshift(nP);
+          }
+        } else {
+          // Apply zigzag for other rows
+          if (rowIndex % 2 === 1) row.reverse();
+        }
+        
+        finalGridPoints.push(...row);
+      });
+
+      // 5. Convert to final format
+      const resultPoints = finalGridPoints.map(p => {
+        const pt = turf.transformRotate(turf.point(p), angleDeg, { pivot: centroid });
+        return { 
+          lat: pt.geometry.coordinates[1], 
+          lng: pt.geometry.coordinates[0] 
+        };
       });
 
       return resultPoints.map((p, i) => ({
