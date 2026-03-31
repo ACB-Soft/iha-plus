@@ -7,6 +7,7 @@ import { KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { FlightConfig } from '../src/types/flight';
+import { calculatePolygonArea } from './GeometryUtils';
 
 // Fix Leaflet icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -71,6 +72,14 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
   const [points, setPoints] = useState<YKNPoint[]>([]);
   const [shrunkPolygon, setShrunkPolygon] = useState<[number, number][] | null>(null);
   const [isAddingPoint, setIsAddingPoint] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportName, setExportName] = useState(`YKN_${projectName.replace(/\.(kml|kmz)$/i, '')}`);
+
+  const boundaryArea = useMemo(() => {
+    const polygonFeature = features.find(f => f.type === 'Polygon');
+    if (!polygonFeature) return 0;
+    return calculatePolygonArea(polygonFeature.coordinates.map(c => ({ lat: c.lat, lng: c.lng })));
+  }, [features]);
 
   // Initial Point Generation
   useEffect(() => {
@@ -304,14 +313,14 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
 
     const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
     const url = URL.createObjectURL(blob);
-    const cleanName = projectName.replace(/\.(kml|kmz)$/i, '');
     const a = document.createElement('a');
     a.href = url;
-    a.download = `YKN_PLANI_${cleanName}.kml`;
+    a.download = `${exportName}.kml`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    setShowExportModal(false);
   };
 
   return (
@@ -319,7 +328,7 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
       <Header title="YKN Planı Ekranı" onBack={onBack} />
 
       <div className="flex-1 relative z-10">
-        {/* Top Right Export Button Overlay */}
+        {/* Top Right Buttons Overlay */}
         <div className="absolute top-6 right-6 z-[1000] pointer-events-none flex flex-col gap-2 items-end">
           <button 
             onClick={() => setIsAddingPoint(!isAddingPoint)}
@@ -332,14 +341,6 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
             <i className={`fas ${isAddingPoint ? 'fa-times' : 'fa-plus'}`}></i>
             {isAddingPoint ? 'İptal Et' : 'Yeni YKN Ekle'}
           </button>
-
-          <button 
-            onClick={handleExport}
-            className="px-4 py-3 bg-blue-600 rounded-xl flex items-center gap-2 shadow-xl text-white font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all pointer-events-auto border border-blue-500/50"
-          >
-            <i className="fas fa-file-export"></i>
-            YKN'leri Dışa Aktar
-          </button>
         </div>
 
         {/* Add Point Instructions Overlay */}
@@ -351,26 +352,6 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
             </div>
           </div>
         )}
-
-        {/* Bottom Stats Overlay */}
-        <div className="absolute bottom-6 left-4 right-4 z-[1000] pointer-events-none flex items-end gap-3 justify-center">
-          <div className="bg-slate-100/95 backdrop-blur-md rounded-xl shadow-lg border border-slate-200 overflow-hidden pointer-events-auto w-full max-w-lg p-4 flex justify-around items-center">
-            <div className="text-center">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Toplam YKN</p>
-              <p className="text-xl font-black text-blue-600">{points.length}</p>
-            </div>
-            <div className="w-px h-8 bg-slate-200"></div>
-            <div className="text-center">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hedef Mesafe</p>
-              <p className="text-xl font-black text-emerald-600">{config.gcpDistance}m</p>
-            </div>
-            <div className="w-px h-8 bg-slate-200"></div>
-            <div className="text-center">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ofset</p>
-              <p className="text-xl font-black text-orange-600">{config.gcpStartOffset}m</p>
-            </div>
-          </div>
-        </div>
 
         <MapContainer 
           center={[39, 35]} 
@@ -465,7 +446,80 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
         </MapContainer>
       </div>
 
+      {/* YKN Bilgi Alanı */}
+      <div className="bg-slate-200 px-6 py-2 border-t border-slate-300 flex flex-col gap-2 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col items-start w-1/4">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahdit Alanı</span>
+            <span className="text-[11px] font-black text-slate-900">{boundaryArea.toFixed(2)} ha</span>
+          </div>
+
+          <div className="flex flex-col items-center w-1/4">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Toplam YKN</span>
+            <span className="text-[11px] font-black text-blue-600">{points.length} Adet</span>
+          </div>
+
+          <div className="flex flex-col items-center w-1/4">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Hedef Mesafe</span>
+            <span className="text-[11px] font-black text-emerald-600">{config.gcpDistance}m</span>
+          </div>
+
+          <div className="flex flex-col items-end w-1/4">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Ofset</span>
+            <span className="text-[11px] font-black text-orange-600">{config.gcpStartOffset}m</span>
+          </div>
+        </div>
+        
+        <button 
+          onClick={() => setShowExportModal(true)}
+          className="w-full py-2.5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
+          <i className="fas fa-file-export"></i>
+          YKN'LERİ DIŞARI AKTAR
+        </button>
+      </div>
+
       <GlobalFooter />
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 animate-in fade-in">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowExportModal(false)}></div>
+          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-8 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Dışarı Aktar</h3>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 mb-6">YKN Planı Dosya Adı Belirleyin</p>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Dosya Adı</label>
+                <input 
+                  type="text" 
+                  value={exportName}
+                  onChange={(e) => setExportName(e.target.value)}
+                  className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:border-blue-500"
+                  placeholder="Dosya adı giriniz..."
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setShowExportModal(false)}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
+                >
+                  İPTAL
+                </button>
+                <button 
+                  onClick={handleExport}
+                  className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-200 active:scale-95 transition-all"
+                >
+                  İNDİR
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
