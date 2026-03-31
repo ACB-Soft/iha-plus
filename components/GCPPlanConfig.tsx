@@ -82,7 +82,7 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
       <Header title="YKN Planı Hazırlığı" onBack={onBack} />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* 1. KML Selection */}
         <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
