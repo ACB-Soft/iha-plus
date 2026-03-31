@@ -71,6 +71,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
   const mapProvider = localStorage.getItem('default_map_provider') || 'Google Satellite';
   const [points, setPoints] = useState<YKNPoint[]>([]);
   const [shrunkPolygon, setShrunkPolygon] = useState<[number, number][] | null>(null);
+  const [spine, setSpine] = useState<[number, number][]>([]);
   const [isAddingPoint, setIsAddingPoint] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportName, setExportName] = useState(`YKN_Strip_${projectName.replace(/\.(kml|kmz)$/i, '')}`);
@@ -83,9 +84,9 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
   // Initial Point Generation
   useEffect(() => {
-    const generatePoints = (dist: number): YKNPoint[] => {
+    const generatePoints = (dist: number): { ykns: YKNPoint[], spinePts: [number, number][] } => {
       const polygonFeature = features.find(f => f.type === 'Polygon');
-      if (!polygonFeature) return [];
+      if (!polygonFeature) return { ykns: [], spinePts: [] };
 
       const coords = polygonFeature.coordinates.map(c => [c.lng, c.lat]);
       if (coords.length > 0 && (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])) {
@@ -117,12 +118,10 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       }
       setShrunkPolygon(shrunkCoords);
 
-      const resultPoints: { lat: number, lng: number }[] = [];
-
-      // --- STRIP AREA ALGORITHM (Axis Projection) ---
+      // 1. Generate Grid Points
       const bbox = turf.bbox(targetPoly);
       const candidates: [number, number][] = [];
-      const stepMeters = 5; 
+      const stepMeters = 10; // 10m grid for spine calculation
       
       const latMid = (bbox[1] + bbox[3]) / 2;
       const latStep = stepMeters / 111320;
@@ -137,24 +136,18 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         }
       }
 
-      if (candidates.length < 2) return [];
+      if (candidates.length < 2) return { ykns: [], spinePts: [] };
 
-      let p1 = candidates[0];
+      // 2. Find Start Point (furthest from centroid)
+      const polyCentroid = turf.centroid(targetPoly);
+      let startPt = candidates[0];
       let maxD = 0;
       candidates.forEach(p => {
-        const d = turf.distance(candidates[0], p);
-        if (d > maxD) { maxD = d; p1 = p; }
+        const d = turf.distance(polyCentroid, p);
+        if (d > maxD) { maxD = d; startPt = p; }
       });
 
-      let p2 = p1;
-      maxD = 0;
-      candidates.forEach(p => {
-        const d = turf.distance(p1, p);
-        if (d > maxD) { maxD = d; p2 = p; }
-      });
-
-      // Build a connectivity graph to calculate "Path Distance" instead of linear projection
-      // This prevents jumping across gaps in U-shaped or curved polygons
+      // 3. Calculate Path Distances (BFS)
       const gridMap = new Map<string, [number, number]>();
       candidates.forEach(p => {
         const gx = Math.round(p[0] / lngStep);
@@ -162,7 +155,6 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         gridMap.set(`${gx},${gy}`, p);
       });
 
-      const startPt = p1;
       const startGx = Math.round(startPt[0] / lngStep);
       const startGy = Math.round(startPt[1] / latStep);
       const startKey = `${startGx},${startGy}`;
@@ -194,93 +186,132 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         }
       }
 
-      const projected = Array.from(distances.entries()).map(([key, d]) => ({
-        point: gridMap.get(key)!,
-        t: d
-      })).sort((a, b) => a.t - b.t);
+      // 4. Calculate Spine (Centroids of points at same distance)
+      const distGroups = new Map<number, [number, number][]>();
+      distances.forEach((d, key) => {
+        const dKey = Math.round(d / 10) * 10; // Group by 10m intervals
+        if (!distGroups.has(dKey)) distGroups.set(dKey, []);
+        distGroups.get(dKey)!.push(gridMap.get(key)!);
+      });
 
-      if (projected.length === 0) return [];
+      const spinePoints: any[] = Array.from(distGroups.keys())
+        .sort((a, b) => a - b)
+        .map((d) => {
+          const pts = distGroups.get(d)!;
+          const avgX = pts.reduce((sum, p) => sum + p[0], 0) / pts.length;
+          const avgY = pts.reduce((sum, p) => sum + p[1], 0) / pts.length;
+          return [avgX, avgY];
+        });
 
-      let lastPicked = projected[0];
-      resultPoints.push({ lat: lastPicked.point[1], lng: lastPicked.point[0] });
+      if (spinePoints.length < 2) return { ykns: [], spinePts: [] };
 
+      // 5. Generate YKNs along the Spine
+      const resultYKNS: YKNPoint[] = [];
       let zigzag = 1;
-      let currentIndex = 0;
-      const targetDist = dist * 0.95; 
-      const maxDist = dist;           
+      
+      // Helper to get YKN position from spine index with offset
+      const getYKNPos = (idx: number, zz: number): [number, number] => {
+        const spinePt = spinePoints[idx];
+        const prevPt = spinePoints[Math.max(0, idx - 2)];
+        const nextPt = spinePoints[Math.min(spinePoints.length - 1, idx + 2)];
+        
+        const dx = nextPt[0] - prevPt[0];
+        const dy = nextPt[1] - prevPt[1];
+        
+        const mag = Math.sqrt(dx*dx + dy*dy) || 1;
+        const nx = (-dy / mag) * zz;
+        const ny = (dx / mag) * zz;
 
-      while (currentIndex < projected.length) {
-        let nextIdx = currentIndex + 1;
-        while (nextIdx < projected.length && 
-               turf.distance(lastPicked.point, projected[nextIdx].point, {units: 'meters'}) < targetDist) {
-          nextIdx++;
+        let bestPt = spinePt;
+        // Try to push point towards the edge (up to 40% of strip width roughly)
+        for (let o = 5; o <= 150; o += 5) {
+          const testLng = spinePt[0] + nx * (o / 111320 / Math.cos(spinePt[1] * Math.PI / 180));
+          const testLat = spinePt[1] + ny * (o / 111320);
+          const testPt: [number, number] = [testLng, testLat];
+          
+          if (turf.booleanPointInPolygon(testPt, targetPoly)) {
+            bestPt = testPt;
+          } else {
+            break;
+          }
+        }
+        return bestPt;
+      };
+
+      // Place first YKN
+      let lastYKNPos = getYKNPos(0, zigzag);
+      resultYKNS.push({
+        id: `ykn-0`,
+        name: `YKN1`,
+        lng: lastYKNPos[0],
+        lat: lastYKNPos[1]
+      });
+      zigzag *= -1;
+
+      let currentSpineIdx = 0;
+      const targetDist = dist; // User selected distance (e.g., 200m, 400m)
+      const minAcceptable = dist * 0.95; // 5% tolerance (e.g., 190m, 380m)
+
+      while (currentSpineIdx < spinePoints.length - 1) {
+        let bestNextIdx = -1;
+
+        // Search forward along the spine to find the furthest point within [0.95*dist, 1.0*dist]
+        for (let i = currentSpineIdx + 1; i < spinePoints.length; i++) {
+          const potPos = getYKNPos(i, zigzag);
+          const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
+
+          if (d > targetDist) {
+            // CRITICAL: We hit the hard limit. 
+            // If we found a point in the 5% zone before this, we already have it in bestNextIdx.
+            // If we haven't found a point in the 5% zone yet, we MUST take the previous point (i-1)
+            // to ensure we NEVER exceed the target distance.
+            if (bestNextIdx === -1) {
+              bestNextIdx = Math.max(currentSpineIdx + 1, i - 1);
+            }
+            break;
+          }
+          
+          if (d >= minAcceptable) {
+            // We are in the 5% tolerance zone. 
+            // We keep updating bestNextIdx to get as close to targetDist as possible without exceeding it.
+            bestNextIdx = i;
+          }
+          
+          // If we reach the end of the spine without exceeding targetDist or hitting minAcceptable,
+          // we will handle it after the loop.
         }
 
-        if (nextIdx >= projected.length) break;
-
-        // Window of points at roughly the same path distance
-        const windowSize = Math.max(5, Math.floor(projected.length * 0.01));
-        let window = projected.slice(nextIdx, Math.min(nextIdx + windowSize, projected.length));
-        window = window.filter(p => turf.distance(lastPicked.point, p.point, {units: 'meters'}) <= maxDist);
-        
-        if (window.length === 0) {
-          // If no points in window, just take the next point in the path to avoid getting stuck
-          const next = projected[nextIdx];
-          resultPoints.push({ lat: next.point[1], lng: next.point[0] });
-          lastPicked = next;
-          currentIndex = nextIdx;
-        } else {
-          // --- LOCAL COORDINATE SYSTEM (Frenet-Serret inspired) ---
-          // 1. Calculate Flow Vector (Tangent)
-          // We look ahead in the projected path to get a stable direction
-          const lookAheadIdx = Math.min(nextIdx + 10, projected.length - 1);
-          const flowX = projected[lookAheadIdx].point[0] - lastPicked.point[0];
-          const flowY = projected[lookAheadIdx].point[1] - lastPicked.point[1];
+        if (bestNextIdx !== -1) {
+          const finalPos = getYKNPos(bestNextIdx, zigzag);
           
-          // 2. Calculate Normal Vector (Perpendicular to Flow)
-          // Rotate flow vector 90 degrees: (x, y) -> (-y, x)
-          const normX = -flowY;
-          const normY = flowX;
-          
-          // 3. Project window points onto the Normal Vector
-          // This sorts them "across" the strip regardless of global orientation
-          window.sort((a, b) => {
-            const projA = (a.point[0] - lastPicked.point[0]) * normX + (a.point[1] - lastPicked.point[1]) * normY;
-            const projB = (b.point[0] - lastPicked.point[0]) * normX + (b.point[1] - lastPicked.point[1]) * normY;
-            return projA - projB;
+          resultYKNS.push({
+            id: `ykn-${resultYKNS.length}`,
+            name: `YKN${resultYKNS.length + 1}`,
+            lng: finalPos[0],
+            lat: finalPos[1]
           });
           
-          const next = zigzag > 0 ? window[window.length - 1] : window[0];
-          resultPoints.push({ lat: next.point[1], lng: next.point[0] });
-          lastPicked = next;
-          currentIndex = projected.indexOf(next);
+          lastYKNPos = finalPos;
+          currentSpineIdx = bestNextIdx;
+          zigzag *= -1;
+        } else {
+          // Could not find any point that reaches even the minimum distance before spine ends.
+          break;
         }
         
-        zigzag *= -1;
-        if (resultPoints.length > 500) break; // Safety limit
+        if (resultYKNS.length > 500) break;
       }
 
-      return resultPoints.map((p, i) => ({
-        id: `ykn-${i}`,
-        name: `YKN${i + 1}`,
-        lng: p.lng,
-        lat: p.lat
-      }));
+      return { ykns: resultYKNS, spinePts: spinePoints };
     };
 
-    let distance = config.gcpDistance || 400;
-    let finalPoints = generatePoints(distance);
-
-    if (finalPoints.length < 5) {
-      let attempts = 0;
-      while (finalPoints.length < 5 && attempts < 10) {
-        distance *= 0.8;
-        finalPoints = generatePoints(distance);
-        attempts++;
-      }
+    const { ykns, spinePts } = generatePoints(config.gcpDistance || 400);
+    setPoints(ykns);
+    const leafletSpine: any[] = [];
+    for (const p of spinePts) {
+      leafletSpine.push([p[1], p[0]]);
     }
-
-    setPoints(finalPoints);
+    setSpine(leafletSpine as [number, number][]);
   }, [features, config]);
 
   const handleMarkerDragEnd = (id: string, newLat: number, newLng: number) => {
@@ -410,6 +441,10 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           })}
 
           {shrunkPolygon && <Polygon positions={shrunkPolygon} color="#4f46e5" fillOpacity={0.1} weight={2} dashArray="10, 10" />}
+          
+          {spine.length > 0 && (
+            <Polyline positions={spine} color="#2563eb" weight={2} dashArray="5, 10" opacity={0.5} />
+          )}
 
           {points.map((p) => (
             <Marker 
