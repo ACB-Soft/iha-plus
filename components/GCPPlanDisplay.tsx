@@ -119,90 +119,82 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
       }
       setShrunkPolygon(shrunkCoords);
 
-      // 3. Generate Grid (Row-Based Alignment)
+      // 3. Greedy Distance-Based Sampling (Optimized for Narrow/Long Polygons)
       const bbox = turf.bbox(targetPoly);
-      const rows: { lat: number, points: { lat: number, lng: number }[] }[] = [];
-      let sideToggle = false; // false = left, true = right
-
-      // Start exactly at the top boundary (Max Lat)
-      let currentLat = bbox[3];
-      while (currentLat >= bbox[1] - 0.00001) {
-        const horizontalLine = turf.lineString([
-          [bbox[0] - 1, currentLat],
-          [bbox[2] + 1, currentLat]
-        ]);
-        
-        let intersections;
-        try {
-          intersections = turf.lineIntersect(horizontalLine, targetPoly);
-        } catch (e) {
-          break;
-        }
-
-        if (intersections.features.length >= 1) {
-          const xCoords = intersections.features.map(f => f.geometry.coordinates[0]);
-          const minX = Math.min(...xCoords);
-          const maxX = Math.max(...xCoords);
-          const rowWidthInMeters = turf.distance([minX, currentLat], [maxX, currentLat], { units: 'meters' });
-          
-          const count = Math.floor(rowWidthInMeters / dist) + 1;
-          const rowPoints: { lat: number, lng: number }[] = [];
-
-          if (count > 1) {
-            const usedWidthMeters = (count - 1) * dist;
-            const startOffsetMeters = (rowWidthInMeters - usedWidthMeters) / 2;
-            
-            // İSTİSNA: İlk satırda tam sol üstten başla
-            let startPoint;
-            if (rows.length === 0) {
-              startPoint = [minX, currentLat];
-            } else {
-              startPoint = turf.destination([minX, currentLat], startOffsetMeters, 90, { units: 'meters' }).geometry.coordinates;
-            }
-
-            for (let i = 0; i < count; i++) {
-              const p = turf.destination(startPoint, i * dist, 90, { units: 'meters' }).geometry.coordinates;
-              rowPoints.push({ lat: p[1], lng: p[0] });
-            }
-          } else {
-            // Tek YKN durumu
-            if (rows.length === 0) {
-              rowPoints.push({ lat: currentLat, lng: minX });
-            } else {
-              const ratio = sideToggle ? 0.85 : 0.15;
-              const offset = rowWidthInMeters * ratio;
-              const p = turf.destination([minX, currentLat], offset, 90, { units: 'meters' }).geometry.coordinates;
-              rowPoints.push({ lat: p[1], lng: p[0] });
-            }
-          }
-          
-          if (rowPoints.length > 0) {
-            rows.push({ lat: currentLat, points: rowPoints });
-            sideToggle = !sideToggle;
+      
+      // Generate a dense grid of candidate points inside the polygon
+      const candidates: [number, number][] = [];
+      const step = Math.min(dist / 4, 50); // Dense sampling for better path finding
+      
+      for (let x = bbox[0]; x <= bbox[2]; x += (bbox[2] - bbox[0]) / (turf.distance([bbox[0], bbox[1]], [bbox[2], bbox[1]], {units: 'meters'}) / step)) {
+        for (let y = bbox[1]; y <= bbox[3]; y += (bbox[3] - bbox[1]) / (turf.distance([bbox[0], bbox[1]], [bbox[0], bbox[3]], {units: 'meters'}) / step)) {
+          const pt = turf.point([x, y]);
+          if (turf.booleanPointInPolygon(pt, targetPoly)) {
+            candidates.push([x, y]);
           }
         }
-
-        // Move to the next row latitude
-        const nextLatPoint = turf.destination([bbox[0], currentLat], dist, 180, { units: 'meters' }).geometry.coordinates;
-        currentLat = nextLatPoint[1];
-        
-        // Safety break
-        if (rows.length > 1000) break;
       }
 
-      // 4. Zigzag Sıralama (Kesin Alternatifli)
-      let zigzagSorted: { lat: number, lng: number }[] = [];
-      rows.forEach((row, index) => {
-        let sortedRow = [...row.points].sort((a, b) => a.lng - b.lng);
-        // Çift dizinli satırlar (0, 2, 4...) soldan sağa
-        // Tek dizinli satırlar (1, 3, 5...) sağdan sola
-        if (index % 2 === 1) {
-          sortedRow.reverse();
-        }
-        zigzagSorted = zigzagSorted.concat(sortedRow);
-      });
+      if (candidates.length === 0) return [];
 
-      return zigzagSorted.map((p, i) => ({
+      // Sort candidates primarily by X (West to East) to handle long horizontal areas
+      candidates.sort((a, b) => a[0] - b[0]);
+
+      const resultPoints: { lat: number, lng: number }[] = [];
+      let currentPoint = candidates[0];
+      resultPoints.push({ lat: currentPoint[1], lng: currentPoint[0] });
+
+      let remainingCandidates = [...candidates];
+      let zigzag = 1;
+
+      while (remainingCandidates.length > 0) {
+        // Find candidates that are approximately 'dist' away
+        // We look for points in a range to allow for polygon curvature
+        const nextCandidates = remainingCandidates.filter(p => {
+          const d = turf.distance(currentPoint, p, { units: 'meters' });
+          return d >= dist * 0.9 && d <= dist * 1.2;
+        });
+
+        if (nextCandidates.length > 0) {
+          // Pick the one that is furthest along the X axis (to keep moving forward)
+          // And apply a slight zigzag by picking from the top or bottom of the available set
+          nextCandidates.sort((a, b) => a[0] - b[0]);
+          
+          // Zigzag logic: alternate between picking the northernmost or southernmost candidate in the range
+          let next;
+          if (zigzag > 0) {
+            next = nextCandidates.reduce((prev, curr) => (curr[1] > prev[1] ? curr : prev));
+          } else {
+            next = nextCandidates.reduce((prev, curr) => (curr[1] < prev[1] ? curr : prev));
+          }
+          
+          resultPoints.push({ lat: next[1], lng: next[0] });
+          currentPoint = next;
+          zigzag *= -1;
+          
+          // Remove candidates that are now behind us or too close
+          remainingCandidates = remainingCandidates.filter(p => {
+            return p[0] > currentPoint[0] + (step / 2);
+          });
+        } else {
+          // If no point found in range, look for the closest point that is at least 'dist' away
+          const furtherPoints = remainingCandidates.filter(p => turf.distance(currentPoint, p, { units: 'meters' }) >= dist);
+          if (furtherPoints.length > 0) {
+            // Sort by distance and pick the closest one that satisfies the minimum distance
+            furtherPoints.sort((a, b) => turf.distance(currentPoint, a) - turf.distance(currentPoint, b));
+            const next = furtherPoints[0];
+            resultPoints.push({ lat: next[1], lng: next[0] });
+            currentPoint = next;
+            remainingCandidates = remainingCandidates.filter(p => p[0] > currentPoint[0] + (step / 2));
+          } else {
+            break;
+          }
+        }
+        
+        if (resultPoints.length > 500) break; // Safety
+      }
+
+      return resultPoints.map((p, i) => ({
         id: `ykn-${i}`,
         name: `YKN${i + 1}`,
         lng: p.lng,
