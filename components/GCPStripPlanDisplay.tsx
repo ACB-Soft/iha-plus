@@ -230,16 +230,25 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           lastPicked = next;
           currentIndex = nextIdx;
         } else {
-          // Sort window points "across" the strip
-          // We use the coordinate (X or Y) that has more variance in this window
-          const xRange = Math.max(...window.map(p => p.point[0])) - Math.min(...window.map(p => p.point[0]));
-          const yRange = Math.max(...window.map(p => p.point[1])) - Math.min(...window.map(p => p.point[1]));
+          // --- LOCAL COORDINATE SYSTEM (Frenet-Serret inspired) ---
+          // 1. Calculate Flow Vector (Tangent)
+          // We look ahead in the projected path to get a stable direction
+          const lookAheadIdx = Math.min(nextIdx + 10, projected.length - 1);
+          const flowX = projected[lookAheadIdx].point[0] - lastPicked.point[0];
+          const flowY = projected[lookAheadIdx].point[1] - lastPicked.point[1];
           
-          if (xRange > yRange) {
-            window.sort((a, b) => a.point[0] - b.point[0]);
-          } else {
-            window.sort((a, b) => a.point[1] - b.point[1]);
-          }
+          // 2. Calculate Normal Vector (Perpendicular to Flow)
+          // Rotate flow vector 90 degrees: (x, y) -> (-y, x)
+          const normX = -flowY;
+          const normY = flowX;
+          
+          // 3. Project window points onto the Normal Vector
+          // This sorts them "across" the strip regardless of global orientation
+          window.sort((a, b) => {
+            const projA = (a.point[0] - lastPicked.point[0]) * normX + (a.point[1] - lastPicked.point[1]) * normY;
+            const projB = (b.point[0] - lastPicked.point[0]) * normX + (b.point[1] - lastPicked.point[1]) * normY;
+            return projA - projB;
+          });
           
           const next = zigzag > 0 ? window[window.length - 1] : window[0];
           resultPoints.push({ lat: next.point[1], lng: next.point[0] });
