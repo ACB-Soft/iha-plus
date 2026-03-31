@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Popup, Polygon, Marker, Polyline, useMap, useM
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
+import { Delaunay } from 'd3-delaunay';
 import { KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
@@ -118,83 +119,155 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       }
       setShrunkPolygon(shrunkCoords);
 
-      // --- NEW FLOW TRACER ALGORITHM ---
+      // --- VORONOI-BASED SKELETONIZATION (MEDIAL AXIS TRANSFORM) ---
       
-      // 1. Find a true start point on the boundary furthest from centroid
-      const centroid = turf.centroid(targetPoly).geometry.coordinates as [number, number];
-      const boundaryPoints = targetPoly.geometry.coordinates[0];
-      let startPt = boundaryPoints[0] as [number, number];
-      let maxD = -1;
-      boundaryPoints.forEach((p: any) => {
-        const d = turf.distance(centroid, p);
-        if (d > maxD) { maxD = d; startPt = p; }
-      });
-
-      // Move slightly inside to avoid boundary issues
-      const toCentroid = turf.bearing(startPt, centroid);
-      let currentPt = turf.destination(startPt, 5, toCentroid, { units: 'meters' }).geometry.coordinates as [number, number];
+      // 1. Sample points along the boundary
+      const line = turf.polygonToLine(targetPoly) as any;
+      const lineLength = turf.length(line, { units: 'meters' });
+      const sampleDist = 20; // Sample every 20m for high fidelity
+      const boundaryPoints: [number, number][] = [];
       
-      const spinePoints: [number, number][] = [currentPt];
-      const stepDist = 30; // 30m steps for flow tracing
-      const maxSteps = 1500; // Safety for 8km+ (8000/30 = 266 steps)
-      let prevPt = startPt;
-
-      for (let step = 0; step < maxSteps; step++) {
-        // Create a circle of points at stepDist
-        const circlePoints: [number, number][] = [];
-        const numSamples = 60; // 6 degree resolution
-        for (let i = 0; i < numSamples; i++) {
-          const angle = (i * 360) / numSamples;
-          const p = turf.destination(currentPt, stepDist, angle, { units: 'meters' }).geometry.coordinates as [number, number];
-          if (turf.booleanPointInPolygon(p, targetPoly)) {
-            circlePoints.push(p);
-          }
-        }
-
-        if (circlePoints.length === 0) break;
-
-        // Find the point furthest from the previous point to ensure forward motion
-        let bestNext: [number, number] | null = null;
-        let maxStepD = -1;
-
-        circlePoints.forEach(p => {
-          const d = turf.distance(prevPt, p);
-          if (d > maxStepD) {
-            maxStepD = d;
-            bestNext = p;
-          }
-        });
-
-        if (!bestNext) break;
-
-        // Check if we are making progress
-        if (turf.distance(currentPt, bestNext, { units: 'meters' }) < stepDist * 0.5) break;
-
-        prevPt = currentPt;
-        currentPt = bestNext;
-        spinePoints.push(currentPt);
+      for (let d = 0; d < lineLength; d += sampleDist) {
+        const p = turf.along(line, d, { units: 'meters' }).geometry.coordinates as [number, number];
+        boundaryPoints.push(p);
       }
 
-      if (spinePoints.length < 2) return { ykns: [], spinePts: [] };
+      // 2. Compute Voronoi Diagram
+      const bbox = turf.bbox(targetPoly);
+      const delaunay = Delaunay.from(boundaryPoints);
+      const voronoi = delaunay.voronoi(bbox);
+      
+      // 3. Filter Voronoi edges that are inside the polygon
+      const pointsInPoly: [number, number][] = [];
+      const pointMap = new Map<string, number>();
 
-      // 5. Generate YKNs along the Spine
+      const getPointId = (pt: [number, number]) => {
+        const key = `${pt[0].toFixed(7)},${pt[1].toFixed(7)}`;
+        if (!pointMap.has(key)) {
+          pointMap.set(key, pointsInPoly.length);
+          pointsInPoly.push(pt);
+        }
+        return pointMap.get(key)!;
+      };
+
+      const circumcenters: [number, number][] = [];
+      for (let i = 0; i < delaunay.triangles.length / 3; i++) {
+        const center = [voronoi.circumcenters[i * 2], voronoi.circumcenters[i * 2 + 1]] as [number, number];
+        circumcenters.push(center);
+      }
+
+      const graph: Map<number, number[]> = new Map();
+      const validCenters = new Set<number>();
+
+      circumcenters.forEach((c, i) => {
+        if (turf.booleanPointInPolygon(c, targetPoly)) {
+          validCenters.add(i);
+        }
+      });
+
+      for (let i = 0; i < delaunay.halfedges.length; i++) {
+        const j = delaunay.halfedges[i];
+        if (j < i || j === -1) continue; 
+        
+        const tri1 = Math.floor(i / 3);
+        const tri2 = Math.floor(j / 3);
+        
+        if (validCenters.has(tri1) && validCenters.has(tri2)) {
+          const p1 = circumcenters[tri1];
+          const p2 = circumcenters[tri2];
+          
+          const mid = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2] as [number, number];
+          if (turf.booleanPointInPolygon(mid, targetPoly)) {
+            const id1 = getPointId(p1);
+            const id2 = getPointId(p2);
+            
+            if (!graph.has(id1)) graph.set(id1, []);
+            if (!graph.has(id2)) graph.set(id2, []);
+            graph.get(id1)!.push(id2);
+            graph.get(id2)!.push(id1);
+          }
+        }
+      }
+
+      if (pointsInPoly.length < 2) return { ykns: [], spinePts: [] };
+
+      const findFurthest = (startId: number) => {
+        const distances = new Map<number, number>();
+        const parent = new Map<number, number>();
+        const queue = [startId];
+        distances.set(startId, 0);
+        parent.set(startId, -1);
+
+        let furthestId = startId;
+        let maxDist = 0;
+
+        while (queue.length > 0) {
+          const curr = queue.shift()!;
+          const d = distances.get(curr)!;
+
+          if (d > maxDist) {
+            maxDist = d;
+            furthestId = curr;
+          }
+
+          const neighbors = graph.get(curr) || [];
+          for (const next of neighbors) {
+            if (!distances.has(next)) {
+              distances.set(next, d + 1);
+              parent.set(next, curr);
+              queue.push(next);
+            }
+          }
+        }
+        return { furthestId, parent };
+      };
+
+      if (graph.size === 0) return { ykns: [], spinePts: [] };
+
+      const startNode = Array.from(graph.keys())[0];
+      const { furthestId: end1 } = findFurthest(startNode);
+      const { furthestId: end2, parent } = findFurthest(end1);
+
+      const spinePoints: [number, number][] = [];
+      let currNode = end2;
+      while (currNode !== -1) {
+        spinePoints.push(pointsInPoly[currNode]);
+        currNode = parent.get(currNode) ?? -1;
+      }
+
+      const smoothedSpine: [number, number][] = [];
+      const windowSize = 3;
+      for (let i = 0; i < spinePoints.length; i++) {
+        let sumLng = 0;
+        let sumLat = 0;
+        let count = 0;
+        for (let j = i - windowSize; j <= i + windowSize; j++) {
+          if (j >= 0 && j < spinePoints.length) {
+            sumLng += spinePoints[j][0];
+            sumLat += spinePoints[j][1];
+            count++;
+          }
+        }
+        smoothedSpine.push([sumLng / count, sumLat / count]);
+      }
+
+      if (smoothedSpine.length < 2) return { ykns: [], spinePts: [] };
+
       const resultYKNS: YKNPoint[] = [];
       let zigzag = 1;
       
-      // Helper to get YKN position from spine index with offset
       const getYKNPos = (idx: number, zz: number): [number, number] => {
-        const spinePt = spinePoints[idx];
+        const spinePt = smoothedSpine[idx];
         const prevIdx = Math.max(0, idx - 1);
-        const nextIdx = Math.min(spinePoints.length - 1, idx + 1);
+        const nextIdx = Math.min(smoothedSpine.length - 1, idx + 1);
         
-        const prevP = spinePoints[prevIdx];
-        const nextP = spinePoints[nextIdx];
+        const prevP = smoothedSpine[prevIdx];
+        const nextP = smoothedSpine[nextIdx];
         
         const bearing = turf.bearing(prevP, nextP);
         const perpBearing = bearing + 90 * zz;
 
         let bestPt = spinePt;
-        // Push towards edge
         for (let o = 5; o <= 200; o += 5) {
           const testPt = turf.destination(spinePt, o, perpBearing, { units: 'meters' }).geometry.coordinates as [number, number];
           if (turf.booleanPointInPolygon(testPt, targetPoly)) {
@@ -206,7 +279,6 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         return bestPt;
       };
 
-      // Place first YKN
       let lastYKNPos = getYKNPos(0, zigzag);
       resultYKNS.push({
         id: `ykn-0`,
@@ -220,10 +292,10 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       const targetDist = dist;
       const minAcceptable = dist * 0.95;
 
-      while (currentSpineIdx < spinePoints.length - 1) {
+      while (currentSpineIdx < smoothedSpine.length - 1) {
         let bestNextIdx = -1;
 
-        for (let i = currentSpineIdx + 1; i < spinePoints.length; i++) {
+        for (let i = currentSpineIdx + 1; i < smoothedSpine.length; i++) {
           const potPos = getYKNPos(i, zigzag);
           const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
 
@@ -252,7 +324,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         zigzag *= -1;
       }
 
-      return { ykns: resultYKNS, spinePts: spinePoints };
+      return { ykns: resultYKNS, spinePts: smoothedSpine };
     };
 
     const { ykns, spinePts } = generatePoints(config.gcpDistance || 400);
@@ -393,7 +465,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           {shrunkPolygon && <Polygon positions={shrunkPolygon} color="#4f46e5" fillOpacity={0.1} weight={2} dashArray="10, 10" />}
           
           {spine.length > 0 && (
-            <Polyline positions={spine} color="#ef4444" weight={2} dashArray="5, 10" opacity={0.8} />
+            <Polyline positions={spine} color="#ef4444" weight={3} opacity={1} />
           )}
 
           {points.map((p) => (
