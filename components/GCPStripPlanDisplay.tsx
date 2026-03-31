@@ -118,113 +118,62 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       }
       setShrunkPolygon(shrunkCoords);
 
-      // 1. Generate Grid Points with Spatial Indexing
-      const bbox = turf.bbox(targetPoly);
-      const gridSpacing = 12; 
-      const candidates: { pt: [number, number], distToEdge: number, id: number }[] = [];
-      const spatialIndex = new Map<string, number>(); // Key: "gx,gy", Value: candidate index
+      // --- NEW FLOW TRACER ALGORITHM ---
       
-      const latMid = (bbox[1] + bbox[3]) / 2;
-      const latStep = gridSpacing / 111320;
-      const lngStep = gridSpacing / (111320 * Math.cos(latMid * Math.PI / 180));
-
-      let idCounter = 0;
-      for (let x = bbox[0]; x <= bbox[2]; x += lngStep) {
-        for (let y = bbox[1]; y <= bbox[3]; y += latStep) {
-          const pt: [number, number] = [x, y];
-          if (turf.booleanPointInPolygon(pt, targetPoly)) {
-            let minDist = Infinity;
-            const polyCoords = targetPoly.geometry.coordinates[0];
-            for (let k = 0; k < polyCoords.length - 1; k++) {
-              const line = turf.lineString([polyCoords[k], polyCoords[k+1]]);
-              const d = turf.pointToLineDistance(pt, line, { units: 'meters' });
-              if (d < minDist) minDist = d;
-            }
-            const gx = Math.round(x / lngStep);
-            const gy = Math.round(y / latStep);
-            spatialIndex.set(`${gx},${gy}`, idCounter);
-            candidates.push({ pt, distToEdge: minDist, id: idCounter++ });
-          }
-        }
-      }
-
-      if (candidates.length < 2) return { ykns: [], spinePts: [] };
-
-      // 2. Find Ends
-      let pA = 0; let maxD = -1;
+      // 1. Find a true start point on the boundary furthest from centroid
       const centroid = turf.centroid(targetPoly).geometry.coordinates as [number, number];
-      candidates.forEach((c, i) => {
-        const d = turf.distance(c.pt, centroid);
-        if (d > maxD) { maxD = d; pA = i; }
-      });
-      let pB = 0; maxD = -1;
-      candidates.forEach((c, i) => {
-        const d = turf.distance(candidates[pA].pt, c.pt);
-        if (d > maxD) { maxD = d; pB = i; }
+      const boundaryPoints = targetPoly.geometry.coordinates[0];
+      let startPt = boundaryPoints[0] as [number, number];
+      let maxD = -1;
+      boundaryPoints.forEach((p: any) => {
+        const d = turf.distance(centroid, p);
+        if (d > maxD) { maxD = d; startPt = p; }
       });
 
-      const startIdx = pA;
-      const endIdx = pB;
-
-      // 3. Optimized Dijkstra with Spatial Lookup
-      const costs = new Float32Array(candidates.length).fill(Infinity);
-      const parent = new Int32Array(candidates.length).fill(-1);
-      const visited = new Uint8Array(candidates.length).fill(0);
+      // Move slightly inside to avoid boundary issues
+      const toCentroid = turf.bearing(startPt, centroid);
+      let currentPt = turf.destination(startPt, 5, toCentroid, { units: 'meters' }).geometry.coordinates as [number, number];
       
-      costs[startIdx] = 0;
-      let queue: number[] = [startIdx];
-      let furthestReachedIdx = startIdx;
-      let maxDistFromStart = 0;
+      const spinePoints: [number, number][] = [currentPt];
+      const stepDist = 30; // 30m steps for flow tracing
+      const maxSteps = 1500; // Safety for 8km+ (8000/30 = 266 steps)
+      let prevPt = startPt;
 
-      let iterations = 0;
-      while (queue.length > 0 && iterations < 100000) {
-        iterations++;
-        // Sort queue occasionally or use simple shift for BFS-like behavior with edge weighting
-        if (iterations % 100 === 0) queue.sort((a, b) => costs[a] - costs[b]);
-        const curr = queue.shift()!;
-        
-        if (visited[curr]) continue;
-        visited[curr] = 1;
-
-        const dFromStart = turf.distance(candidates[startIdx].pt, candidates[curr].pt);
-        if (dFromStart > maxDistFromStart) {
-          maxDistFromStart = dFromStart;
-          furthestReachedIdx = curr;
-        }
-
-        if (curr === endIdx) break;
-
-        const c = candidates[curr];
-        const gx = Math.round(c.pt[0] / lngStep);
-        const gy = Math.round(c.pt[1] / latStep);
-
-        // Check 5x5 neighborhood in spatial index (O(1) lookup)
-        for (let dx = -2; dx <= 2; dx++) {
-          for (let dy = -2; dy <= 2; dy++) {
-            const nIdx = spatialIndex.get(`${gx + dx},${gy + dy}`);
-            if (nIdx !== undefined && !visited[nIdx]) {
-              const n = candidates[nIdx];
-              const d = turf.distance(c.pt, n.pt, { units: 'meters' });
-              // Cost favors center: distance / (distToEdge^2)
-              const weight = d * (1 / Math.pow(n.distToEdge + 1, 2));
-              const newCost = costs[curr] + weight;
-              if (newCost < costs[nIdx]) {
-                costs[nIdx] = newCost;
-                parent[nIdx] = curr;
-                queue.push(nIdx);
-              }
-            }
+      for (let step = 0; step < maxSteps; step++) {
+        // Create a circle of points at stepDist
+        const circlePoints: [number, number][] = [];
+        const numSamples = 60; // 6 degree resolution
+        for (let i = 0; i < numSamples; i++) {
+          const angle = (i * 360) / numSamples;
+          const p = turf.destination(currentPt, stepDist, angle, { units: 'meters' }).geometry.coordinates as [number, number];
+          if (turf.booleanPointInPolygon(p, targetPoly)) {
+            circlePoints.push(p);
           }
         }
-      }
 
-      const spinePoints: [number, number][] = [];
-      let currPath: number = visited[endIdx] ? endIdx : furthestReachedIdx;
-      while (currPath !== -1) {
-        spinePoints.push(candidates[currPath].pt);
-        currPath = parent[currPath];
+        if (circlePoints.length === 0) break;
+
+        // Find the point furthest from the previous point to ensure forward motion
+        let bestNext: [number, number] | null = null;
+        let maxStepD = -1;
+
+        circlePoints.forEach(p => {
+          const d = turf.distance(prevPt, p);
+          if (d > maxStepD) {
+            maxStepD = d;
+            bestNext = p;
+          }
+        });
+
+        if (!bestNext) break;
+
+        // Check if we are making progress
+        if (turf.distance(currentPt, bestNext, { units: 'meters' }) < stepDist * 0.5) break;
+
+        prevPt = currentPt;
+        currentPt = bestNext;
+        spinePoints.push(currentPt);
       }
-      spinePoints.reverse();
 
       if (spinePoints.length < 2) return { ykns: [], spinePts: [] };
 
@@ -235,23 +184,19 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       // Helper to get YKN position from spine index with offset
       const getYKNPos = (idx: number, zz: number): [number, number] => {
         const spinePt = spinePoints[idx];
-        const prevPt = spinePoints[Math.max(0, idx - 2)];
-        const nextPt = spinePoints[Math.min(spinePoints.length - 1, idx + 2)];
+        const prevIdx = Math.max(0, idx - 1);
+        const nextIdx = Math.min(spinePoints.length - 1, idx + 1);
         
-        const dx = nextPt[0] - prevPt[0];
-        const dy = nextPt[1] - prevPt[1];
+        const prevP = spinePoints[prevIdx];
+        const nextP = spinePoints[nextIdx];
         
-        const mag = Math.sqrt(dx*dx + dy*dy) || 1;
-        const nx = (-dy / mag) * zz;
-        const ny = (dx / mag) * zz;
+        const bearing = turf.bearing(prevP, nextP);
+        const perpBearing = bearing + 90 * zz;
 
         let bestPt = spinePt;
-        // Try to push point towards the edge (up to 40% of strip width roughly)
-        for (let o = 5; o <= 150; o += 5) {
-          const testLng = spinePt[0] + nx * (o / 111320 / Math.cos(spinePt[1] * Math.PI / 180));
-          const testLat = spinePt[1] + ny * (o / 111320);
-          const testPt: [number, number] = [testLng, testLat];
-          
+        // Push towards edge
+        for (let o = 5; o <= 200; o += 5) {
+          const testPt = turf.destination(spinePt, o, perpBearing, { units: 'meters' }).geometry.coordinates as [number, number];
           if (turf.booleanPointInPolygon(testPt, targetPoly)) {
             bestPt = testPt;
           } else {
@@ -272,57 +217,39 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       zigzag *= -1;
 
       let currentSpineIdx = 0;
-      const targetDist = dist; // User selected distance (e.g., 200m, 400m)
-      const minAcceptable = dist * 0.95; // 5% tolerance (e.g., 190m, 380m)
+      const targetDist = dist;
+      const minAcceptable = dist * 0.95;
 
       while (currentSpineIdx < spinePoints.length - 1) {
         let bestNextIdx = -1;
 
-        // Search forward along the spine to find the furthest point within [0.95*dist, 1.0*dist]
         for (let i = currentSpineIdx + 1; i < spinePoints.length; i++) {
           const potPos = getYKNPos(i, zigzag);
           const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
 
           if (d > targetDist) {
-            // CRITICAL: We hit the hard limit. 
-            // If we found a point in the 5% zone before this, we already have it in bestNextIdx.
-            // If we haven't found a point in the 5% zone yet, we MUST take the previous point (i-1)
-            // to ensure we NEVER exceed the target distance.
             if (bestNextIdx === -1) {
               bestNextIdx = Math.max(currentSpineIdx + 1, i - 1);
             }
             break;
           }
-          
           if (d >= minAcceptable) {
-            // We are in the 5% tolerance zone. 
-            // We keep updating bestNextIdx to get as close to targetDist as possible without exceeding it.
             bestNextIdx = i;
           }
-          
-          // If we reach the end of the spine without exceeding targetDist or hitting minAcceptable,
-          // we will handle it after the loop.
         }
 
-        if (bestNextIdx !== -1) {
-          const finalPos = getYKNPos(bestNextIdx, zigzag);
-          
-          resultYKNS.push({
-            id: `ykn-${resultYKNS.length}`,
-            name: `YKN${resultYKNS.length + 1}`,
-            lng: finalPos[0],
-            lat: finalPos[1]
-          });
-          
-          lastYKNPos = finalPos;
-          currentSpineIdx = bestNextIdx;
-          zigzag *= -1;
-        } else {
-          // Could not find any point that reaches even the minimum distance before spine ends.
-          break;
-        }
+        if (bestNextIdx === -1 || bestNextIdx <= currentSpineIdx) break;
+
+        currentSpineIdx = bestNextIdx;
+        lastYKNPos = getYKNPos(currentSpineIdx, zigzag);
         
-        if (resultYKNS.length > 500) break;
+        resultYKNS.push({
+          id: `ykn-${resultYKNS.length}`,
+          name: `YKN${resultYKNS.length + 1}`,
+          lng: lastYKNPos[0],
+          lat: lastYKNPos[1]
+        });
+        zigzag *= -1;
       }
 
       return { ykns: resultYKNS, spinePts: spinePoints };
@@ -466,7 +393,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           {shrunkPolygon && <Polygon positions={shrunkPolygon} color="#4f46e5" fillOpacity={0.1} weight={2} dashArray="10, 10" />}
           
           {spine.length > 0 && (
-            <Polyline positions={spine} color="#2563eb" weight={2} dashArray="5, 10" opacity={0.5} />
+            <Polyline positions={spine} color="#ef4444" weight={2} dashArray="5, 10" opacity={0.8} />
           )}
 
           {points.map((p) => (
