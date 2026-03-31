@@ -332,14 +332,14 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
         <div className="absolute top-6 right-6 z-[1000] pointer-events-none flex flex-col gap-2 items-end">
           <button 
             onClick={() => setIsAddingPoint(!isAddingPoint)}
-            className={`px-4 py-3 rounded-xl flex items-center gap-2 shadow-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all pointer-events-auto border ${
+            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-0.5 shadow-xl font-black text-[9px] uppercase tracking-widest active:scale-95 transition-all pointer-events-auto border ${
               isAddingPoint 
                 ? 'bg-orange-500 text-white border-orange-400 animate-pulse' 
-                : 'bg-white text-slate-900 border-slate-200'
+                : 'bg-blue-600 text-white border-blue-500'
             }`}
           >
-            <i className={`fas ${isAddingPoint ? 'fa-times' : 'fa-plus'}`}></i>
-            {isAddingPoint ? 'İptal Et' : 'Yeni YKN Ekle'}
+            <i className={`fas ${isAddingPoint ? 'fa-times' : 'fa-plus'} text-xs`}></i>
+            <span>{isAddingPoint ? 'İptal' : 'YKN'}</span>
           </button>
         </div>
 
