@@ -52,7 +52,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   const mapProvider = localStorage.getItem('default_map_provider') || 'Google Satellite';
   
   // Initial calculation based on config
-  const initialAltitude = config.height;
+  const initialAltitude = 200;
   const initialGsd = (initialAltitude * config.camera.sensorWidth) / (config.camera.focalLength * config.camera.imageWidth) * 100;
   
   const [altitude, setAltitude] = useState(Math.round(initialAltitude));
@@ -62,12 +62,6 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [exportName, setExportName] = useState(`TAHDIT_${projectName.replace(/\.(kml|kmz)$/i, '')}`);
   
-  const boundaryArea = useMemo(() => {
-    const polygonFeature = features.find(f => f.type === 'Polygon');
-    if (!polygonFeature) return 0;
-    return calculatePolygonArea(polygonFeature.coordinates.map(c => ({ lat: c.lat, lng: c.lng })));
-  }, [features]);
-
   // Recalculate GSD when altitude changes
   const handleAltitudeChange = (newAlt: number) => {
     setAltitude(newAlt);
@@ -150,6 +144,11 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     }];
   }), [features, config, altitude]);
 
+  const boundaryArea = useMemo(() => {
+    // Sum up the final areas of all processed features (expanded polygons, strip buffers, etc.)
+    return processedFeatures.reduce((sum, f) => sum + (f.finalArea || 0), 0);
+  }, [processedFeatures]);
+
   const getTileLayer = () => {
     switch (mapProvider) {
       case 'Google Satellite':
@@ -178,11 +177,21 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       return `
     <Placemark>
       <name>${feature.name || name}</name>
+      <Style>
+        <LineStyle>
+          <color>ff0000ff</color>
+          <width>3</width>
+        </LineStyle>
+        <PolyStyle>
+          <fill>0</fill>
+        </PolyStyle>
+      </Style>
       <Polygon>
         <outerBoundaryIs>
           <LinearRing>
             <coordinates>
               ${coords.map(c => `${c.lng},${c.lat},0`).join(' ')}
+              ${coords[0].lng},${coords[0].lat},0
             </coordinates>
           </LinearRing>
         </outerBoundaryIs>
