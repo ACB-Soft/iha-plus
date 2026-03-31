@@ -158,7 +158,7 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
         // --- STRIP AREA ALGORITHM (Axis Projection) ---
         const bbox = turf.bbox(targetPoly);
         const candidates: [number, number][] = [];
-        const stepMeters = Math.min(dist / 6, 40); 
+        const stepMeters = 5; // 1. Çözünürlük 5 metreye düşürüldü
         
         const latMid = (bbox[1] + bbox[3]) / 2;
         const latStep = stepMeters / 111320;
@@ -209,28 +209,45 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
 
         let zigzag = 1;
         let currentIndex = 0;
+        const targetDist = dist * 0.95; // 2. Kullanıcı değerinin %95'ini hedefle
+        const maxDist = dist;           // 3. Belirlenen mesafeyi asla geçme
 
         while (currentIndex < projected.length) {
           let nextIdx = currentIndex + 1;
+          // Hedef mesafeye en yakın (ama geçmeyen) noktayı bulmak için ilerle
           while (nextIdx < projected.length && 
-                 turf.distance(lastPicked.point, projected[nextIdx].point, {units: 'meters'}) < dist * 0.95) {
+                 turf.distance(lastPicked.point, projected[nextIdx].point, {units: 'meters'}) < targetDist) {
             nextIdx++;
           }
 
           if (nextIdx >= projected.length) break;
 
-          const windowSize = Math.max(1, Math.floor(projected.length * 0.03));
-          const window = projected.slice(nextIdx, Math.min(nextIdx + windowSize, projected.length));
+          // Zikzak için bir pencere oluştur ama maxDist sınırını koru
+          const windowSize = Math.max(1, Math.floor(projected.length * 0.02));
+          let window = projected.slice(nextIdx, Math.min(nextIdx + windowSize, projected.length));
           
-          window.sort((a, b) => a.point[1] - b.point[1]);
-          const next = zigzag > 0 ? window[window.length - 1] : window[0];
+          // Pencereyi maxDist'e göre filtrele (Asla geçme kuralı)
+          window = window.filter(p => turf.distance(lastPicked.point, p.point, {units: 'meters'}) <= maxDist);
           
-          resultPoints.push({ lat: next.point[1], lng: next.point[0] });
-          lastPicked = next;
-          currentIndex = projected.indexOf(next);
+          if (window.length === 0) {
+            // Eğer pencere boşsa (ilk nokta bile sınırı aştıysa), bir önceki noktayı al
+            const fallbackIdx = nextIdx - 1;
+            if (fallbackIdx <= currentIndex) break;
+            const next = projected[fallbackIdx];
+            resultPoints.push({ lat: next.point[1], lng: next.point[0] });
+            lastPicked = next;
+            currentIndex = fallbackIdx;
+          } else {
+            window.sort((a, b) => a.point[1] - b.point[1]);
+            const next = zigzag > 0 ? window[window.length - 1] : window[0];
+            
+            resultPoints.push({ lat: next.point[1], lng: next.point[0] });
+            lastPicked = next;
+            currentIndex = projected.indexOf(next);
+          }
+          
           zigzag *= -1;
-
-          if (resultPoints.length > 500) break;
+          if (resultPoints.length > 1000) break;
         }
       }
 
