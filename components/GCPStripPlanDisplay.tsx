@@ -153,19 +153,53 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         if (d > maxD) { maxD = d; p2 = p; }
       });
 
-      let startPt = p1[0] <= p2[0] ? p1 : p2;
-      let endPt = p1[0] <= p2[0] ? p2 : p1;
+      // Build a connectivity graph to calculate "Path Distance" instead of linear projection
+      // This prevents jumping across gaps in U-shaped or curved polygons
+      const gridMap = new Map<string, [number, number]>();
+      candidates.forEach(p => {
+        const gx = Math.round(p[0] / lngStep);
+        const gy = Math.round(p[1] / latStep);
+        gridMap.set(`${gx},${gy}`, p);
+      });
 
-      const vx = endPt[0] - startPt[0];
-      const vy = endPt[1] - startPt[1];
-      const vLenSq = vx * vx + vy * vy || 1;
+      const startPt = p1;
+      const startGx = Math.round(startPt[0] / lngStep);
+      const startGy = Math.round(startPt[1] / latStep);
+      const startKey = `${startGx},${startGy}`;
 
-      const projected = candidates.map(p => {
-        const px = p[0] - startPt[0];
-        const py = p[1] - startPt[1];
-        const t = (px * vx + py * vy) / vLenSq;
-        return { point: p, t };
-      }).sort((a, b) => a.t - b.t);
+      const distances = new Map<string, number>();
+      const queue: string[] = [startKey];
+      distances.set(startKey, 0);
+
+      let head = 0;
+      while (head < queue.length) {
+        const currKey = queue[head++];
+        const parts = currKey.split(',');
+        const gx = parseInt(parts[0]);
+        const gy = parseInt(parts[1]);
+        const d = distances.get(currKey)!;
+
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = gx + dx;
+            const ny = gy + dy;
+            const nKey = `${nx},${ny}`;
+            if (gridMap.has(nKey) && !distances.has(nKey)) {
+              const stepDist = Math.sqrt(dx * dx + dy * dy) * stepMeters;
+              distances.set(nKey, d + stepDist);
+              queue.push(nKey);
+            }
+          }
+        }
+      }
+
+      const projected = Array.from(distances.entries()).map(([key, d]) => ({
+        point: gridMap.get(key)!,
+        t: d
+      })).sort((a, b) => a.t - b.t);
+
+      if (projected.length === 0) return [];
 
       let lastPicked = projected[0];
       resultPoints.push({ lat: lastPicked.point[1], lng: lastPicked.point[0] });
@@ -184,29 +218,37 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
         if (nextIdx >= projected.length) break;
 
-        const windowSize = Math.max(1, Math.floor(projected.length * 0.02));
+        // Window of points at roughly the same path distance
+        const windowSize = Math.max(5, Math.floor(projected.length * 0.01));
         let window = projected.slice(nextIdx, Math.min(nextIdx + windowSize, projected.length));
-        
         window = window.filter(p => turf.distance(lastPicked.point, p.point, {units: 'meters'}) <= maxDist);
         
         if (window.length === 0) {
-          const fallbackIdx = nextIdx - 1;
-          if (fallbackIdx <= currentIndex) break;
-          const next = projected[fallbackIdx];
+          // If no points in window, just take the next point in the path to avoid getting stuck
+          const next = projected[nextIdx];
           resultPoints.push({ lat: next.point[1], lng: next.point[0] });
           lastPicked = next;
-          currentIndex = fallbackIdx;
+          currentIndex = nextIdx;
         } else {
-          window.sort((a, b) => a.point[1] - b.point[1]);
-          const next = zigzag > 0 ? window[window.length - 1] : window[0];
+          // Sort window points "across" the strip
+          // We use the coordinate (X or Y) that has more variance in this window
+          const xRange = Math.max(...window.map(p => p.point[0])) - Math.min(...window.map(p => p.point[0]));
+          const yRange = Math.max(...window.map(p => p.point[1])) - Math.min(...window.map(p => p.point[1]));
           
+          if (xRange > yRange) {
+            window.sort((a, b) => a.point[0] - b.point[0]);
+          } else {
+            window.sort((a, b) => a.point[1] - b.point[1]);
+          }
+          
+          const next = zigzag > 0 ? window[window.length - 1] : window[0];
           resultPoints.push({ lat: next.point[1], lng: next.point[0] });
           lastPicked = next;
           currentIndex = projected.indexOf(next);
         }
         
         zigzag *= -1;
-        if (resultPoints.length > 1000) break;
+        if (resultPoints.length > 500) break; // Safety limit
       }
 
       return resultPoints.map((p, i) => ({
