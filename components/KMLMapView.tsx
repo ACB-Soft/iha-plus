@@ -61,6 +61,12 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   const [showExportModal, setShowExportModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [exportName, setExportName] = useState(`TAHDIT_${projectName.replace(/\.(kml|kmz)$/i, '')}`);
+  
+  const boundaryArea = useMemo(() => {
+    const polygonFeature = features.find(f => f.type === 'Polygon');
+    if (!polygonFeature) return 0;
+    return calculatePolygonArea(polygonFeature.coordinates.map(c => ({ lat: c.lat, lng: c.lng })));
+  }, [features]);
 
   // Recalculate GSD when altitude changes
   const handleAltitudeChange = (newAlt: number) => {
@@ -281,7 +287,12 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       {/* Uçuş Bilgi Alanı */}
       <div className="bg-slate-200 px-6 py-2 border-t border-slate-300 flex flex-col gap-2 shrink-0">
         <div className="flex items-center justify-between">
-          <div className="flex flex-col items-start w-1/3">
+          <div className="flex flex-col items-start w-1/4">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahdit Alanı</span>
+            <span className="text-[11px] font-black text-slate-900">{boundaryArea.toFixed(2)} ha</span>
+          </div>
+
+          <div className="flex flex-col items-start w-1/4">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">GSD (cm/px)</span>
             <div className="flex items-center gap-1.5">
                <button onClick={() => handleGsdChange(Number((gsd - 0.01).toFixed(2)))} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-blue-50"><i className="fas fa-minus text-[7px]"></i></button>
@@ -292,7 +303,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
 
           <button 
             onClick={() => setShowCameraModal(true)}
-            className="flex flex-col items-center w-1/3 group"
+            className="flex flex-col items-center w-1/4 group"
           >
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 group-active:text-blue-500 transition-colors">Kamera</span>
             <div className="flex items-center gap-1">
@@ -301,7 +312,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
             </div>
           </button>
 
-          <div className="flex flex-col items-end w-1/3">
+          <div className="flex flex-col items-end w-1/4">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Yükseklik (m)</span>
             <div className="flex items-center gap-1.5">
                <button onClick={() => handleAltitudeChange(altitude - 5)} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-emerald-50"><i className="fas fa-minus text-[7px]"></i></button>
