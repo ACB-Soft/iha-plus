@@ -190,22 +190,34 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       costs[startIdx] = 0;
       const queue: number[] = [startIdx];
 
-      while (queue.length > 0) {
-        queue.sort((a, b) => costs[a] - costs[b]);
-        const curr = queue.shift()!;
+      let iterations = 0;
+      const maxIterations = 20000; // Increased limit for large areas (e.g., 80ha)
+
+      while (queue.length > 0 && iterations < maxIterations) {
+        iterations++;
+        // Find node with minimum cost (simple but effective for this scale)
+        let minIdx = 0;
+        let minVal = Infinity;
+        for (let i = 0; i < queue.length; i++) {
+          if (costs[queue[i]] < minVal) {
+            minVal = costs[queue[i]];
+            minIdx = i;
+          }
+        }
+        
+        const curr = queue.splice(minIdx, 1)[0];
         if (curr === endIdx) break;
         if (visited[curr]) continue;
         visited[curr] = 1;
 
         const c = candidates[curr];
-        // Check neighbors (within gridSpacing * 1.5)
+        // Check neighbors (within gridSpacing * 1.8 to ensure connectivity)
         for (let i = 0; i < candidates.length; i++) {
           if (visited[i]) continue;
           const n = candidates[i];
           const d = turf.distance(c.pt, n.pt, { units: 'meters' });
-          if (d < gridSpacing * 1.7) {
+          if (d < gridSpacing * 1.8) {
             // Cost favors center: distance / (distToEdge^3)
-            // Cubing makes the preference for the center extremely strong
             const weight = d * (1 / Math.pow(n.distToEdge + 1, 3));
             const newCost = costs[curr] + weight;
             if (newCost < costs[i]) {
@@ -215,7 +227,6 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
             }
           }
         }
-        if (queue.length > 3000) break; // Safety
       }
 
       const spinePoints: [number, number][] = [];
