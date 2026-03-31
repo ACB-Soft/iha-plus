@@ -118,10 +118,11 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       }
       setShrunkPolygon(shrunkCoords);
 
-      // 1. Generate Grid Points with Distance to Edge
+      // 1. Generate Grid Points with Spatial Indexing
       const bbox = turf.bbox(targetPoly);
-      const gridSpacing = 15; // 15m resolution for pathfinding
+      const gridSpacing = 12; 
       const candidates: { pt: [number, number], distToEdge: number, id: number }[] = [];
+      const spatialIndex = new Map<string, number>(); // Key: "gx,gy", Value: candidate index
       
       const latMid = (bbox[1] + bbox[3]) / 2;
       const latStep = gridSpacing / 111320;
@@ -132,7 +133,6 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         for (let y = bbox[1]; y <= bbox[3]; y += latStep) {
           const pt: [number, number] = [x, y];
           if (turf.booleanPointInPolygon(pt, targetPoly)) {
-            // Calculate distance to nearest edge
             let minDist = Infinity;
             const polyCoords = targetPoly.geometry.coordinates[0];
             for (let k = 0; k < polyCoords.length - 1; k++) {
@@ -140,6 +140,9 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
               const d = turf.pointToLineDistance(pt, line, { units: 'meters' });
               if (d < minDist) minDist = d;
             }
+            const gx = Math.round(x / lngStep);
+            const gy = Math.round(y / latStep);
+            spatialIndex.set(`${gx},${gy}`, idCounter);
             candidates.push({ pt, distToEdge: minDist, id: idCounter++ });
           }
         }
@@ -147,90 +150,76 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
       if (candidates.length < 2) return { ykns: [], spinePts: [] };
 
-      // 2. Find the two furthest points to identify the "ends" of the strip
-      let pA = 0;
-      let maxD = -1;
+      // 2. Find Ends
+      let pA = 0; let maxD = -1;
       const centroid = turf.centroid(targetPoly).geometry.coordinates as [number, number];
       candidates.forEach((c, i) => {
         const d = turf.distance(c.pt, centroid);
         if (d > maxD) { maxD = d; pA = i; }
       });
-
-      let pB = 0;
-      maxD = -1;
+      let pB = 0; maxD = -1;
       candidates.forEach((c, i) => {
         const d = turf.distance(candidates[pA].pt, c.pt);
         if (d > maxD) { maxD = d; pB = i; }
       });
 
-      // Refine start/end to be at the center of the "end zones"
-      let startIdx = pA;
-      let endIdx = pB;
-      let maxDistToEdgeStart = -1;
-      let maxDistToEdgeEnd = -1;
+      const startIdx = pA;
+      const endIdx = pB;
 
-      candidates.forEach((c, i) => {
-        const dStart = turf.distance(candidates[pA].pt, c.pt, { units: 'meters' });
-        if (dStart < 50 && c.distToEdge > maxDistToEdgeStart) {
-          maxDistToEdgeStart = c.distToEdge;
-          startIdx = i;
-        }
-        const dEnd = turf.distance(candidates[pB].pt, c.pt, { units: 'meters' });
-        if (dEnd < 50 && c.distToEdge > maxDistToEdgeEnd) {
-          maxDistToEdgeEnd = c.distToEdge;
-          endIdx = i;
-        }
-      });
-
-      // 3. Dijkstra to find the centered spine
+      // 3. Optimized Dijkstra with Spatial Lookup
       const costs = new Float32Array(candidates.length).fill(Infinity);
       const parent = new Int32Array(candidates.length).fill(-1);
       const visited = new Uint8Array(candidates.length).fill(0);
       
       costs[startIdx] = 0;
-      const queue: number[] = [startIdx];
+      let queue: number[] = [startIdx];
+      let furthestReachedIdx = startIdx;
+      let maxDistFromStart = 0;
 
       let iterations = 0;
-      const maxIterations = 20000; // Increased limit for large areas (e.g., 80ha)
-
-      while (queue.length > 0 && iterations < maxIterations) {
+      while (queue.length > 0 && iterations < 100000) {
         iterations++;
-        // Find node with minimum cost (simple but effective for this scale)
-        let minIdx = 0;
-        let minVal = Infinity;
-        for (let i = 0; i < queue.length; i++) {
-          if (costs[queue[i]] < minVal) {
-            minVal = costs[queue[i]];
-            minIdx = i;
-          }
-        }
+        // Sort queue occasionally or use simple shift for BFS-like behavior with edge weighting
+        if (iterations % 100 === 0) queue.sort((a, b) => costs[a] - costs[b]);
+        const curr = queue.shift()!;
         
-        const curr = queue.splice(minIdx, 1)[0];
-        if (curr === endIdx) break;
         if (visited[curr]) continue;
         visited[curr] = 1;
 
+        const dFromStart = turf.distance(candidates[startIdx].pt, candidates[curr].pt);
+        if (dFromStart > maxDistFromStart) {
+          maxDistFromStart = dFromStart;
+          furthestReachedIdx = curr;
+        }
+
+        if (curr === endIdx) break;
+
         const c = candidates[curr];
-        // Check neighbors (within gridSpacing * 1.8 to ensure connectivity)
-        for (let i = 0; i < candidates.length; i++) {
-          if (visited[i]) continue;
-          const n = candidates[i];
-          const d = turf.distance(c.pt, n.pt, { units: 'meters' });
-          if (d < gridSpacing * 1.8) {
-            // Cost favors center: distance / (distToEdge^3)
-            const weight = d * (1 / Math.pow(n.distToEdge + 1, 3));
-            const newCost = costs[curr] + weight;
-            if (newCost < costs[i]) {
-              costs[i] = newCost;
-              parent[i] = curr;
-              queue.push(i);
+        const gx = Math.round(c.pt[0] / lngStep);
+        const gy = Math.round(c.pt[1] / latStep);
+
+        // Check 5x5 neighborhood in spatial index (O(1) lookup)
+        for (let dx = -2; dx <= 2; dx++) {
+          for (let dy = -2; dy <= 2; dy++) {
+            const nIdx = spatialIndex.get(`${gx + dx},${gy + dy}`);
+            if (nIdx !== undefined && !visited[nIdx]) {
+              const n = candidates[nIdx];
+              const d = turf.distance(c.pt, n.pt, { units: 'meters' });
+              // Cost favors center: distance / (distToEdge^2)
+              const weight = d * (1 / Math.pow(n.distToEdge + 1, 2));
+              const newCost = costs[curr] + weight;
+              if (newCost < costs[nIdx]) {
+                costs[nIdx] = newCost;
+                parent[nIdx] = curr;
+                queue.push(nIdx);
+              }
             }
           }
         }
       }
 
       const spinePoints: [number, number][] = [];
-      let currPath: number = endIdx;
+      let currPath: number = visited[endIdx] ? endIdx : furthestReachedIdx;
       while (currPath !== -1) {
         spinePoints.push(candidates[currPath].pt);
         currPath = parent[currPath];
