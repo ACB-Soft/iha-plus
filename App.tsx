@@ -83,7 +83,7 @@ const App = () => {
   }, []);
 
   const handleFinishOnboarding = () => {
-    localStorage.setItem('onboarding_v1.2_done', 'true');
+    localStorage.setItem('onboarding_v1.3_done', 'true');
     navigateTo('dashboard');
   };
 
