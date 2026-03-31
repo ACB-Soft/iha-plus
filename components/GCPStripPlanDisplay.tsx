@@ -118,90 +118,113 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       }
       setShrunkPolygon(shrunkCoords);
 
-      // 1. Generate Grid Points
+      // 1. Generate Grid Points with Distance to Edge
       const bbox = turf.bbox(targetPoly);
-      const candidates: [number, number][] = [];
-      const stepMeters = 10; // 10m grid for spine calculation
+      const gridSpacing = 15; // 15m resolution for pathfinding
+      const candidates: { pt: [number, number], distToEdge: number, id: number }[] = [];
       
       const latMid = (bbox[1] + bbox[3]) / 2;
-      const latStep = stepMeters / 111320;
-      const lngStep = stepMeters / (111320 * Math.cos(latMid * Math.PI / 180));
+      const latStep = gridSpacing / 111320;
+      const lngStep = gridSpacing / (111320 * Math.cos(latMid * Math.PI / 180));
 
+      let idCounter = 0;
       for (let x = bbox[0]; x <= bbox[2]; x += lngStep) {
         for (let y = bbox[1]; y <= bbox[3]; y += latStep) {
           const pt: [number, number] = [x, y];
           if (turf.booleanPointInPolygon(pt, targetPoly)) {
-            candidates.push(pt);
+            // Calculate distance to nearest edge
+            let minDist = Infinity;
+            const polyCoords = targetPoly.geometry.coordinates[0];
+            for (let k = 0; k < polyCoords.length - 1; k++) {
+              const line = turf.lineString([polyCoords[k], polyCoords[k+1]]);
+              const d = turf.pointToLineDistance(pt, line, { units: 'meters' });
+              if (d < minDist) minDist = d;
+            }
+            candidates.push({ pt, distToEdge: minDist, id: idCounter++ });
           }
         }
       }
 
       if (candidates.length < 2) return { ykns: [], spinePts: [] };
 
-      // 2. Find Start Point (furthest from centroid)
-      const polyCentroid = turf.centroid(targetPoly);
-      let startPt = candidates[0];
-      let maxD = 0;
-      candidates.forEach(p => {
-        const d = turf.distance(polyCentroid, p);
-        if (d > maxD) { maxD = d; startPt = p; }
+      // 2. Find the two furthest points to identify the "ends" of the strip
+      let pA = 0;
+      let maxD = -1;
+      const centroid = turf.centroid(targetPoly).geometry.coordinates as [number, number];
+      candidates.forEach((c, i) => {
+        const d = turf.distance(c.pt, centroid);
+        if (d > maxD) { maxD = d; pA = i; }
       });
 
-      // 3. Calculate Path Distances (BFS)
-      const gridMap = new Map<string, [number, number]>();
-      candidates.forEach(p => {
-        const gx = Math.round(p[0] / lngStep);
-        const gy = Math.round(p[1] / latStep);
-        gridMap.set(`${gx},${gy}`, p);
+      let pB = 0;
+      maxD = -1;
+      candidates.forEach((c, i) => {
+        const d = turf.distance(candidates[pA].pt, c.pt);
+        if (d > maxD) { maxD = d; pB = i; }
       });
 
-      const startGx = Math.round(startPt[0] / lngStep);
-      const startGy = Math.round(startPt[1] / latStep);
-      const startKey = `${startGx},${startGy}`;
+      // Refine start/end to be at the center of the "end zones"
+      let startIdx = pA;
+      let endIdx = pB;
+      let maxDistToEdgeStart = -1;
+      let maxDistToEdgeEnd = -1;
 
-      const distances = new Map<string, number>();
-      const queue: string[] = [startKey];
-      distances.set(startKey, 0);
+      candidates.forEach((c, i) => {
+        const dStart = turf.distance(candidates[pA].pt, c.pt, { units: 'meters' });
+        if (dStart < 50 && c.distToEdge > maxDistToEdgeStart) {
+          maxDistToEdgeStart = c.distToEdge;
+          startIdx = i;
+        }
+        const dEnd = turf.distance(candidates[pB].pt, c.pt, { units: 'meters' });
+        if (dEnd < 50 && c.distToEdge > maxDistToEdgeEnd) {
+          maxDistToEdgeEnd = c.distToEdge;
+          endIdx = i;
+        }
+      });
 
-      let head = 0;
-      while (head < queue.length) {
-        const currKey = queue[head++];
-        const parts = currKey.split(',');
-        const gx = parseInt(parts[0]);
-        const gy = parseInt(parts[1]);
-        const d = distances.get(currKey)!;
+      // 3. Dijkstra to find the centered spine
+      const costs = new Float32Array(candidates.length).fill(Infinity);
+      const parent = new Int32Array(candidates.length).fill(-1);
+      const visited = new Uint8Array(candidates.length).fill(0);
+      
+      costs[startIdx] = 0;
+      const queue: number[] = [startIdx];
 
-        for (let dx = -1; dx <= 1; dx++) {
-          for (let dy = -1; dy <= 1; dy++) {
-            if (dx === 0 && dy === 0) continue;
-            const nx = gx + dx;
-            const ny = gy + dy;
-            const nKey = `${nx},${ny}`;
-            if (gridMap.has(nKey) && !distances.has(nKey)) {
-              const stepDist = Math.sqrt(dx * dx + dy * dy) * stepMeters;
-              distances.set(nKey, d + stepDist);
-              queue.push(nKey);
+      while (queue.length > 0) {
+        queue.sort((a, b) => costs[a] - costs[b]);
+        const curr = queue.shift()!;
+        if (curr === endIdx) break;
+        if (visited[curr]) continue;
+        visited[curr] = 1;
+
+        const c = candidates[curr];
+        // Check neighbors (within gridSpacing * 1.5)
+        for (let i = 0; i < candidates.length; i++) {
+          if (visited[i]) continue;
+          const n = candidates[i];
+          const d = turf.distance(c.pt, n.pt, { units: 'meters' });
+          if (d < gridSpacing * 1.7) {
+            // Cost favors center: distance / (distToEdge^3)
+            // Cubing makes the preference for the center extremely strong
+            const weight = d * (1 / Math.pow(n.distToEdge + 1, 3));
+            const newCost = costs[curr] + weight;
+            if (newCost < costs[i]) {
+              costs[i] = newCost;
+              parent[i] = curr;
+              queue.push(i);
             }
           }
         }
+        if (queue.length > 3000) break; // Safety
       }
 
-      // 4. Calculate Spine (Centroids of points at same distance)
-      const distGroups = new Map<number, [number, number][]>();
-      distances.forEach((d, key) => {
-        const dKey = Math.round(d / 10) * 10; // Group by 10m intervals
-        if (!distGroups.has(dKey)) distGroups.set(dKey, []);
-        distGroups.get(dKey)!.push(gridMap.get(key)!);
-      });
-
-      const spinePoints: any[] = Array.from(distGroups.keys())
-        .sort((a, b) => a - b)
-        .map((d) => {
-          const pts = distGroups.get(d)!;
-          const avgX = pts.reduce((sum, p) => sum + p[0], 0) / pts.length;
-          const avgY = pts.reduce((sum, p) => sum + p[1], 0) / pts.length;
-          return [avgX, avgY];
-        });
+      const spinePoints: [number, number][] = [];
+      let currPath: number = endIdx;
+      while (currPath !== -1) {
+        spinePoints.push(candidates[currPath].pt);
+        currPath = parent[currPath];
+      }
+      spinePoints.reverse();
 
       if (spinePoints.length < 2) return { ykns: [], spinePts: [] };
 
