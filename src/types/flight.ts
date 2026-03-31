@@ -45,6 +45,7 @@ export interface FlightConfig {
   expandToRectangle: boolean;
   gcpDistance?: number;
   gcpStartOffset?: number;
+  gcpLayoutType?: 'Normal' | 'Strip';
   stripBuffer?: number;
   stripSplitDistance?: number;
 }

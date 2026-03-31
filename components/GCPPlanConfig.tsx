@@ -16,6 +16,7 @@ interface Props {
 const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange, settings }) => {
   const [gcpDistance, setGcpDistance] = useState(400);
   const [gcpStartOffset, setGcpStartOffset] = useState(10);
+  const [gcpLayoutType, setGcpLayoutType] = useState<'Normal' | 'Strip'>('Normal');
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   
   // Sync kmlData with initialKmlData when it changes
@@ -70,7 +71,8 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
       overlapSide: 0,
       expandToRectangle: false,
       gcpDistance,
-      gcpStartOffset
+      gcpStartOffset,
+      gcpLayoutType
     };
     
     onPlanCreated(kmlData, config);
@@ -121,9 +123,38 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 2. YKN Arası Mesafe */}
+        {/* 2. Alan Tipi Seçimi */}
         <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. YKN Arası Mesafe</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Alan Tipi</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              onClick={() => setGcpLayoutType('Normal')}
+              className={`py-4 rounded-[24px] font-black uppercase tracking-widest text-[10px] border-2 transition-all flex flex-col items-center gap-2 ${
+                gcpLayoutType === 'Normal' 
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
+                  : 'bg-white border-slate-200 text-slate-400 hover:border-blue-200'
+              }`}
+            >
+              <i className="fas fa-th text-lg"></i>
+              <span>Normal Alan</span>
+            </button>
+            <button 
+              onClick={() => setGcpLayoutType('Strip')}
+              className={`py-4 rounded-[24px] font-black uppercase tracking-widest text-[10px] border-2 transition-all flex flex-col items-center gap-2 ${
+                gcpLayoutType === 'Strip' 
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
+                  : 'bg-white border-slate-200 text-slate-400 hover:border-blue-200'
+              }`}
+            >
+              <i className="fas fa-route text-lg"></i>
+              <span>Şeritvari Alan</span>
+            </button>
+          </div>
+        </section>
+
+        {/* 3. YKN Arası Mesafe */}
+        <section className="space-y-2">
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Arası Mesafe</label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpDistance(p => Math.max(50, p - 50))} 
@@ -141,9 +172,9 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 3. YKN Başlangıç Mesafesi */}
+        {/* 4. YKN Başlangıç Mesafesi */}
         <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Başlangıç Mesafesi</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. YKN Başlangıç Mesafesi</label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpStartOffset(p => Math.max(0, p - 10))} 

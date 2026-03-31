@@ -119,89 +119,119 @@ const GCPPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack
       }
       setShrunkPolygon(shrunkCoords);
 
-      // 3. Robust Candidate Generation
-      const bbox = turf.bbox(targetPoly);
-      const candidates: [number, number][] = [];
-      const stepMeters = Math.min(dist / 6, 40); // Even denser for better axis sorting
-      
-      const latMid = (bbox[1] + bbox[3]) / 2;
-      const latStep = stepMeters / 111320;
-      const lngStep = stepMeters / (111320 * Math.cos(latMid * Math.PI / 180));
+      const layoutType = config.gcpLayoutType || 'Normal';
+      const resultPoints: { lat: number, lng: number }[] = [];
 
-      for (let x = bbox[0]; x <= bbox[2]; x += lngStep) {
-        for (let y = bbox[1]; y <= bbox[3]; y += latStep) {
-          const pt: [number, number] = [x, y];
-          if (turf.booleanPointInPolygon(pt, targetPoly)) {
-            candidates.push(pt);
+      if (layoutType === 'Normal') {
+        // --- NORMAL AREA ALGORITHM (Grid Based) ---
+        const bbox = turf.bbox(targetPoly);
+        const latMid = (bbox[1] + bbox[3]) / 2;
+        const latStep = dist / 111320;
+        const lngStep = dist / (111320 * Math.cos(latMid * Math.PI / 180));
+
+        // Generate grid
+        const gridPoints: [number, number][] = [];
+        let rowIndex = 0;
+        for (let y = bbox[3]; y >= bbox[1]; y -= latStep) { // North to South
+          const row: [number, number][] = [];
+          for (let x = bbox[0]; x <= bbox[2]; x += lngStep) { // West to East
+            const pt: [number, number] = [x, y];
+            if (turf.booleanPointInPolygon(pt, targetPoly)) {
+              row.push(pt);
+            }
+          }
+          // Zigzag rows for logical numbering
+          if (rowIndex % 2 === 1) {
+            row.reverse();
+          }
+          if (row.length > 0) {
+            gridPoints.push(...row);
+            rowIndex++;
           }
         }
-      }
 
-      if (candidates.length < 2) return [];
+        gridPoints.forEach(p => {
+          resultPoints.push({ lat: p[1], lng: p[0] });
+        });
 
-      // 4. Find the Main Axis (Furthest Points)
-      let p1 = candidates[0];
-      let maxD = 0;
-      candidates.forEach(p => {
-        const d = turf.distance(candidates[0], p);
-        if (d > maxD) { maxD = d; p1 = p; }
-      });
+      } else {
+        // --- STRIP AREA ALGORITHM (Axis Projection) ---
+        const bbox = turf.bbox(targetPoly);
+        const candidates: [number, number][] = [];
+        const stepMeters = Math.min(dist / 6, 40); 
+        
+        const latMid = (bbox[1] + bbox[3]) / 2;
+        const latStep = stepMeters / 111320;
+        const lngStep = stepMeters / (111320 * Math.cos(latMid * Math.PI / 180));
 
-      let p2 = p1;
-      maxD = 0;
-      candidates.forEach(p => {
-        const d = turf.distance(p1, p);
-        if (d > maxD) { maxD = d; p2 = p; }
-      });
-
-      // Ensure start is West-most for consistent numbering
-      let startPt = p1[0] <= p2[0] ? p1 : p2;
-      let endPt = p1[0] <= p2[0] ? p2 : p1;
-
-      // 5. Project Candidates onto Axis and Sort
-      const vx = endPt[0] - startPt[0];
-      const vy = endPt[1] - startPt[1];
-      const vLenSq = vx * vx + vy * vy || 1;
-
-      const projected = candidates.map(p => {
-        const px = p[0] - startPt[0];
-        const py = p[1] - startPt[1];
-        const t = (px * vx + py * vy) / vLenSq;
-        return { point: p, t };
-      }).sort((a, b) => a.t - b.t);
-
-      // 6. Sequential Selection with Zigzag
-      const resultPoints: { lat: number, lng: number }[] = [];
-      let lastPicked = projected[0];
-      resultPoints.push({ lat: lastPicked.point[1], lng: lastPicked.point[0] });
-
-      let zigzag = 1;
-      let currentIndex = 0;
-
-      while (currentIndex < projected.length) {
-        // Find the range of points that are approximately 'dist' away
-        let nextIdx = currentIndex + 1;
-        while (nextIdx < projected.length && 
-               turf.distance(lastPicked.point, projected[nextIdx].point, {units: 'meters'}) < dist * 0.95) {
-          nextIdx++;
+        for (let x = bbox[0]; x <= bbox[2]; x += lngStep) {
+          for (let y = bbox[1]; y <= bbox[3]; y += latStep) {
+            const pt: [number, number] = [x, y];
+            if (turf.booleanPointInPolygon(pt, targetPoly)) {
+              candidates.push(pt);
+            }
+          }
         }
 
-        if (nextIdx >= projected.length) break;
+        if (candidates.length < 2) return [];
 
-        // Look at a small window of points ahead to pick for zigzag
-        const windowSize = Math.max(1, Math.floor(projected.length * 0.03));
-        const window = projected.slice(nextIdx, Math.min(nextIdx + windowSize, projected.length));
-        
-        // Pick based on zigzag (alternate North/South relative to the axis or just raw Latitude)
-        window.sort((a, b) => a.point[1] - b.point[1]);
-        const next = zigzag > 0 ? window[window.length - 1] : window[0];
-        
-        resultPoints.push({ lat: next.point[1], lng: next.point[0] });
-        lastPicked = next;
-        currentIndex = projected.indexOf(next);
-        zigzag *= -1;
+        // Find the Main Axis
+        let p1 = candidates[0];
+        let maxD = 0;
+        candidates.forEach(p => {
+          const d = turf.distance(candidates[0], p);
+          if (d > maxD) { maxD = d; p1 = p; }
+        });
 
-        if (resultPoints.length > 500) break;
+        let p2 = p1;
+        maxD = 0;
+        candidates.forEach(p => {
+          const d = turf.distance(p1, p);
+          if (d > maxD) { maxD = d; p2 = p; }
+        });
+
+        let startPt = p1[0] <= p2[0] ? p1 : p2;
+        let endPt = p1[0] <= p2[0] ? p2 : p1;
+
+        const vx = endPt[0] - startPt[0];
+        const vy = endPt[1] - startPt[1];
+        const vLenSq = vx * vx + vy * vy || 1;
+
+        const projected = candidates.map(p => {
+          const px = p[0] - startPt[0];
+          const py = p[1] - startPt[1];
+          const t = (px * vx + py * vy) / vLenSq;
+          return { point: p, t };
+        }).sort((a, b) => a.t - b.t);
+
+        let lastPicked = projected[0];
+        resultPoints.push({ lat: lastPicked.point[1], lng: lastPicked.point[0] });
+
+        let zigzag = 1;
+        let currentIndex = 0;
+
+        while (currentIndex < projected.length) {
+          let nextIdx = currentIndex + 1;
+          while (nextIdx < projected.length && 
+                 turf.distance(lastPicked.point, projected[nextIdx].point, {units: 'meters'}) < dist * 0.95) {
+            nextIdx++;
+          }
+
+          if (nextIdx >= projected.length) break;
+
+          const windowSize = Math.max(1, Math.floor(projected.length * 0.03));
+          const window = projected.slice(nextIdx, Math.min(nextIdx + windowSize, projected.length));
+          
+          window.sort((a, b) => a.point[1] - b.point[1]);
+          const next = zigzag > 0 ? window[window.length - 1] : window[0];
+          
+          resultPoints.push({ lat: next.point[1], lng: next.point[0] });
+          lastPicked = next;
+          currentIndex = projected.indexOf(next);
+          zigzag *= -1;
+
+          if (resultPoints.length > 500) break;
+        }
       }
 
       return resultPoints.map((p, i) => ({
