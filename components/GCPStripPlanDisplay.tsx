@@ -253,8 +253,23 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
       if (smoothedSpine.length < 2) return { ykns: [], spinePts: [] };
 
+      // 4. Calculate turn angles and directions for corner optimization
+      const turnInfo = smoothedSpine.map((p, i) => {
+        if (i === 0 || i === smoothedSpine.length - 1) return { angle: 0, direction: 0 };
+        const prev = smoothedSpine[i - 1];
+        const next = smoothedSpine[i + 1];
+        const b1 = turf.bearing(prev, p);
+        const b2 = turf.bearing(p, next);
+        let diff = b2 - b1;
+        while (diff > 180) diff -= 360;
+        while (diff < -180) diff += 360;
+        return { angle: Math.abs(diff), direction: Math.sign(diff) }; // 1: right, -1: left
+      });
+
       const resultYKNS: YKNPoint[] = [];
       let zigzag = 1;
+      let cornerModeCount = 0;
+      let forcedZigzag = 0;
       
       const getYKNPos = (idx: number, zz: number): [number, number] => {
         const spinePt = smoothedSpine[idx];
@@ -286,15 +301,39 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         lng: lastYKNPos[0],
         lat: lastYKNPos[1]
       });
-      zigzag *= -1;
 
       let currentSpineIdx = 0;
       const targetDist = dist;
       const minAcceptable = dist * 0.95;
 
       while (currentSpineIdx < smoothedSpine.length - 1) {
-        let bestNextIdx = -1;
+        // Determine next zigzag state
+        if (cornerModeCount > 0) {
+          zigzag = forcedZigzag;
+          cornerModeCount--;
+        } else {
+          // Look ahead for sharp turns to trigger corner mode
+          const lookAhead = Math.floor(targetDist / 20); // Look ahead roughly one segment
+          let maxTurnAngle = 0;
+          let turnDirection = 0;
+          
+          for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAhead, smoothedSpine.length); k++) {
+            if (turnInfo[k].angle > maxTurnAngle) {
+              maxTurnAngle = turnInfo[k].angle;
+              turnDirection = turnInfo[k].direction;
+            }
+          }
 
+          if (maxTurnAngle > 20) { // Threshold for "sharp" turn
+            forcedZigzag = -turnDirection; // Outer side
+            zigzag = forcedZigzag;
+            cornerModeCount = 2; // Stay on outer side for next 2 points (total 3)
+          } else {
+            zigzag *= -1; // Normal zigzag
+          }
+        }
+
+        let bestNextIdx = -1;
         for (let i = currentSpineIdx + 1; i < smoothedSpine.length; i++) {
           const potPos = getYKNPos(i, zigzag);
           const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
@@ -321,7 +360,6 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           lng: lastYKNPos[0],
           lat: lastYKNPos[1]
         });
-        zigzag *= -1;
       }
 
       return { ykns: resultYKNS, spinePts: smoothedSpine };

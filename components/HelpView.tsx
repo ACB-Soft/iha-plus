@@ -89,6 +89,66 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
           </div>
         </section>
 
+        {/* Nasıl Çalışır? */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-200">
+              <i className="fas fa-microchip"></i>
+            </div>
+            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Nasıl Çalışır?</h3>
+          </div>
+          <div className="soft-card p-6 space-y-8">
+            {/* 1. Normal Tahdit Planlama */}
+            <div className="space-y-2">
+              <h4 className="font-black text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                <span className="w-5 h-5 bg-orange-100 text-orange-600 rounded flex items-center justify-center text-[10px]">1</span>
+                Normal Tahdit Planlama
+              </h4>
+              <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
+                Geniş alanların fotogrametrik haritalanması için optimize edilmiş grid uçuş planları oluşturur. Kamera sensör boyutu, odak uzaklığı ve uçuş yüksekliğine göre Yer Örnekleme Aralığı (GSD) hassas bir şekilde hesaplanır. Bindirme oranları (boyuna ve enine) korunarak en verimli uçuş hattı sayısı ve yönü otomatik olarak belirlenir.
+              </p>
+            </div>
+
+            {/* 2. Şeritvari Tahdit Planlama */}
+            <div className="space-y-2">
+              <h4 className="font-black text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                <span className="w-5 h-5 bg-orange-100 text-orange-600 rounded flex items-center justify-center text-[10px]">2</span>
+                Şeritvari Tahdit Planlama
+              </h4>
+              <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
+                Yol, nehir veya enerji nakil hatları gibi koridor projeleri için özel olarak tasarlanmıştır. Çok uzun hatlar, İHA'nın batarya kapasitesi ve sinyal menzili dikkate alınarak mantıklı parçalara (Part 1, Part 2...) bölünür. Her parça için emniyetli dönüş kavisleri ve bindirme payları otomatik olarak eklenir.
+              </p>
+            </div>
+
+            {/* 3. Normal Alan Tipi YKN Planlama */}
+            <div className="space-y-2">
+              <h4 className="font-black text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                <span className="w-5 h-5 bg-orange-100 text-orange-600 rounded flex items-center justify-center text-[10px]">3</span>
+                Normal Alan Tipi YKN Planlama
+              </h4>
+              <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
+                Poligon şeklindeki çalışma alanları için homojen bir Yer Kontrol Noktası (YKN) ağı oluşturur. Belirlediğiniz grid aralığına göre noktalar, fotogrametrik blok dengelemesi için en ideal geometrik dağılımda yerleştirilir. Kullanıcıya noktaları harita üzerinde serbestçe kaydırma ve araziye göre optimize etme imkanı sunar.
+              </p>
+            </div>
+
+            {/* 4. Şeritvari Alan Tipi YKN Planlama */}
+            <div className="space-y-2">
+              <h4 className="font-black text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                <span className="w-5 h-5 bg-orange-100 text-orange-600 rounded flex items-center justify-center text-[10px]">4</span>
+                Şeritvari Alan Tipi YKN Planlama
+              </h4>
+              <div className="text-slate-700 text-sm leading-relaxed font-medium text-justify space-y-3">
+                <p>Kıvrımlı koridorlarda en ileri geometrik algoritmaları kullanır:</p>
+                <ul className="list-disc ml-4 space-y-2">
+                  <li><b>Voronoi Spine Analizi:</b> Şeridin matematiksel orta hattı (Medial Axis) Voronoi diyagramları ile hatasız belirlenir.</li>
+                  <li><b>Dinamik Zikzak:</b> Noktalar orta hat boyunca sağ-sol düzeninde dağıtılır.</li>
+                  <li><b>Köşe Optimizasyonu:</b> Keskin dönüşlerde dış kenara peş peşe 3 nokta yerleştirilerek geometrik bozulmalar (bükülme) engellenir.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Hakkında */}
         <section className="space-y-4 pb-10">
           <div className="flex items-center gap-3">
