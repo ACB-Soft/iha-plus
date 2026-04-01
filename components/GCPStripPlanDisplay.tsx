@@ -302,52 +302,82 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         lat: lastYKNPos[1]
       });
 
-      let accumulatedDist = 0;
+      let currentSpineIdx = 0;
       const targetDist = dist;
       const minAcceptable = dist * 0.95;
 
-      for (let i = 1; i < smoothedSpine.length; i++) {
-        const d = turf.distance(smoothedSpine[i - 1], smoothedSpine[i], { units: 'meters' });
-        accumulatedDist += d;
-
-        if (accumulatedDist >= minAcceptable) {
-          // Determine next zigzag state
-          if (cornerModeCount > 0) {
-            zigzag = forcedZigzag;
-            cornerModeCount--;
-          } else {
-            // Look ahead for sharp turns to trigger corner mode
-            const lookAheadIdx = Math.floor(targetDist / 10); // Look ahead roughly 1/2 target dist (since spine pts are ~5m apart)
-            let maxTurnAngle = 0;
-            let turnDirection = 0;
-            
-            for (let k = i; k < Math.min(i + lookAheadIdx, smoothedSpine.length); k++) {
-              if (turnInfo[k].angle > maxTurnAngle) {
-                maxTurnAngle = turnInfo[k].angle;
-                turnDirection = turnInfo[k].direction;
-              }
-            }
-
-            if (maxTurnAngle > 20) { // Threshold for "sharp" turn
-              forcedZigzag = -turnDirection; // Outer side
-              zigzag = forcedZigzag;
-              cornerModeCount = 2; // Stay on outer side for next 2 points (total 3)
-            } else {
-              zigzag *= -1; // Normal zigzag
+      while (currentSpineIdx < smoothedSpine.length - 1) {
+        let bestI = -1;
+        let nextZigzag = zigzag;
+        
+        // 1. Determine what the next zigzag state should be
+        if (cornerModeCount > 0) {
+          nextZigzag = forcedZigzag;
+        } else {
+          // Look ahead for sharp turns
+          const lookAheadIdx = Math.floor(targetDist / 10);
+          let maxTurnAngle = 0;
+          let turnDirection = 0;
+          for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAheadIdx, smoothedSpine.length); k++) {
+            if (turnInfo[k].angle > maxTurnAngle) {
+              maxTurnAngle = turnInfo[k].angle;
+              turnDirection = turnInfo[k].direction;
             }
           }
 
-          const pos = getYKNPos(i, zigzag);
-          
-          resultYKNS.push({
-            id: `ykn-${resultYKNS.length}`,
-            name: `YKN${resultYKNS.length + 1}`,
-            lng: pos[0],
-            lat: pos[1]
-          });
-          
-          accumulatedDist = 0;
+          if (maxTurnAngle > 20) {
+            nextZigzag = -turnDirection; // Outer side
+          } else {
+            nextZigzag = zigzag * -1; // Normal flip
+          }
         }
+
+        // 2. Find the first spine point where the direct distance to the potential YKN is >= minAcceptable
+        for (let i = currentSpineIdx + 1; i < smoothedSpine.length; i++) {
+          const potPos = getYKNPos(i, nextZigzag);
+          const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
+
+          if (d >= minAcceptable) {
+            bestI = i;
+            break;
+          }
+        }
+
+        if (bestI === -1) break;
+
+        // 3. Update state and commit point
+        if (cornerModeCount > 0) {
+          cornerModeCount--;
+        } else {
+          // Re-check turn to set corner mode if needed
+          const lookAheadIdx = Math.floor(targetDist / 10);
+          let maxTurnAngle = 0;
+          let turnDirection = 0;
+          for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAheadIdx, smoothedSpine.length); k++) {
+            if (turnInfo[k].angle > maxTurnAngle) {
+              maxTurnAngle = turnInfo[k].angle;
+              turnDirection = turnInfo[k].direction;
+            }
+          }
+
+          if (maxTurnAngle > 20) {
+            forcedZigzag = -turnDirection;
+            cornerModeCount = 2;
+            zigzag = forcedZigzag;
+          } else {
+            zigzag *= -1;
+          }
+        }
+
+        currentSpineIdx = bestI;
+        lastYKNPos = getYKNPos(currentSpineIdx, zigzag);
+        
+        resultYKNS.push({
+          id: `ykn-${resultYKNS.length}`,
+          name: `YKN${resultYKNS.length + 1}`,
+          lng: lastYKNPos[0],
+          lat: lastYKNPos[1]
+        });
       }
 
       return { ykns: resultYKNS, spinePts: smoothedSpine };
