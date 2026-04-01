@@ -266,121 +266,116 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         return { angle: Math.abs(diff), direction: Math.sign(diff) }; // 1: right, -1: left
       });
 
-      const resultYKNS: YKNPoint[] = [];
-      let zigzag = 1;
-      let cornerModeCount = 0;
-      let forcedZigzag = 0;
-      
-      const getYKNPos = (idx: number, zz: number): [number, number] => {
-        const spinePt = smoothedSpine[idx];
-        const prevIdx = Math.max(0, idx - 1);
-        const nextIdx = Math.min(smoothedSpine.length - 1, idx + 1);
+      const runGeneration = (currentDist: number) => {
+        const resultYKNS: YKNPoint[] = [];
+        let zigzag = 1;
+        let cornerModeCount = 0;
+        let forcedZigzag = 0;
         
-        const prevP = smoothedSpine[prevIdx];
-        const nextP = smoothedSpine[nextIdx];
-        
-        const bearing = turf.bearing(prevP, nextP);
-        const perpBearing = bearing + 90 * zz;
+        const getYKNPos = (idx: number, zz: number): [number, number] => {
+          const spinePt = smoothedSpine[idx];
+          const prevIdx = Math.max(0, idx - 1);
+          const nextIdx = Math.min(smoothedSpine.length - 1, idx + 1);
+          const prevP = smoothedSpine[prevIdx];
+          const nextP = smoothedSpine[nextIdx];
+          const bearing = turf.bearing(prevP, nextP);
+          const perpBearing = bearing + 90 * zz;
 
-        let bestPt = spinePt;
-        for (let o = 5; o <= 200; o += 5) {
-          const testPt = turf.destination(spinePt, o, perpBearing, { units: 'meters' }).geometry.coordinates as [number, number];
-          if (turf.booleanPointInPolygon(testPt, targetPoly)) {
-            bestPt = testPt;
-          } else {
-            break;
-          }
-        }
-        return bestPt;
-      };
-
-      let lastYKNPos = getYKNPos(0, zigzag);
-      resultYKNS.push({
-        id: `ykn-0`,
-        name: `YKN1`,
-        lng: lastYKNPos[0],
-        lat: lastYKNPos[1]
-      });
-
-      let currentSpineIdx = 0;
-      const targetDist = dist;
-      const minAcceptable = dist * 0.95;
-
-      while (currentSpineIdx < smoothedSpine.length - 1) {
-        let bestI = -1;
-        let nextZigzag = zigzag;
-        
-        // 1. Determine what the next zigzag state should be
-        if (cornerModeCount > 0) {
-          nextZigzag = forcedZigzag;
-        } else {
-          // Look ahead for sharp turns
-          const lookAheadIdx = Math.floor(targetDist / 10);
-          let maxTurnAngle = 0;
-          let turnDirection = 0;
-          for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAheadIdx, smoothedSpine.length); k++) {
-            if (turnInfo[k].angle > maxTurnAngle) {
-              maxTurnAngle = turnInfo[k].angle;
-              turnDirection = turnInfo[k].direction;
+          let bestPt = spinePt;
+          for (let o = 5; o <= 200; o += 5) {
+            const testPt = turf.destination(spinePt, o, perpBearing, { units: 'meters' }).geometry.coordinates as [number, number];
+            if (turf.booleanPointInPolygon(testPt, targetPoly)) {
+              bestPt = testPt;
+            } else {
+              break;
             }
           }
+          return bestPt;
+        };
 
-          if (maxTurnAngle > 20) {
-            nextZigzag = -turnDirection; // Outer side
-          } else {
-            nextZigzag = zigzag * -1; // Normal flip
-          }
-        }
-
-        // 2. Find the first spine point where the direct distance to the potential YKN is >= minAcceptable
-        for (let i = currentSpineIdx + 1; i < smoothedSpine.length; i++) {
-          const potPos = getYKNPos(i, nextZigzag);
-          const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
-
-          if (d >= minAcceptable) {
-            bestI = i;
-            break;
-          }
-        }
-
-        if (bestI === -1) break;
-
-        // 3. Update state and commit point
-        if (cornerModeCount > 0) {
-          cornerModeCount--;
-        } else {
-          // Re-check turn to set corner mode if needed
-          const lookAheadIdx = Math.floor(targetDist / 10);
-          let maxTurnAngle = 0;
-          let turnDirection = 0;
-          for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAheadIdx, smoothedSpine.length); k++) {
-            if (turnInfo[k].angle > maxTurnAngle) {
-              maxTurnAngle = turnInfo[k].angle;
-              turnDirection = turnInfo[k].direction;
-            }
-          }
-
-          if (maxTurnAngle > 20) {
-            forcedZigzag = -turnDirection;
-            cornerModeCount = 2;
-            zigzag = forcedZigzag;
-          } else {
-            zigzag *= -1;
-          }
-        }
-
-        currentSpineIdx = bestI;
-        lastYKNPos = getYKNPos(currentSpineIdx, zigzag);
-        
+        let lastYKNPos = getYKNPos(0, zigzag);
         resultYKNS.push({
-          id: `ykn-${resultYKNS.length}`,
-          name: `YKN${resultYKNS.length + 1}`,
+          id: `ykn-0`,
+          name: `YKN1`,
           lng: lastYKNPos[0],
           lat: lastYKNPos[1]
         });
+
+        let currentSpineIdx = 0;
+        const targetDist = currentDist;
+        const minAcceptable = currentDist * 0.95;
+
+        while (currentSpineIdx < smoothedSpine.length - 1) {
+          let nextZigzag = zigzag;
+          if (cornerModeCount > 0) {
+            nextZigzag = forcedZigzag;
+          } else {
+            const lookAheadIdx = Math.floor(targetDist / 10);
+            let maxTurnAngle = 0;
+            let turnDirection = 0;
+            for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAheadIdx, smoothedSpine.length); k++) {
+              if (turnInfo[k].angle > maxTurnAngle) {
+                maxTurnAngle = turnInfo[k].angle;
+                turnDirection = turnInfo[k].direction;
+              }
+            }
+            if (maxTurnAngle > 20) nextZigzag = -turnDirection;
+            else nextZigzag = zigzag * -1;
+          }
+
+          let bestI = -1;
+          for (let i = currentSpineIdx + 1; i < smoothedSpine.length; i++) {
+            const potPos = getYKNPos(i, nextZigzag);
+            const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
+            if (d >= minAcceptable) {
+              bestI = i;
+              break;
+            }
+          }
+
+          if (bestI === -1) break;
+
+          if (cornerModeCount > 0) {
+            cornerModeCount--;
+          } else {
+            const lookAheadIdx = Math.floor(targetDist / 10);
+            let maxTurnAngle = 0;
+            let turnDirection = 0;
+            for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAheadIdx, smoothedSpine.length); k++) {
+              if (turnInfo[k].angle > maxTurnAngle) {
+                maxTurnAngle = turnInfo[k].angle;
+                turnDirection = turnInfo[k].direction;
+              }
+            }
+            if (maxTurnAngle > 20) {
+              forcedZigzag = -turnDirection;
+              cornerModeCount = 2;
+              zigzag = forcedZigzag;
+            } else {
+              zigzag *= -1;
+            }
+          }
+
+          currentSpineIdx = bestI;
+          lastYKNPos = getYKNPos(currentSpineIdx, zigzag);
+          resultYKNS.push({
+            id: `ykn-${resultYKNS.length}`,
+            name: `YKN${resultYKNS.length + 1}`,
+            lng: lastYKNPos[0],
+            lat: lastYKNPos[1]
+          });
+        }
+        return resultYKNS;
+      };
+
+      let finalYKNS = runGeneration(dist);
+      let attemptDist = dist;
+      while (finalYKNS.length < 5 && attemptDist > 50) {
+        attemptDist -= 50;
+        finalYKNS = runGeneration(attemptDist);
       }
 
-      return { ykns: resultYKNS, spinePts: smoothedSpine };
+      return { ykns: finalYKNS, spinePts: smoothedSpine };
     };
 
     const { ykns, spinePts } = generatePoints(config.gcpDistance || 400);
