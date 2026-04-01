@@ -302,64 +302,52 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         lat: lastYKNPos[1]
       });
 
-      let currentSpineIdx = 0;
+      let accumulatedDist = 0;
       const targetDist = dist;
       const minAcceptable = dist * 0.95;
 
-      while (currentSpineIdx < smoothedSpine.length - 1) {
-        // Determine next zigzag state
-        if (cornerModeCount > 0) {
-          zigzag = forcedZigzag;
-          cornerModeCount--;
-        } else {
-          // Look ahead for sharp turns to trigger corner mode
-          const lookAhead = Math.floor(targetDist / 20); // Look ahead roughly one segment
-          let maxTurnAngle = 0;
-          let turnDirection = 0;
-          
-          for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAhead, smoothedSpine.length); k++) {
-            if (turnInfo[k].angle > maxTurnAngle) {
-              maxTurnAngle = turnInfo[k].angle;
-              turnDirection = turnInfo[k].direction;
-            }
-          }
+      for (let i = 1; i < smoothedSpine.length; i++) {
+        const d = turf.distance(smoothedSpine[i - 1], smoothedSpine[i], { units: 'meters' });
+        accumulatedDist += d;
 
-          if (maxTurnAngle > 20) { // Threshold for "sharp" turn
-            forcedZigzag = -turnDirection; // Outer side
+        if (accumulatedDist >= minAcceptable) {
+          // Determine next zigzag state
+          if (cornerModeCount > 0) {
             zigzag = forcedZigzag;
-            cornerModeCount = 2; // Stay on outer side for next 2 points (total 3)
+            cornerModeCount--;
           } else {
-            zigzag *= -1; // Normal zigzag
-          }
-        }
-
-        let bestNextIdx = -1;
-        for (let i = currentSpineIdx + 1; i < smoothedSpine.length; i++) {
-          const potPos = getYKNPos(i, zigzag);
-          const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
-
-          if (d > targetDist) {
-            if (bestNextIdx === -1) {
-              bestNextIdx = Math.max(currentSpineIdx + 1, i - 1);
+            // Look ahead for sharp turns to trigger corner mode
+            const lookAheadIdx = Math.floor(targetDist / 10); // Look ahead roughly 1/2 target dist (since spine pts are ~5m apart)
+            let maxTurnAngle = 0;
+            let turnDirection = 0;
+            
+            for (let k = i; k < Math.min(i + lookAheadIdx, smoothedSpine.length); k++) {
+              if (turnInfo[k].angle > maxTurnAngle) {
+                maxTurnAngle = turnInfo[k].angle;
+                turnDirection = turnInfo[k].direction;
+              }
             }
-            break;
+
+            if (maxTurnAngle > 20) { // Threshold for "sharp" turn
+              forcedZigzag = -turnDirection; // Outer side
+              zigzag = forcedZigzag;
+              cornerModeCount = 2; // Stay on outer side for next 2 points (total 3)
+            } else {
+              zigzag *= -1; // Normal zigzag
+            }
           }
-          if (d >= minAcceptable) {
-            bestNextIdx = i;
-          }
+
+          const pos = getYKNPos(i, zigzag);
+          
+          resultYKNS.push({
+            id: `ykn-${resultYKNS.length}`,
+            name: `YKN${resultYKNS.length + 1}`,
+            lng: pos[0],
+            lat: pos[1]
+          });
+          
+          accumulatedDist = 0;
         }
-
-        if (bestNextIdx === -1 || bestNextIdx <= currentSpineIdx) break;
-
-        currentSpineIdx = bestNextIdx;
-        lastYKNPos = getYKNPos(currentSpineIdx, zigzag);
-        
-        resultYKNS.push({
-          id: `ykn-${resultYKNS.length}`,
-          name: `YKN${resultYKNS.length + 1}`,
-          lng: lastYKNPos[0],
-          lat: lastYKNPos[1]
-        });
       }
 
       return { ykns: resultYKNS, spinePts: smoothedSpine };
