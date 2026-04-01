@@ -73,6 +73,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
   const [points, setPoints] = useState<YKNPoint[]>([]);
   const [shrunkPolygon, setShrunkPolygon] = useState<[number, number][] | null>(null);
   const [spine, setSpine] = useState<[number, number][]>([]);
+  const [spineMarkers, setSpineMarkers] = useState<YKNPoint[]>([]);
   const [isAddingPoint, setIsAddingPoint] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportName, setExportName] = useState(`YKN_Strip_${projectName.replace(/\.(kml|kmz)$/i, '')}`);
@@ -85,9 +86,9 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
   // Initial Point Generation
   useEffect(() => {
-    const generatePoints = (dist: number): { ykns: YKNPoint[], spinePts: [number, number][] } => {
+    const generatePoints = (dist: number): { ykns: YKNPoint[], spinePts: [number, number][], spineMarkers: YKNPoint[] } => {
       const polygonFeature = features.find(f => f.type === 'Polygon');
-      if (!polygonFeature) return { ykns: [], spinePts: [] };
+      if (!polygonFeature) return { ykns: [], spinePts: [], spineMarkers: [] };
 
       const coords = polygonFeature.coordinates.map(c => [c.lng, c.lat]);
       if (coords.length > 0 && (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])) {
@@ -189,7 +190,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         }
       }
 
-      if (pointsInPoly.length < 2) return { ykns: [], spinePts: [] };
+      if (pointsInPoly.length < 2) return { ykns: [], spinePts: [], spineMarkers: [] };
 
       const findFurthest = (startId: number) => {
         const distances = new Map<number, number>();
@@ -222,7 +223,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         return { furthestId, parent };
       };
 
-      if (graph.size === 0) return { ykns: [], spinePts: [] };
+      if (graph.size === 0) return { ykns: [], spinePts: [], spineMarkers: [] };
 
       const startNode = Array.from(graph.keys())[0];
       const { furthestId: end1 } = findFurthest(startNode);
@@ -251,7 +252,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         smoothedSpine.push([sumLng / count, sumLat / count]);
       }
 
-      if (smoothedSpine.length < 2) return { ykns: [], spinePts: [] };
+      if (smoothedSpine.length < 2) return { ykns: [], spinePts: [], spineMarkers: [] };
 
       // 4. Calculate turn angles and directions for corner optimization
       const turnInfo = smoothedSpine.map((p, i) => {
@@ -375,11 +376,42 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         finalYKNS = runGeneration(attemptDist);
       }
 
-      return { ykns: finalYKNS, spinePts: smoothedSpine };
+      // Generate spine markers at exact distance intervals
+      const spineMarkers: YKNPoint[] = [];
+      let currentMarkerDist = 0;
+      
+      // Add start marker
+      spineMarkers.push({
+        id: `sm-0`,
+        name: `0m`,
+        lng: smoothedSpine[0][0],
+        lat: smoothedSpine[0][1]
+      });
+
+      let accumulatedSpineDist = 0;
+      let nextMarkerTarget = attemptDist;
+
+      for (let i = 1; i < smoothedSpine.length; i++) {
+        const d = turf.distance(smoothedSpine[i - 1], smoothedSpine[i], { units: 'meters' });
+        accumulatedSpineDist += d;
+
+        while (accumulatedSpineDist >= nextMarkerTarget) {
+          spineMarkers.push({
+            id: `sm-${spineMarkers.length}`,
+            name: `${Math.round(nextMarkerTarget)}m`,
+            lng: smoothedSpine[i][0],
+            lat: smoothedSpine[i][1]
+          });
+          nextMarkerTarget += attemptDist;
+        }
+      }
+
+      return { ykns: finalYKNS, spinePts: smoothedSpine, spineMarkers };
     };
 
-    const { ykns, spinePts } = generatePoints(config.gcpDistance || 400);
+    const { ykns, spinePts, spineMarkers: sm } = generatePoints(config.gcpDistance || 400);
     setPoints(ykns);
+    setSpineMarkers(sm);
     const leafletSpine: any[] = [];
     for (const p of spinePts) {
       leafletSpine.push([p[1], p[0]]);
@@ -518,6 +550,25 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           {spine.length > 0 && (
             <Polyline positions={spine} color="#ef4444" weight={3} opacity={1} />
           )}
+
+          {/* Spine Markers */}
+          {spineMarkers.map((m) => (
+            <Marker 
+              key={m.id} 
+              position={[m.lat, m.lng]}
+              icon={L.divIcon({
+                className: 'bg-transparent',
+                html: `
+                  <div class="flex flex-col items-center">
+                    <div class="w-2 h-2 bg-red-600 rounded-full border border-white shadow-sm"></div>
+                    <div class="bg-white/90 px-1 rounded text-[8px] font-black text-red-600 mt-0.5 whitespace-nowrap border border-red-200">${m.name}</div>
+                  </div>
+                `,
+                iconSize: [40, 20],
+                iconAnchor: [20, 4]
+              })}
+            />
+          ))}
 
           {points.map((p) => (
             <Marker 
