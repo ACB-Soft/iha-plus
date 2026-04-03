@@ -125,7 +125,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       // 1. Sample points along the boundary
       const line = turf.polygonToLine(targetPoly) as any;
       const lineLength = turf.length(line, { units: 'meters' });
-      const sampleDist = 20; // Sample every 20m for high fidelity
+      const sampleDist = 5; // Increased resolution for high fidelity
       const boundaryPoints: [number, number][] = [];
       
       for (let d = 0; d < lineLength; d += sampleDist) {
@@ -304,7 +304,8 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
         let currentSpineIdx = 0;
         const targetDist = currentDist;
-        const minAcceptable = currentDist * 0.95;
+        const lowerBound = currentDist * 0.99;
+        const upperBound = currentDist * 1.01;
 
         while (currentSpineIdx < smoothedSpine.length - 1) {
           let nextZigzag = zigzag;
@@ -324,16 +325,28 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
             else nextZigzag = zigzag * -1;
           }
 
+          // Optimization: Find the spine index that yields the point closest to targetDist within ±1% window
           let bestI = -1;
+          let minDiff = Infinity;
+          
           for (let i = currentSpineIdx + 1; i < smoothedSpine.length; i++) {
             const potPos = getYKNPos(i, nextZigzag);
             const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
-            if (d >= minAcceptable) {
+            const diff = Math.abs(d - targetDist);
+
+            // If we find a point that is better than previous best, track it
+            if (diff < minDiff) {
+              minDiff = diff;
               bestI = i;
+            }
+
+            // If we have already passed the target distance and the distance is getting worse, stop searching
+            if (d > upperBound && diff > minDiff) {
               break;
             }
           }
 
+          // Fallback: If we couldn't find a point (shouldn't happen with 5m resolution), break
           if (bestI === -1) break;
 
           if (cornerModeCount > 0) {
