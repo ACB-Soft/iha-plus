@@ -135,24 +135,14 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
         if (pt[1] > northVertex[1]) northVertex = pt;
       }
 
-      // 3. Find the Longest Edge for Rotation (Align with major axis)
-      const polyCoords = targetPoly.geometry.coordinates[0];
-      let longestEdge = { p1: polyCoords[0], p2: polyCoords[1], length: 0 };
-      for (let i = 0; i < polyCoords.length - 1; i++) {
-        const d = turf.distance(polyCoords[i], polyCoords[i+1]);
-        if (d > longestEdge.length) {
-          longestEdge = { p1: polyCoords[i], p2: polyCoords[i+1], length: d };
-        }
-      }
+      // 3. Grid Rotation (Disabled - aligned to North-South)
+      const angleDeg = 0;
 
-      const angle = Math.atan2(longestEdge.p2[1] - longestEdge.p1[1], longestEdge.p2[0] - longestEdge.p1[0]);
-      const angleDeg = (angle * 180) / Math.PI;
-
-      // 4. Rotate Polygon to Align with X-Axis
+      // 4. Align Polygon (No rotation)
       const centroid = turf.centroid(targetPoly);
-      const rotatedPoly = turf.transformRotate(targetPoly, -angleDeg, { pivot: centroid });
+      const rotatedPoly = targetPoly; // No rotation
       const rotatedBbox = turf.bbox(rotatedPoly);
-      const anchorRot = turf.transformRotate(turf.point(northVertex), -angleDeg, { pivot: centroid }).geometry.coordinates;
+      const anchorRot = northVertex; // No rotation needed
 
       // 5. Grid Step Calculation with Staggered Support
       const targetStep = dist;
