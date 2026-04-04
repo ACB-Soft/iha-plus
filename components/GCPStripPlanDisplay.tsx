@@ -304,8 +304,8 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
         let currentSpineIdx = 0;
         const targetDist = currentDist;
-        const lowerBound = currentDist * 0.99;
-        const upperBound = currentDist * 1.01;
+        const lowerBound = currentDist * 0.98;
+        const upperBound = currentDist * 1.02;
 
         while (currentSpineIdx < smoothedSpine.length - 1) {
           let nextZigzag = zigzag;
