@@ -225,9 +225,10 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
         };
       });
 
+      const startNum = config.gcpStartNumber || 1;
       return resultPoints.map((p, i) => ({
         id: `ykn-${i}`,
-        name: `YKN${i + 1}`,
+        name: `YKN${i + startNum}`,
         lng: p.lng,
         lat: p.lat
       }));
@@ -254,7 +255,8 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
 
   const handleAddPoint = (lat: number, lng: number) => {
     const newId = `ykn-${Date.now()}`;
-    const newName = `YKN${points.length + 1}`;
+    const startNum = config.gcpStartNumber || 1;
+    const newName = `YKN${points.length + startNum}`;
     setPoints(prev => [...prev, { id: newId, name: newName, lat, lng }]);
     setIsAddingPoint(false);
   };
@@ -262,7 +264,8 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
   const handleDeletePoint = (id: string) => {
     setPoints(prev => {
       const filtered = prev.filter(p => p.id !== id);
-      return filtered.map((p, i) => ({ ...p, name: `YKN${i + 1}` }));
+      const startNum = config.gcpStartNumber || 1;
+      return filtered.map((p, i) => ({ ...p, name: `YKN${i + startNum}` }));
     });
   };
 

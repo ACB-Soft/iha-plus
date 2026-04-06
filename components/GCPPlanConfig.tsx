@@ -17,6 +17,7 @@ interface Props {
 const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange, gcpLayoutType, settings }) => {
   const [gcpDistance, setGcpDistance] = useState(400);
   const [gcpStartOffset, setGcpStartOffset] = useState(10);
+  const [gcpStartNumber, setGcpStartNumber] = useState(1);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
   const [subAreaKmlData, setSubAreaKmlData] = useState<KMLData | null>(null);
   const [isParsing, setIsParsing] = useState(false);
@@ -94,6 +95,7 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
       expandToRectangle: false,
       gcpDistance,
       gcpStartOffset,
+      gcpStartNumber,
       gcpLayoutType,
       subAreaKmlData
     };
@@ -220,6 +222,32 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
             <button 
               onClick={() => setGcpStartOffset(p => Math.min(500, p + 10))} 
               className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
+            >
+              <i className="fas fa-plus text-xs"></i>
+            </button>
+          </div>
+        </section>
+
+        {/* 4. YKN Başlangıç Numarası */}
+        <section className="space-y-2">
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. YKN Başlangıç Numarası</label>
+          <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+            <button 
+              onClick={() => setGcpStartNumber(p => Math.max(1, p - 1))} 
+              className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+            >
+              <i className="fas fa-minus text-xs"></i>
+            </button>
+            <input 
+              type="number"
+              value={gcpStartNumber}
+              onChange={(e) => setGcpStartNumber(Math.max(1, parseInt(e.target.value) || 1))}
+              className="flex-1 text-center font-black text-slate-900 text-lg bg-transparent focus:outline-none"
+              min="1"
+            />
+            <button 
+              onClick={() => setGcpStartNumber(p => p + 1)} 
+              className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
             >
               <i className="fas fa-plus text-xs"></i>
             </button>
