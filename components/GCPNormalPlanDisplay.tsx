@@ -47,7 +47,7 @@ const MapClickHandler: React.FC<{ onMapClick: (lat: number, lng: number) => void
   return null;
 };
 
-const FitBounds: React.FC<{ features: KMLFeature[] }> = ({ features }) => {
+const FitBounds: React.FC<{ features: KMLFeature[], subArea?: any }> = ({ features, subArea }) => {
   const map = useMap();
   
   useEffect(() => {
@@ -58,11 +58,20 @@ const FitBounds: React.FC<{ features: KMLFeature[] }> = ({ features }) => {
           bounds.extend([c.lat, c.lng]);
         });
       });
+      
+      if (subArea && subArea.features) {
+        subArea.features.forEach((f: any) => {
+          f.coordinates.forEach((c: any) => {
+            bounds.extend([c.lat, c.lng]);
+          });
+        });
+      }
+
       if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [50, 50] });
       }
     }
-  }, [features, map]);
+  }, [features, subArea, map]);
   
   return null;
 };
@@ -302,11 +311,37 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
       </Polygon>
     </Placemark>` : '';
 
+    let subAreaKml = '';
+    if (config.subAreaKmlData) {
+      const subAreaFeature = config.subAreaKmlData.features.find(f => f.type === 'Polygon');
+      if (subAreaFeature) {
+        subAreaKml = `
+    <Placemark>
+      <name>Alt Alan</name>
+      <Style>
+        <LineStyle><color>ff00ffff</color><width>2</width></LineStyle>
+        <PolyStyle><fill>0</fill></PolyStyle>
+      </Style>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              ${subAreaFeature.coordinates.map(c => `${c.lng},${c.lat},0`).join(' ')}
+              ${subAreaFeature.coordinates[0].lng},${subAreaFeature.coordinates[0].lat},0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>`;
+      }
+    }
+
     const kml = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>${projectName} - Normal YKN Planı</name>
     ${polygonKml}
+    ${subAreaKml}
     ${points.map(p => `
     <Placemark>
       <name>${p.name}</name>
@@ -355,12 +390,19 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
 
         <MapContainer center={[39, 35]} zoom={6} style={{ height: '100%', width: '100%' }} zoomControl={false} attributionControl={false}>
           {getTileLayer()}
-          <FitBounds features={features} />
+          <FitBounds features={features} subArea={config.subAreaKmlData} />
           <MapClickHandler active={isAddingPoint} onMapClick={handleAddPoint} />
           
           {features.map((f, i) => {
             if (f.type === 'Polygon') {
               return <Polygon key={i} positions={f.coordinates.map(c => [c.lat, c.lng] as [number, number])} color="red" fillOpacity={0.05} weight={3} />;
+            }
+            return null;
+          })}
+
+          {config.subAreaKmlData?.features.map((f, i) => {
+            if (f.type === 'Polygon') {
+              return <Polygon key={`sub-${i}`} positions={f.coordinates.map(c => [c.lat, c.lng] as [number, number])} color="#d946ef" fillOpacity={0.1} weight={2} dashArray="5, 5" />;
             }
             return null;
           })}

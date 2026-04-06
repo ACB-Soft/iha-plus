@@ -1,17 +1,8 @@
 import { BRAND_NAME, FULL_BRAND } from '../version';
 import JSZip from 'jszip';
+import { KMLFeature, KMLData } from '../src/types/flight';
 
-export interface KMLFeature {
-  name: string;
-  description: string;
-  coordinates: { lat: number; lng: number; alt?: number }[];
-  type: 'Point' | 'LineString' | 'Polygon';
-}
-
-export interface KMLData {
-  name: string;
-  features: KMLFeature[];
-}
+export type { KMLFeature, KMLData };
 
 export const parseKML = (kmlText: string): { name: string; features: KMLFeature[] } => {
   const parser = new DOMParser();

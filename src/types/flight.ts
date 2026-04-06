@@ -32,6 +32,18 @@ export const SCALE_TARGET_GSD: Record<string, number> = {
   '1/5000': 30
 };
 
+export interface KMLFeature {
+  name: string;
+  description: string;
+  coordinates: { lat: number; lng: number; alt?: number }[];
+  type: 'Point' | 'LineString' | 'Polygon';
+}
+
+export interface KMLData {
+  name: string;
+  features: KMLFeature[];
+}
+
 export interface FlightConfig {
   flightType: 'Normal' | 'Strip';
   camera: Camera;
@@ -48,4 +60,5 @@ export interface FlightConfig {
   gcpLayoutType?: 'Normal' | 'Strip';
   stripBuffer?: number;
   stripSplitDistance?: number;
+  subAreaKmlData?: KMLData | null;
 }

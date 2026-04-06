@@ -18,14 +18,12 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
   const [gcpDistance, setGcpDistance] = useState(400);
   const [gcpStartOffset, setGcpStartOffset] = useState(10);
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
-  
-  // Sync kmlData with initialKmlData when it changes
-  React.useEffect(() => {
-    setKmlData(initialKmlData || null);
-  }, [initialKmlData]);
+  const [subAreaKmlData, setSubAreaKmlData] = useState<KMLData | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const [isParsingSubArea, setIsParsingSubArea] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const subAreaFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,6 +51,30 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
     }
   };
 
+  const handleSubAreaFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsParsingSubArea(true);
+      try {
+        const data = await parseKMLorKMZ(file);
+        
+        const polygonFeatures = data.features.filter(f => f.type === 'Polygon');
+        if (polygonFeatures.length !== 1) {
+          alert('HATA: Alt alan dosyası sadece tek bir Polygon (alan) objesi içermelidir.');
+          setSubAreaKmlData(null);
+          return;
+        }
+
+        setSubAreaKmlData(data);
+      } catch (err) {
+        alert('HATA: KML dosyası ayrıştırılamadı.');
+      } finally {
+        setIsParsingSubArea(false);
+        if (subAreaFileInputRef.current) subAreaFileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleCreatePlan = () => {
     if (!kmlData) {
       alert('Lütfen bir KML/KMZ dosyası seçin.');
@@ -72,7 +94,8 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
       expandToRectangle: false,
       gcpDistance,
       gcpStartOffset,
-      gcpLayoutType
+      gcpLayoutType,
+      subAreaKmlData
     };
     
     onPlanCreated(kmlData, config);
@@ -123,9 +146,49 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 2. YKN Arası Mesafe */}
+        {/* 2. Alt Alan Seçimi */}
         <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. YKN Arası Mesafe</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Alt Alan Seçimi (İsteğe Bağlı)</label>
+          <div className="flex flex-col gap-3">
+            <div 
+              onClick={() => !subAreaKmlData && subAreaFileInputRef.current?.click()}
+              className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
+                subAreaKmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
+              }`}
+            >
+              <input 
+                type="file" 
+                ref={subAreaFileInputRef} 
+                onChange={handleSubAreaFileChange} 
+                accept=".kml,.kmz" 
+                className="hidden" 
+              />
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
+                subAreaKmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+              }`}>
+                <i className={`fas ${isParsingSubArea ? 'fa-spinner fa-spin' : subAreaKmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
+              </div>
+              <div className="flex-1 truncate">
+                <p className="font-black text-slate-900 truncate text-sm">{subAreaKmlData ? subAreaKmlData.name : 'Dosya Seçin'}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                  {subAreaKmlData ? '1 Polygon bulundu' : 'Sadece Polygon (Alan) tipi KML/KMZ'}
+                </p>
+              </div>
+            </div>
+            {subAreaKmlData && (
+              <button 
+                onClick={() => subAreaKmlData && setSubAreaKmlData(null)}
+                className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
+              >
+                KALDIR
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* 3. YKN Arası Mesafe */}
+        <section className="space-y-2">
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Arası Mesafe</label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpDistance(p => Math.max(50, p - 50))} 
