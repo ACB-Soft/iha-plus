@@ -237,107 +237,114 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     <div className="w-full flex flex-col bg-slate-200 h-full animate-in overflow-hidden">
       <Header title="Uçuş Planı Ekranı" onBack={onBack} />
 
-      <div className="flex-1 relative z-10">
-        <MapContainer 
-          center={[39, 35]} 
-          zoom={6} 
-          style={{ height: '100%', width: '100%' }}
-          zoomControl={false}
-          attributionControl={false}
-        >
-          {getTileLayer()}
-          <FitBounds features={features} />
-          
-          {processedFeatures.map((f, i) => {
-            if (f.type === 'Polygon' || (f.type === 'LineString' && config.flightType === 'Strip')) {
-              return (
-                <React.Fragment key={i}>
-                  {/* Original Shape (Transparent) */}
-                  {f.type === 'Polygon' ? (
-                    <Polygon 
-                      positions={f.originalCoords.map(c => [c.lat, c.lng] as [number, number])} 
-                      color="red"
-                      fillOpacity={0.1}
-                      weight={3}
-                    />
-                  ) : (
-                    <Polyline
-                      positions={f.originalCoords.map(c => [c.lat, c.lng] as [number, number])}
-                      color="red"
-                      weight={3}
-                    />
-                  )}
-                  
-                  {/* Expanded, Grid or Rectangle Polygon */}
-                  {(f.expandedCoords || f.gridCoords || f.rectangleCoords) && (
-                    <Polygon 
-                      positions={(f.rectangleCoords || f.gridCoords || f.expandedCoords || []).map(c => [c.lat, c.lng] as [number, number])} 
-                      color="#4f46e5"
-                      fillOpacity={0.2}
-                      weight={2}
-                      dashArray="10, 10"
-                    >
-                      <Popup>
-                        <div className="font-bold">Planlanan Alan</div>
-                        <div className="text-xs">
-                          {f.type === 'LineString' ? 'Şeritvari Tampon Bölge' : 'Genişletilmiş Uçuş Bölgesi'}
-                        </div>
-                      </Popup>
-                    </Polygon>
-                  )}
-                </React.Fragment>
-              );
-            }
-            return null;
-          })}
-        </MapContainer>
-      </div>
-
-      {/* Uçuş Bilgi Alanı */}
-      <div className="bg-slate-200 px-6 py-2 border-t border-slate-300 flex flex-col gap-2 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col items-start w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahdit Alanı</span>
-            <span className="text-[11px] font-black text-slate-900">{boundaryArea.toFixed(2)} ha</span>
-          </div>
-
-          <div className="flex flex-col items-start w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">GSD (cm/px)</span>
-            <div className="flex items-center gap-1.5">
-               <button onClick={() => handleGsdChange(Number((gsd - 0.01).toFixed(2)))} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-blue-50"><i className="fas fa-minus text-[7px]"></i></button>
-               <span className="text-[11px] font-black text-blue-600 w-10 text-center">{gsd.toFixed(2)}</span>
-               <button onClick={() => handleGsdChange(Number((gsd + 0.01).toFixed(2)))} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-blue-50"><i className="fas fa-plus text-[7px]"></i></button>
-            </div>
-          </div>
-
-          <button 
-            onClick={() => setShowCameraModal(true)}
-            className="flex flex-col items-center w-1/4 group"
+      <div className="flex-1 flex flex-col lg:flex-row relative overflow-hidden">
+        {/* Sol Panel: Harita */}
+        <div className="flex-1 h-2/3 lg:h-full relative z-10 border-b lg:border-b-0 lg:border-r border-slate-300">
+          <MapContainer 
+            center={[39, 35]} 
+            zoom={6} 
+            style={{ height: '100%', width: '100%' }}
+            zoomControl={false}
+            attributionControl={false}
           >
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 group-active:text-blue-500 transition-colors">Kamera</span>
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-black text-slate-900 truncate max-w-[100px]">{currentCamera.name}</span>
-              <i className="fas fa-chevron-down text-[7px] text-slate-400"></i>
-            </div>
-          </button>
+            {getTileLayer()}
+            <FitBounds features={features} />
+            
+            {processedFeatures.map((f, i) => {
+              if (f.type === 'Polygon' || (f.type === 'LineString' && config.flightType === 'Strip')) {
+                return (
+                  <React.Fragment key={i}>
+                    {/* Original Shape (Transparent) */}
+                    {f.type === 'Polygon' ? (
+                      <Polygon 
+                        positions={f.originalCoords.map(c => [c.lat, c.lng] as [number, number])} 
+                        color="red"
+                        fillOpacity={0.1}
+                        weight={3}
+                      />
+                    ) : (
+                      <Polyline
+                        positions={f.originalCoords.map(c => [c.lat, c.lng] as [number, number])}
+                        color="red"
+                        weight={3}
+                      />
+                    )}
+                    
+                    {/* Expanded, Grid or Rectangle Polygon */}
+                    {(f.expandedCoords || f.gridCoords || f.rectangleCoords) && (
+                      <Polygon 
+                        positions={(f.rectangleCoords || f.gridCoords || f.expandedCoords || []).map(c => [c.lat, c.lng] as [number, number])} 
+                        color="#4f46e5"
+                        fillOpacity={0.2}
+                        weight={2}
+                        dashArray="10, 10"
+                      >
+                        <Popup>
+                          <div className="font-bold">Planlanan Alan</div>
+                          <div className="text-xs">
+                            {f.type === 'LineString' ? 'Şeritvari Tampon Bölge' : 'Genişletilmiş Uçuş Bölgesi'}
+                          </div>
+                        </Popup>
+                      </Polygon>
+                    )}
+                  </React.Fragment>
+                );
+              }
+              return null;
+            })}
+          </MapContainer>
+        </div>
 
-          <div className="flex flex-col items-end w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Yükseklik (m)</span>
-            <div className="flex items-center gap-1.5">
-               <button onClick={() => handleAltitudeChange(altitude - 5)} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-emerald-50"><i className="fas fa-minus text-[7px]"></i></button>
-               <span className="text-[11px] font-black text-emerald-600 w-8 text-center">{altitude}</span>
-               <button onClick={() => handleAltitudeChange(altitude + 5)} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-emerald-50"><i className="fas fa-plus text-[7px]"></i></button>
+        {/* Sağ Panel: Parametreler */}
+        <div className="bg-slate-200 lg:bg-white px-6 py-4 border-t lg:border-t-0 border-slate-300 lg:border-slate-200 flex flex-col gap-4 shrink-0 w-full lg:w-96 lg:h-full justify-between overflow-y-auto no-scrollbar">
+          <div className="flex flex-col gap-4">
+            <h3 className="hidden lg:block text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-3 mb-2">Uçuş Parametreleri</h3>
+            
+            <div className="flex flex-row lg:flex-col items-center lg:items-stretch justify-between gap-2 lg:gap-4">
+              <div className="flex flex-col items-start w-1/4 lg:w-full lg:bg-slate-50 lg:p-4 lg:rounded-2xl lg:border lg:border-slate-100 lg:shadow-sm">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahdit Alanı</span>
+                <span className="text-[11px] lg:text-sm font-black text-slate-900">{boundaryArea.toFixed(2)} ha</span>
+              </div>
+
+              <div className="flex flex-col items-start w-1/4 lg:w-full lg:bg-slate-50 lg:p-4 lg:rounded-2xl lg:border lg:border-slate-100 lg:shadow-sm">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">GSD (cm/px)</span>
+                <div className="flex items-center gap-1.5">
+                   <button onClick={() => handleGsdChange(Number((gsd - 0.01).toFixed(2)))} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-blue-50"><i className="fas fa-minus text-[7px]"></i></button>
+                   <span className="text-[11px] lg:text-sm font-black text-blue-600 w-10 text-center">{gsd.toFixed(2)}</span>
+                   <button onClick={() => handleGsdChange(Number((gsd + 0.01).toFixed(2)))} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-blue-50"><i className="fas fa-plus text-[7px]"></i></button>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setShowCameraModal(true)}
+                className="flex flex-col items-center w-1/4 lg:w-full lg:items-start lg:bg-slate-50 lg:p-4 lg:rounded-2xl lg:border lg:border-slate-100 lg:shadow-sm group text-left"
+              >
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 group-active:text-blue-500 transition-colors">Kamera</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] lg:text-sm font-black text-slate-900 truncate max-w-[100px] lg:max-w-none">{currentCamera.name}</span>
+                  <i className="fas fa-chevron-down text-[7px] text-slate-400"></i>
+                </div>
+              </button>
+
+              <div className="flex flex-col items-end lg:items-start w-1/4 lg:w-full lg:bg-slate-50 lg:p-4 lg:rounded-2xl lg:border lg:border-slate-100 lg:shadow-sm">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Yükseklik (m)</span>
+                <div className="flex items-center gap-1.5">
+                   <button onClick={() => handleAltitudeChange(altitude - 5)} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-emerald-50"><i className="fas fa-minus text-[7px]"></i></button>
+                   <span className="text-[11px] lg:text-sm font-black text-emerald-600 w-8 text-center">{altitude}</span>
+                   <button onClick={() => handleAltitudeChange(altitude + 5)} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-emerald-50"><i className="fas fa-plus text-[7px]"></i></button>
+                </div>
+              </div>
             </div>
           </div>
+          
+          <button 
+            onClick={() => setShowExportModal(true)}
+            className="w-full py-3.5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <i className="fas fa-file-export"></i>
+            DIŞARI AKTAR
+          </button>
         </div>
-        
-        <button 
-          onClick={() => setShowExportModal(true)}
-          className="w-full py-2.5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-        >
-          <i className="fas fa-file-export"></i>
-          DIŞARI AKTAR
-        </button>
       </div>
 
       <GlobalFooter />

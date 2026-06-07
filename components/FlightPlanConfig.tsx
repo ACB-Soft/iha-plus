@@ -203,101 +203,144 @@ const FlightPlanConfig: React.FC<Props> = ({
         onBack={onBack} 
       />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* 1. Tahdit Dosyası */}
-        <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
-          <div className="flex flex-col gap-3">
-            <div 
-              onClick={() => !kmlData && fileInputRef.current?.click()}
-              className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
-                kmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
-              }`}
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                accept=".kml,.kmz" 
-                className="hidden" 
-              />
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
-                kmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
-              }`}>
-                <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : kmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
-              </div>
-              <div className="flex-1 truncate">
-                <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-                  {kmlData ? (flightType === 'Normal' ? '1 Polygon bulundu' : '1 Çizgi bulundu') : 'KML veya KMZ formatında'}
-                </p>
-              </div>
-            </div>
-            {kmlData && (
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 1. Tahdit Dosyası */}
+          <section className="space-y-2 bg-white/50 p-5 rounded-3xl border border-slate-300/30">
+            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest pl-2">1. Tahdit Dosyası</label>
+            <div className="flex flex-col gap-3">
+              <div 
+                onClick={() => !kmlData && fileInputRef.current?.click()}
+                className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
+                  kmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
+                }`}
               >
-                DEĞİŞTİR
-              </button>
-            )}
-          </div>
-        </section>
-
-        {flightType === 'Normal' ? (
-          <>
-            {/* 2. Genişletme Ayarları */}
-            <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Genişletme Ayarları</label>
-              
-              <div className="space-y-3">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Buffer)</span>
-                <div className="flex gap-3">
-                  {[0, 5, 10, 20].map(val => (
-                    <button
-                      key={val}
-                      onClick={() => setBuffer(val)}
-                      className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
-                        buffer === val 
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                      }`}
-                    >
-                      {val === 0 ? 'Hayır' : `${val}m`}
-                    </button>
-                  ))}
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept=".kml,.kmz" 
+                  className="hidden" 
+                />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
+                  kmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                }`}>
+                  <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : kmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
+                </div>
+                <div className="flex-1 truncate">
+                  <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                    {kmlData ? (flightType === 'Normal' ? '1 Polygon bulundu' : '1 Çizgi bulundu') : 'KML veya KMZ formatında'}
+                  </p>
                 </div>
               </div>
+              {kmlData && (
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
+                >
+                  DEĞİŞTİR
+                </button>
+              )}
+            </div>
+          </section>
 
-              <div className="space-y-3">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Ortogonal)</span>
-                <div className="flex gap-3">
-                  {[0, 50, 100, 200].map(val => (
-                    <button
-                      key={val}
-                      onClick={() => setExpandToGrid(val)}
-                      className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
-                        expandToGrid === val 
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                      }`}
-                    >
-                      {val === 0 ? 'Hayır' : `${val}m`}
-                    </button>
-                  ))}
+          {flightType === 'Normal' ? (
+            <>
+              {/* 2. Genişletme Ayarları */}
+              <section className="space-y-4 bg-white/50 p-5 rounded-3xl border border-slate-300/30">
+                <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest pl-2">2. Genişletme Ayarları</label>
+                
+                <div className="space-y-3">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Buffer)</span>
+                  <div className="flex gap-3">
+                    {[0, 5, 10, 20].map(val => (
+                      <button
+                        key={val}
+                        onClick={() => setBuffer(val)}
+                        className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                          buffer === val 
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                          : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                        }`}
+                      >
+                        {val === 0 ? 'Hayır' : `${val}m`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-3">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Dikdörtgen)</span>
+                <div className="space-y-3">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Ortogonal)</span>
+                  <div className="flex gap-3">
+                    {[0, 50, 100, 200].map(val => (
+                      <button
+                        key={val}
+                        onClick={() => setExpandToGrid(val)}
+                        className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                          expandToGrid === val 
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                          : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                        }`}
+                      >
+                        {val === 0 ? 'Hayır' : `${val}m`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Dikdörtgen)</span>
+                  <div className="flex gap-3">
+                    {[false, true].map(val => (
+                      <button
+                        key={val.toString()}
+                        onClick={() => setExpandToRectangle(val)}
+                        className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                          expandToRectangle === val 
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                          : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                        }`}
+                      >
+                        {val ? 'EVET' : 'HAYIR'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            </>
+          ) : (
+            <>
+              {/* 2. Uçuş Genişliği (Buffer) */}
+              <section className="space-y-3 bg-white/50 p-5 rounded-3xl border border-slate-300/30">
+                <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest pl-2">2. Uçuş Genişliği (Buffer)</label>
+                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                  <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                    <i className="fas fa-minus text-xs"></i>
+                  </button>
+                  <div className="flex-1 text-center">
+                    <span className="block font-black text-slate-900 text-lg leading-none">{stripBuffer}metre x 2</span>
+                  </div>
+                  <button onClick={() => setStripBuffer(p => Math.min(500, p + 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                    <i className="fas fa-plus text-xs"></i>
+                  </button>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">
+                  Toplam {stripBuffer * 2}m (Sağ/Sol)
+                </p>
+              </section>
+
+              {/* 3. Uçuşu Parçalara Ayır */}
+              <section className="space-y-3 bg-white/50 p-5 rounded-3xl border border-slate-300/30">
+                <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest pl-2">3. Uçuşu Parçalara Ayır</label>
                 <div className="flex gap-3">
                   {[false, true].map(val => (
                     <button
                       key={val.toString()}
-                      onClick={() => setExpandToRectangle(val)}
-                      className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
-                        expandToRectangle === val 
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      onClick={() => setIsStripSplitEnabled(val)}
+                      className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
+                        isStripSplitEnabled === val 
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
                         : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
                       }`}
                     >
@@ -305,77 +348,36 @@ const FlightPlanConfig: React.FC<Props> = ({
                     </button>
                   ))}
                 </div>
-              </div>
-            </section>
-          </>
-        ) : (
-          <>
-            {/* 2. Uçuş Genişliği (Buffer) */}
-            <section className="space-y-3">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Uçuş Genişliği (Buffer)</label>
-              <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
-                  <i className="fas fa-minus text-xs"></i>
-                </button>
-                <div className="flex-1 text-center">
-                  <span className="block font-black text-slate-900 text-lg leading-none">{stripBuffer}metre x 2</span>
-                </div>
-                <button onClick={() => setStripBuffer(p => Math.min(500, p + 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
-                  <i className="fas fa-plus text-xs"></i>
-                </button>
-              </div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">
-                Toplam {stripBuffer * 2}m (Sağ/Sol)
-              </p>
-            </section>
 
-            {/* 3. Uçuşu Parçalara Ayır */}
-            <section className="space-y-3">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Uçuşu Parçalara Ayır</label>
-              <div className="flex gap-3">
-                {[false, true].map(val => (
-                  <button
-                    key={val.toString()}
-                    onClick={() => setIsStripSplitEnabled(val)}
-                    className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
-                      isStripSplitEnabled === val 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
-                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                    }`}
-                  >
-                    {val ? 'EVET' : 'HAYIR'}
-                  </button>
-                ))}
-              </div>
-
-              {isStripSplitEnabled && (
-                <div className="animate-in slide-in-from-top-2 duration-300 space-y-3">
-                  <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                    <button onClick={() => setStripSplitDistance(p => Math.max(100, p - 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
-                      <i className="fas fa-minus text-xs"></i>
-                    </button>
-                    <span className="flex-1 text-center font-black text-slate-900 text-lg">{stripSplitDistance}m</span>
-                    <button onClick={() => setStripSplitDistance(p => Math.min(10000, p + 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
-                      <i className="fas fa-plus text-xs"></i>
-                    </button>
+                {isStripSplitEnabled && (
+                  <div className="animate-in slide-in-from-top-2 duration-300 space-y-3">
+                    <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                      <button onClick={() => setStripSplitDistance(p => Math.max(100, p - 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                        <i className="fas fa-minus text-xs"></i>
+                      </button>
+                      <span className="flex-1 text-center font-black text-slate-900 text-lg">{stripSplitDistance}m</span>
+                      <button onClick={() => setStripSplitDistance(p => Math.min(10000, p + 100))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
+                        <i className="fas fa-plus text-xs"></i>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">
+                      Uçuşlar 20m overlap ile parçalara ayrılacaktır.
+                    </p>
                   </div>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">
-                    Uçuşlar 20m overlap ile parçalara ayrılacaktır.
-                  </p>
-                </div>
-              )}
-            </section>
-          </>
-        )}
+                )}
+              </section>
+            </>
+          )}
 
-        <div className="pt-4">
-          <button 
-            onClick={handleCreatePlan}
-            className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 shadow-blue-100"
-          >
-            <span>PLANLAMA EKRANINA GEÇ</span>
-            <i className="fas fa-arrow-right"></i>
-          </button>
+          <div className="col-span-1 md:col-span-2 pt-4">
+            <button 
+              onClick={handleCreatePlan}
+              className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 shadow-blue-100"
+            >
+              <span>PLANLAMA EKRANINA GEÇ</span>
+              <i className="fas fa-arrow-right"></i>
+            </button>
+          </div>
         </div>
       </div>
 

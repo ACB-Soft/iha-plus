@@ -107,165 +107,167 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
       <Header title="YKN Planı Hazırlığı" onBack={onBack} />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* 1. KML Selection */}
-        <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
-          <div className="flex flex-col gap-3">
-            <div 
-              onClick={() => !kmlData && fileInputRef.current?.click()}
-              className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
-                kmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
-              }`}
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                accept=".kml,.kmz" 
-                className="hidden" 
-              />
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
-                kmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
-              }`}>
-                <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : kmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
-              </div>
-              <div className="flex-1 truncate">
-                <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-                  {kmlData ? '1 Polygon bulundu' : 'Sadece Polygon (Alan) tipi KML/KMZ'}
-                </p>
-              </div>
-            </div>
-            {kmlData && (
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 1. KML Selection */}
+          <section className="space-y-2 bg-white/50 p-5 rounded-3xl border border-slate-300/30">
+            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest pl-2">1. Tahdit Dosyası</label>
+            <div className="flex flex-col gap-3">
+              <div 
+                onClick={() => !kmlData && fileInputRef.current?.click()}
+                className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
+                  kmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
+                }`}
               >
-                DEĞİŞTİR
-              </button>
-            )}
-          </div>
-        </section>
-
-        {/* 2. Alt Alan Seçimi */}
-        <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Alt Alan Seçimi (İsteğe Bağlı)</label>
-          <div className="flex flex-col gap-3">
-            <div 
-              onClick={() => !subAreaKmlData && subAreaFileInputRef.current?.click()}
-              className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
-                subAreaKmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
-              }`}
-            >
-              <input 
-                type="file" 
-                ref={subAreaFileInputRef} 
-                onChange={handleSubAreaFileChange} 
-                accept=".kml,.kmz" 
-                className="hidden" 
-              />
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
-                subAreaKmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
-              }`}>
-                <i className={`fas ${isParsingSubArea ? 'fa-spinner fa-spin' : subAreaKmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept=".kml,.kmz" 
+                  className="hidden" 
+                />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
+                  kmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                }`}>
+                  <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : kmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
+                </div>
+                <div className="flex-1 truncate">
+                  <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                    {kmlData ? '1 Polygon bulundu' : 'Sadece Polygon (Alan) tipi KML/KMZ'}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 truncate">
-                <p className="font-black text-slate-900 truncate text-sm">{subAreaKmlData ? subAreaKmlData.name : 'Dosya Seçin'}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-                  {subAreaKmlData ? '1 Polygon bulundu' : 'Sadece Polygon (Alan) tipi KML/KMZ'}
-                </p>
-              </div>
+              {kmlData && (
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
+                >
+                  DEĞİŞTİR
+                </button>
+              )}
             </div>
-            {subAreaKmlData && (
-              <button 
-                onClick={() => subAreaKmlData && setSubAreaKmlData(null)}
-                className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
+          </section>
+
+          {/* 2. Alt Alan Seçimi */}
+          <section className="space-y-2 bg-white/50 p-5 rounded-3xl border border-slate-300/30">
+            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest pl-2">2. Alt Alan Seçimi (İsteğe Bağlı)</label>
+            <div className="flex flex-col gap-3">
+              <div 
+                onClick={() => !subAreaKmlData && subAreaFileInputRef.current?.click()}
+                className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
+                  subAreaKmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
+                }`}
               >
-                KALDIR
+                <input 
+                  type="file" 
+                  ref={subAreaFileInputRef} 
+                  onChange={handleSubAreaFileChange} 
+                  accept=".kml,.kmz" 
+                  className="hidden" 
+                />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
+                  subAreaKmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                }`}>
+                  <i className={`fas ${isParsingSubArea ? 'fa-spinner fa-spin' : subAreaKmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
+                </div>
+                <div className="flex-1 truncate">
+                  <p className="font-black text-slate-900 truncate text-sm">{subAreaKmlData ? subAreaKmlData.name : 'Dosya Seçin'}</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                    {subAreaKmlData ? '1 Polygon bulundu' : 'Sadece Polygon (Alan) tipi KML/KMZ'}
+                  </p>
+                </div>
+              </div>
+              {subAreaKmlData && (
+                <button 
+                  onClick={() => subAreaKmlData && setSubAreaKmlData(null)}
+                  className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
+                >
+                  KALDIR
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* 3. YKN Arası Mesafe */}
+          <section className="space-y-2 bg-white/50 p-5 rounded-3xl border border-slate-300/30">
+            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest pl-2">3. YKN Arası Mesafe</label>
+            <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+              <button 
+                onClick={() => setGcpDistance(p => Math.max(50, p - 50))} 
+                className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
+              >
+                <i className="fas fa-minus text-xs"></i>
               </button>
-            )}
-          </div>
-        </section>
+              <span className="flex-1 text-center font-black text-slate-900 text-lg">{gcpDistance}m</span>
+              <button 
+                onClick={() => setGcpDistance(p => Math.min(2000, p + 50))} 
+                className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
+              >
+                <i className="fas fa-plus text-xs"></i>
+              </button>
+            </div>
+          </section>
 
-        {/* 3. YKN Arası Mesafe */}
-        <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Arası Mesafe</label>
-          <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-            <button 
-              onClick={() => setGcpDistance(p => Math.max(50, p - 50))} 
-              className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
-            >
-              <i className="fas fa-minus text-xs"></i>
-            </button>
-            <span className="flex-1 text-center font-black text-slate-900 text-lg">{gcpDistance}m</span>
-            <button 
-              onClick={() => setGcpDistance(p => Math.min(2000, p + 50))} 
-              className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
-            >
-              <i className="fas fa-plus text-xs"></i>
-            </button>
-          </div>
-        </section>
+          {/* 3. YKN Başlangıç Mesafesi */}
+          <section className="space-y-2 bg-white/50 p-5 rounded-3xl border border-slate-300/30">
+            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest pl-2">3. YKN Başlangıç Mesafesi</label>
+            <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+              <button 
+                onClick={() => setGcpStartOffset(p => Math.max(0, p - 10))} 
+                className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
+              >
+                <i className="fas fa-minus text-xs"></i>
+              </button>
+              <span className="flex-1 text-center font-black text-slate-900 text-lg">{gcpStartOffset}m</span>
+              <button 
+                onClick={() => setGcpStartOffset(p => Math.min(500, p + 10))} 
+                className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
+              >
+                <i className="fas fa-plus text-xs"></i>
+              </button>
+            </div>
+          </section>
 
-        {/* 3. YKN Başlangıç Mesafesi */}
-        <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Başlangıç Mesafesi</label>
-          <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-            <button 
-              onClick={() => setGcpStartOffset(p => Math.max(0, p - 10))} 
-              className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
-            >
-              <i className="fas fa-minus text-xs"></i>
-            </button>
-            <span className="flex-1 text-center font-black text-slate-900 text-lg">{gcpStartOffset}m</span>
-            <button 
-              onClick={() => setGcpStartOffset(p => Math.min(500, p + 10))} 
-              className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all"
-            >
-              <i className="fas fa-plus text-xs"></i>
-            </button>
-          </div>
-        </section>
+          {/* 4. YKN Başlangıç Numarası */}
+          <section className="space-y-2 bg-white/50 p-5 rounded-3xl border border-slate-300/30">
+            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest pl-2">4. YKN Başlangıç Numarası</label>
+            <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+              <button 
+                onClick={() => setGcpStartNumber(p => Math.max(1, p - 1))} 
+                className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+              >
+                <i className="fas fa-minus text-xs"></i>
+              </button>
+              <input 
+                type="number"
+                value={gcpStartNumber}
+                onChange={(e) => setGcpStartNumber(Math.max(1, parseInt(e.target.value) || 1))}
+                className="flex-1 text-center font-black text-slate-900 text-lg bg-transparent focus:outline-none"
+                min="1"
+              />
+              <button 
+                onClick={() => setGcpStartNumber(p => p + 1)} 
+                className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+              >
+                <i className="fas fa-plus text-xs"></i>
+              </button>
+            </div>
+          </section>
 
-        {/* 4. YKN Başlangıç Numarası */}
-        <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. YKN Başlangıç Numarası</label>
-          <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+          <div className="col-span-1 md:col-span-2 pt-4 space-y-4">
             <button 
-              onClick={() => setGcpStartNumber(p => Math.max(1, p - 1))} 
-              className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+              onClick={handleCreatePlan}
+              className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 shadow-blue-100"
             >
-              <i className="fas fa-minus text-xs"></i>
+              <span>PLANLAMA EKRANINA GEÇ</span>
+              <i className="fas fa-arrow-right"></i>
             </button>
-            <input 
-              type="number"
-              value={gcpStartNumber}
-              onChange={(e) => setGcpStartNumber(Math.max(1, parseInt(e.target.value) || 1))}
-              className="flex-1 text-center font-black text-slate-900 text-lg bg-transparent focus:outline-none"
-              min="1"
-            />
-            <button 
-              onClick={() => setGcpStartNumber(p => p + 1)} 
-              className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
-            >
-              <i className="fas fa-plus text-xs"></i>
-            </button>
+            
+            <p className="text-[9px] font-black text-slate-500 text-center leading-relaxed uppercase tracking-widest px-4">
+              Fotogrametrik dengelemenin başarılı olması için en az 5 adet nokta otomatik olarak üretilecektir.
+            </p>
           </div>
-        </section>
-
-        <div className="pt-4 space-y-4">
-          <button 
-            onClick={handleCreatePlan}
-            className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 shadow-blue-100"
-          >
-            <span>PLANLAMA EKRANINA GEÇ</span>
-            <i className="fas fa-arrow-right"></i>
-          </button>
-          
-          <p className="text-[9px] font-black text-slate-500 text-center leading-relaxed uppercase tracking-widest px-4">
-            Fotogrametrik dengelemenin başarılı olması için en az 5 adet nokta otomatik olarak üretilecektir.
-          </p>
         </div>
       </div>
 
