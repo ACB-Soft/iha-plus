@@ -66,7 +66,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                 KML Plus Desteği
               </h4>
               <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
-                Uçuş planı için gerekli olan tahdit dosyasını (KML/KMZ) hazırlamak için <b>ACB Software</b> tarafından geliştirilen <b>KML Plus</b> uygulamasını kullanabilirsiniz.
+                Uçuş planı için gerekli olan tahdit dosyasını (KML/KMZ) hazırlamak için <b>ACB Maps</b> tarafından geliştirilen <b>KML Plus</b> uygulamasını kullanabilirsiniz.
                 <br/><br/>
                 • Uçuş tipi seçimi ekranındaki butona tıklayarak yardımcı uygulamaya hızlıca erişebilirsiniz.
               </p>
@@ -163,7 +163,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
             </p>
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">İletişim</span>
-              <span className="text-xs font-bold text-slate-900">info@ihaplus.app</span>
+              <span className="text-xs font-bold text-slate-900">acbmaps@gmail.com</span>
             </div>
           </div>
         </section>

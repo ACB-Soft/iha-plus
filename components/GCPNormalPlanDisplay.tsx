@@ -7,7 +7,29 @@ import { KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { FlightConfig } from '../src/types/flight';
-import { calculatePolygonArea } from './GeometryUtils';
+import { calculatePolygonArea, expandLineToPolygon, expandPolygon, getSteppedGridPolygon, getGridPolygon } from './GeometryUtils';
+
+// Helper to compute boundary expansion
+function getExpandedPolygonCoords(featureCoords: { lat: number, lng: number }[], config: FlightConfig) {
+  const originalCoords = featureCoords.map(c => ({ lat: c.lat, lng: c.lng }));
+
+  const expandedCoords = config.buffer && config.buffer > 0 
+    ? expandPolygon(originalCoords, config.buffer) 
+    : null;
+
+  const gridCoords = config.expandToGrid && config.expandToGrid > 0 
+    ? getSteppedGridPolygon(expandedCoords || originalCoords, config.expandToGrid) 
+    : null;
+
+  const rectangleCoords = config.expandToRectangle 
+    ? getGridPolygon(gridCoords || expandedCoords || originalCoords, 1) 
+    : null;
+
+  const finalCoords = rectangleCoords || gridCoords || expandedCoords || originalCoords;
+  const isExpanded = !!(rectangleCoords || gridCoords || expandedCoords);
+
+  return { originalCoords, finalCoords, isExpanded };
+}
 
 // Fix Leaflet icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -47,16 +69,23 @@ const MapClickHandler: React.FC<{ onMapClick: (lat: number, lng: number) => void
   return null;
 };
 
-const FitBounds: React.FC<{ features: KMLFeature[], subArea?: any }> = ({ features, subArea }) => {
+const FitBounds: React.FC<{ features: KMLFeature[], config: FlightConfig, subArea?: any }> = ({ features, config, subArea }) => {
   const map = useMap();
   
   useEffect(() => {
     if (features.length > 0) {
       const bounds = L.latLngBounds([]);
       features.forEach(f => {
-        f.coordinates.forEach(c => {
-          bounds.extend([c.lat, c.lng]);
-        });
+        if (f.type === 'Polygon') {
+          const { finalCoords } = getExpandedPolygonCoords(f.coordinates, config);
+          finalCoords.forEach(c => {
+            bounds.extend([c.lat, c.lng]);
+          });
+        } else {
+          f.coordinates.forEach(c => {
+            bounds.extend([c.lat, c.lng]);
+          });
+        }
       });
       
       if (subArea && subArea.features) {
@@ -71,9 +100,16 @@ const FitBounds: React.FC<{ features: KMLFeature[], subArea?: any }> = ({ featur
         map.fitBounds(bounds, { padding: [50, 50] });
       }
     }
-  }, [features, subArea, map]);
+  }, [features, config, subArea, map]);
   
   return null;
+};
+
+const getCleanBaseName = (pName: string) => {
+  return pName
+    .replace(/\.(kml|kmz)$/i, '')
+    .replace(/^(YKN_|UCUS_|TAHDIT_|Normal_|Strip_|YKN_Normal_|YKN_Strip_|Plan_)/gi, '')
+    .trim();
 };
 
 const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack }) => {
@@ -82,25 +118,51 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
   const [shrunkPolygon, setShrunkPolygon] = useState<[number, number][] | null>(null);
   const [isAddingPoint, setIsAddingPoint] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportName, setExportName] = useState(`YKN_Normal_${projectName.replace(/\.(kml|kmz)$/i, '')}`);
+  const [exportType, setExportType] = useState<'flight_plan' | 'ykn_plan'>('ykn_plan');
+  const [exportName, setExportName] = useState(`YKN_${getCleanBaseName(projectName)}`);
+
+  const handleOpenExportModal = (type: 'flight_plan' | 'ykn_plan') => {
+    const baseName = getCleanBaseName(projectName);
+    setExportType(type);
+    setExportName(type === 'flight_plan' ? `UCUS_${baseName}` : `YKN_${baseName}`);
+    setShowExportModal(true);
+  };
 
   const boundaryArea = useMemo(() => {
-    const polygonFeature = features.find(f => f.type === 'Polygon');
-    if (!polygonFeature) return 0;
-    return calculatePolygonArea(polygonFeature.coordinates.map(c => ({ lat: c.lat, lng: c.lng })));
-  }, [features]);
+    let totalArea = 0;
+    features.forEach(f => {
+      if (f.type === 'Polygon') {
+        const { finalCoords } = getExpandedPolygonCoords(f.coordinates, config);
+        totalArea += calculatePolygonArea(finalCoords);
+      } else if (f.type === 'LineString') {
+        const expanded = expandLineToPolygon(f.coordinates.map(c => ({ lat: c.lat, lng: c.lng })), config.buffer || 50);
+        totalArea += calculatePolygonArea(expanded);
+      }
+    });
+    return totalArea;
+  }, [features, config]);
 
   // Initial Point Generation
   useEffect(() => {
     const generatePoints = (dist: number): YKNPoint[] => {
       const polygonFeature = features.find(f => f.type === 'Polygon');
-      if (!polygonFeature) return [];
+      const lineFeature = features.find(f => f.type === 'LineString');
+      if (!polygonFeature && !lineFeature) return [];
 
-      const coords = polygonFeature.coordinates.map(c => [c.lng, c.lat]);
-      if (coords.length > 0 && (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])) {
-        coords.push(coords[0]);
+      let polyCoords: [number, number][] = [];
+      if (polygonFeature) {
+        const { finalCoords } = getExpandedPolygonCoords(polygonFeature.coordinates, config);
+        polyCoords = finalCoords.map(c => [c.lng, c.lat]);
+      } else if (lineFeature) {
+        const expanded = expandLineToPolygon(lineFeature.coordinates.map(c => ({ lat: c.lat, lng: c.lng })), config.buffer || 50);
+        polyCoords = expanded.map(c => [c.lng, c.lat]);
       }
-      const poly = turf.polygon([coords]);
+
+      if (polyCoords.length < 3) return [];
+      if (polyCoords[0][0] !== polyCoords[polyCoords.length - 1][0] || polyCoords[0][1] !== polyCoords[polyCoords.length - 1][1]) {
+        polyCoords.push(polyCoords[0]);
+      }
+      const poly = turf.polygon([polyCoords]);
 
       const offsetMeters = config.gcpStartOffset || 0;
       let targetPoly = poly;
@@ -126,111 +188,123 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
       }
       setShrunkPolygon(shrunkCoords);
 
-      // --- UPGRADED NORMAL AREA ALGORITHM ---
+      // --- OPTIMIZED NORMAL AREA YKN GENERATION ALGORITHM ---
       
-      // 1. High-Resolution Boundary Sampling (5m)
       const boundaryLine = turf.polygonToLine(targetPoly) as any;
       const boundaryLength = turf.length(boundaryLine, { units: 'meters' });
-      const sampleDist = 5; // 5m resolution
-      const boundarySamples: [number, number][] = [];
       
-      for (let d = 0; d < boundaryLength; d += sampleDist) {
-        boundarySamples.push(turf.along(boundaryLine, d, { units: 'meters' }).geometry.coordinates as [number, number]);
+      const allCandidatePoints: [number, number][] = [];
+
+      // 1. Edge-by-Edge Perimeter Sampling: Distribute points equally along each edge
+      const ringCoords = targetPoly.geometry.coordinates[0] as [number, number][];
+      const rawPerimeterPoints: [number, number][] = [];
+
+      for (let k = 0; k < ringCoords.length - 1; k++) {
+        const v1 = ringCoords[k];
+        const v2 = ringCoords[k + 1];
+        const edgeLength = turf.distance(turf.point(v1), turf.point(v2), { units: 'meters' });
+
+        if (edgeLength < 1) continue;
+
+        const numSegments = Math.max(1, Math.round(edgeLength / dist));
+        for (let j = 0; j < numSegments; j++) {
+          const t = j / numSegments;
+          const lng = v1[0] + t * (v2[0] - v1[0]);
+          const lat = v1[1] + t * (v2[1] - v1[1]);
+          rawPerimeterPoints.push([lng, lat]);
+        }
       }
 
-      // 2. Find Anchor Points (Extremes)
-      let northVertex = boundarySamples[0];
-      for (const pt of boundarySamples) {
-        if (pt[1] > northVertex[1]) northVertex = pt;
+      // Proximity Filter: Filter out perimeter points that are too close to each other (e.g., adjacent corners)
+      const minPerimeterDist = Math.max(20, dist * 0.45);
+      const perimeterPoints: [number, number][] = [];
+
+      for (const pt of rawPerimeterPoints) {
+        const turfPt = turf.point(pt);
+        const tooClose = perimeterPoints.some(p => turf.distance(turfPt, turf.point(p), { units: 'meters' }) < minPerimeterDist);
+        if (!tooClose) {
+          perimeterPoints.push(pt);
+        }
       }
 
-      // 3. Grid Rotation (Disabled - aligned to North-South)
-      const angleDeg = 0;
+      allCandidatePoints.push(...perimeterPoints);
 
-      // 4. Align Polygon (No rotation)
-      const centroid = turf.centroid(targetPoly);
-      const rotatedPoly = targetPoly; // No rotation
-      const rotatedBbox = turf.bbox(rotatedPoly);
-      const anchorRot = northVertex; // No rotation needed
+      // 2. Centroid & Staggered Interior Grid Sampling
+      // First, evaluate placing a YKN point at the polygon's geometric centroid (Ağırlık Merkezi)
+      let centroidPt = turf.centroid(targetPoly);
+      if (!turf.booleanPointInPolygon(centroidPt, targetPoly)) {
+        centroidPt = turf.pointOnFeature(targetPoly) as any;
+      }
 
-      // 5. Grid Step Calculation with Staggered Support
-      const targetStep = dist;
-      const centerLat = centroid.geometry.coordinates[1];
-      const latStepDeg = targetStep / 111320;
-      const lngStepDeg = targetStep / (111320 * Math.cos(centerLat * Math.PI / 180));
+      const centerCoords = centroidPt.geometry.coordinates as [number, number];
+      const centerLng = centerCoords[0];
+      const centerLat = centerCoords[1];
 
-      const gridPointsRaw: [number, number][] = [];
-      const yMin = rotatedBbox[1] - latStepDeg;
-      const yMax = rotatedBbox[3] + latStepDeg;
-      const xMin = rotatedBbox[0] - lngStepDeg;
-      const xMax = rotatedBbox[2] + lngStepDeg;
+      const centroidDistToBoundary = turf.pointToLineDistance(centroidPt, boundaryLine, { units: 'meters' });
+      const centroidDistToPerimeter = perimeterPoints.length > 0 
+        ? Math.min(...perimeterPoints.map(p => turf.distance(centroidPt, turf.point(p), { units: 'meters' })))
+        : Infinity;
 
-      // Tolerance for snapping (2%)
-      const snapTolerance = targetStep * 0.02;
+      // If centroid has sufficient clearance, add it directly as an interior YKN point
+      if (centroidDistToBoundary >= dist * 0.35 && centroidDistToPerimeter >= dist * 0.45) {
+        allCandidatePoints.push(centerCoords);
+      }
 
-      let rowIndex = 0;
-      for (let y = anchorRot[1] + Math.round((yMax - anchorRot[1]) / latStepDeg) * latStepDeg; y >= yMin; y -= latStepDeg) {
-        // Staggered offset: every second row is shifted by half a step
-        const xOffset = (rowIndex % 2 === 1) ? (lngStepDeg / 2) : 0;
-        
-        for (let x = anchorRot[0] - Math.round((anchorRot[0] - xMin) / lngStepDeg) * lngStepDeg + xOffset; x <= xMax; x += lngStepDeg) {
+      // Staggered Interior Grid centered on the Polygon Centroid
+      const bbox = turf.bbox(targetPoly); // [minX, minY, maxX, maxY]
+
+      const latStepDeg = dist / 111320;
+      const lngStepDeg = dist / (111320 * Math.cos(centerLat * Math.PI / 180));
+      const rowHeightDeg = latStepDeg * 0.866; // Hexagonal/triangular packing
+
+      const rMin = Math.floor((bbox[1] - centerLat) / rowHeightDeg) - 1;
+      const rMax = Math.ceil((bbox[3] - centerLat) / rowHeightDeg) + 1;
+      const cMin = Math.floor((bbox[0] - centerLng) / lngStepDeg) - 1;
+      const cMax = Math.ceil((bbox[2] - centerLng) / lngStepDeg) + 1;
+
+      for (let r = rMax; r >= rMin; r--) {
+        const y = centerLat + r * rowHeightDeg;
+        const xOffset = (r % 2 !== 0) ? (lngStepDeg * 0.5) : 0;
+
+        for (let c = cMin; c <= cMax; c++) {
+          if (r === 0 && c === 0) continue; // Skip exact centroid if evaluated
+
+          const x = centerLng + c * lngStepDeg + xOffset;
           const pt = turf.point([x, y]);
-          const ptOriginal = turf.transformRotate(pt, angleDeg, { pivot: centroid });
-          
-          // Check if point is in poly or very close to boundary (±2% tolerance)
-          const distToBoundary = turf.pointToLineDistance(ptOriginal, boundaryLine, { units: 'meters' });
-          const isInPoly = turf.booleanPointInPolygon(ptOriginal, targetPoly);
 
-          if (isInPoly || distToBoundary < snapTolerance) {
-            gridPointsRaw.push([x, y]);
+          // Must be strictly inside the target polygon
+          if (turf.booleanPointInPolygon(pt, targetPoly)) {
+            // Must be at least dist * 0.35 meters away from the boundary line
+            const distToBoundary = turf.pointToLineDistance(pt, boundaryLine, { units: 'meters' });
+            if (distToBoundary >= dist * 0.35) {
+              // Must be at least dist * 0.5 meters away from all perimeter and existing interior points
+              const tooClose = allCandidatePoints.some(p => turf.distance(pt, turf.point(p), { units: 'meters' }) < dist * 0.5);
+              if (!tooClose) {
+                allCandidatePoints.push([x, y]);
+              }
+            }
           }
         }
-        rowIndex++;
       }
 
-      // Ensure anchor point (North Vertex) is included if not already
-      const northPtRot: [number, number] = [anchorRot[0], anchorRot[1]];
-      const hasNorthPt = gridPointsRaw.some(p => Math.abs(p[0] - northPtRot[0]) < 0.000001 && Math.abs(p[1] - northPtRot[1]) < 0.000001);
-      if (!hasNorthPt) {
-        gridPointsRaw.push(northPtRot);
-      }
-
-      // 6. Group into Rows and Sort with Zigzag
-      const rowsMap = new Map<number, [number, number][]>();
-      gridPointsRaw.forEach(p => {
-        const yKey = Math.round(p[1] * 1000000) / 1000000;
-        if (!rowsMap.has(yKey)) rowsMap.set(yKey, []);
-        rowsMap.get(yKey)!.push(p);
+      // 3. Sort Points (North to South, West to East with Zigzag)
+      const sortedPoints = [...allCandidatePoints];
+      sortedPoints.sort((a, b) => {
+        // Group by ~0.0005 deg (~50m) row band
+        const latDiff = Math.abs(a[1] - b[1]);
+        if (latDiff > latStepDeg * 0.4) {
+          return b[1] - a[1]; // North to South
+        }
+        return a[0] - b[0]; // West to East
       });
 
-      const sortedYKeys = Array.from(rowsMap.keys()).sort((a, b) => b - a);
-
-      const finalGridPoints: [number, number][] = [];
-      sortedYKeys.forEach((yKey, rIdx) => {
-        const row = rowsMap.get(yKey)!;
-        row.sort((a, b) => a[0] - b[0]);
-        
-        // Apply zigzag for rows
-        if (rIdx % 2 === 1) row.reverse();
-        
-        finalGridPoints.push(...row);
-      });
-
-      // 5. Convert to final format
-      const resultPoints = finalGridPoints.map(p => {
-        const pt = turf.transformRotate(turf.point(p), angleDeg, { pivot: centroid });
-        return { 
-          lat: pt.geometry.coordinates[1], 
-          lng: pt.geometry.coordinates[0] 
-        };
-      });
-
+      // 4. Convert to final YKNPoint format
       const startNum = config.gcpStartNumber || 1;
-      return resultPoints.map((p, i) => ({
+      return sortedPoints.map((p, i) => ({
         id: `ykn-${i}`,
         name: `YKN${i + startNum}`,
-        lng: p.lng,
-        lat: p.lat
+        lng: p[0],
+        lat: p[1]
       }));
     };
 
@@ -293,11 +367,39 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
     return connections;
   }, [points]);
 
-  const handleExport = () => {
+  const handleExport = (type: 'flight_plan' | 'ykn_plan' = exportType) => {
     const polygonFeature = features.find(f => f.type === 'Polygon');
-    const polygonKml = polygonFeature ? `
+    const lineFeature = features.find(f => f.type === 'LineString');
+
+    let ucusPlaniKml = '';
+    let tahditKml = '';
+
+    if (polygonFeature) {
+      const { originalCoords, finalCoords } = getExpandedPolygonCoords(polygonFeature.coordinates, config);
+      
+      ucusPlaniKml += `
     <Placemark>
-      <name>Tahdit Sınırı</name>
+      <name>1-UCUS_PLANI</name>
+      <Style>
+        <LineStyle><color>ff7fffff</color><width>3</width></LineStyle>
+        <PolyStyle><color>807fffff</color><fill>1</fill></PolyStyle>
+      </Style>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              ${finalCoords.map(c => `${c.lng},${c.lat},0`).join(' ')}
+              ${finalCoords[0].lng},${finalCoords[0].lat},0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>`;
+
+      if (type === 'ykn_plan') {
+        tahditKml += `
+    <Placemark>
+      <name>2-TAHDIT</name>
       <Style>
         <LineStyle><color>ff0000ff</color><width>3</width></LineStyle>
         <PolyStyle><fill>0</fill></PolyStyle>
@@ -306,21 +408,58 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
         <outerBoundaryIs>
           <LinearRing>
             <coordinates>
-              ${polygonFeature.coordinates.map(c => `${c.lng},${c.lat},0`).join(' ')}
-              ${polygonFeature.coordinates[0].lng},${polygonFeature.coordinates[0].lat},0
+              ${originalCoords.map(c => `${c.lng},${c.lat},0`).join(' ')}
+              ${originalCoords[0].lng},${originalCoords[0].lat},0
             </coordinates>
           </LinearRing>
         </outerBoundaryIs>
       </Polygon>
-    </Placemark>` : '';
+    </Placemark>`;
+      }
+    } else if (lineFeature) {
+      const expanded = expandLineToPolygon(lineFeature.coordinates.map(c => ({ lat: c.lat, lng: c.lng })), config.buffer || 50);
+      
+      ucusPlaniKml += `
+    <Placemark>
+      <name>1-UCUS_PLANI</name>
+      <Style>
+        <LineStyle><color>ff7fffff</color><width>3</width></LineStyle>
+        <PolyStyle><color>807fffff</color><fill>1</fill></PolyStyle>
+      </Style>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              ${expanded.map(c => `${c.lng},${c.lat},0`).join(' ')}
+              ${expanded[0].lng},${expanded[0].lat},0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>`;
 
-    let subAreaKml = '';
+      if (type === 'ykn_plan') {
+        tahditKml += `
+    <Placemark>
+      <name>2-TAHDIT</name>
+      <Style>
+        <LineStyle><color>ff0000ff</color><width>3</width></LineStyle>
+      </Style>
+      <LineString>
+        <coordinates>
+          ${lineFeature.coordinates.map(c => `${c.lng},${c.lat},0`).join(' ')}
+        </coordinates>
+      </LineString>
+    </Placemark>`;
+      }
+    }
+
     if (config.subAreaKmlData) {
       const subAreaFeature = config.subAreaKmlData.features.find(f => f.type === 'Polygon');
       if (subAreaFeature) {
-        subAreaKml = `
+        ucusPlaniKml += `
     <Placemark>
-      <name>Alt Alan</name>
+      <name>1-UCUS_PLANI (Alt Alan)</name>
       <Style>
         <LineStyle><color>ff00ffff</color><width>2</width></LineStyle>
         <PolyStyle><fill>0</fill></PolyStyle>
@@ -339,17 +478,24 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
       }
     }
 
-    const kml = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>${projectName} - Normal YKN Planı</name>
-    ${polygonKml}
-    ${subAreaKml}
-    ${points.map(p => `
+    let yknKml = '';
+    if (type === 'ykn_plan') {
+      yknKml = points.map(p => `
     <Placemark>
       <name>${p.name}</name>
       <Point><coordinates>${p.lng},${p.lat},0</coordinates></Point>
-    </Placemark>`).join('')}
+    </Placemark>`).join('');
+    }
+
+    const downloadFileName = exportName;
+
+    const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${downloadFileName}</name>
+    ${ucusPlaniKml}
+    ${tahditKml}
+    ${yknKml}
   </Document>
 </kml>`;
 
@@ -357,7 +503,7 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${exportName}.kml`;
+    a.download = `${downloadFileName}.kml`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -367,7 +513,7 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
 
   return (
     <div className="w-full flex flex-col bg-slate-200 h-full animate-in overflow-hidden">
-      <Header title="Normal YKN Planı" onBack={onBack} />
+      <Header title="Uçuş Planı" onBack={onBack} />
 
       <div className="flex-1 relative z-10">
         <div className="absolute top-6 right-6 z-[1000] pointer-events-none flex flex-col gap-2 items-end">
@@ -393,12 +539,37 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
 
         <MapContainer center={[39, 35]} zoom={6} style={{ height: '100%', width: '100%' }} zoomControl={false} attributionControl={false}>
           {getTileLayer()}
-          <FitBounds features={features} subArea={config.subAreaKmlData} />
+          <FitBounds features={features} config={config} subArea={config.subAreaKmlData} />
           <MapClickHandler active={isAddingPoint} onMapClick={handleAddPoint} />
           
           {features.map((f, i) => {
             if (f.type === 'Polygon') {
-              return <Polygon key={i} positions={f.coordinates.map(c => [c.lat, c.lng] as [number, number])} color="red" fillOpacity={0.05} weight={3} />;
+              const { finalCoords } = getExpandedPolygonCoords(f.coordinates, config);
+              return (
+                <React.Fragment key={i}>
+                  <Polygon 
+                    positions={f.coordinates.map(c => [c.lat, c.lng] as [number, number])} 
+                    color="red" 
+                    fillOpacity={0} 
+                    weight={3} 
+                  />
+                  <Polygon 
+                    positions={finalCoords.map(c => [c.lat, c.lng] as [number, number])} 
+                    color="#ffff7f" 
+                    fillColor="#ffff7f" 
+                    fillOpacity={0.5} 
+                    weight={3} 
+                  />
+                </React.Fragment>
+              );
+            } else if (f.type === 'LineString') {
+              const expanded = expandLineToPolygon(f.coordinates.map(c => ({ lat: c.lat, lng: c.lng })), config.buffer || 50);
+              return (
+                <React.Fragment key={i}>
+                  <Polyline positions={f.coordinates.map(c => [c.lat, c.lng] as [number, number])} color="red" weight={3} />
+                  <Polygon positions={expanded.map(c => [c.lat, c.lng] as [number, number])} color="#ffff7f" fillColor="#ffff7f" fillOpacity={0.5} weight={3} />
+                </React.Fragment>
+              );
             }
             return null;
           })}
@@ -409,8 +580,6 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
             }
             return null;
           })}
-
-          {shrunkPolygon && <Polygon positions={shrunkPolygon} color="#4f46e5" fillOpacity={0.1} weight={2} dashArray="10, 10" />}
 
           {points.map((p) => (
             <Marker 
@@ -476,9 +645,20 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
             <span className="text-[11px] font-black text-orange-600">{config.gcpStartOffset}m</span>
           </div>
         </div>
-        <button onClick={() => setShowExportModal(true)} className="w-full py-2.5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-          <i className="fas fa-file-export"></i>YKN'LERİ DIŞARI AKTAR
-        </button>
+        <div className="flex gap-2 w-full">
+          <button 
+            onClick={() => handleOpenExportModal('flight_plan')} 
+            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+          >
+            <i className="fas fa-plane-departure"></i>UÇUŞ PLANI
+          </button>
+          <button 
+            onClick={() => handleOpenExportModal('ykn_plan')} 
+            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+          >
+            <i className="fas fa-map-marked-alt"></i>YKN PLANI
+          </button>
+        </div>
       </div>
 
       <GlobalFooter />
@@ -486,17 +666,35 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
       {showExportModal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 animate-in fade-in">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowExportModal(false)}></div>
-          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-8 animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Dışarı Aktar</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 mb-6">YKN Planı Dosya Adı Belirleyin</p>
+          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-6 animate-in zoom-in-95 duration-200">
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Dosya Adı</label>
-                <input type="text" value={exportName} onChange={(e) => setExportName(e.target.value)} className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:border-blue-500" placeholder="Dosya adı giriniz..." autoFocus />
+                <input 
+                  type="text" 
+                  value={exportName} 
+                  onChange={(e) => setExportName(e.target.value)} 
+                  className="w-full p-3.5 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:border-blue-500 text-xs" 
+                  placeholder="Dosya adı giriniz..." 
+                  autoFocus 
+                />
               </div>
+
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowExportModal(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all">İPTAL</button>
-                <button onClick={handleExport} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-200 active:scale-95 transition-all">İNDİR</button>
+                <button 
+                  onClick={() => setShowExportModal(false)} 
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all hover:bg-slate-200"
+                >
+                  İPTAL
+                </button>
+                <button 
+                  onClick={() => handleExport(exportType)} 
+                  className={`flex-1 py-3.5 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all ${
+                    exportType === 'flight_plan' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                  }`}
+                >
+                  İNDİR
+                </button>
               </div>
             </div>
           </div>

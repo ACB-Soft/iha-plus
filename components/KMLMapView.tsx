@@ -48,6 +48,13 @@ const FitBounds: React.FC<{ features: KMLFeature[] }> = ({ features }) => {
   return null;
 };
 
+const getCleanBaseName = (pName: string) => {
+  return pName
+    .replace(/\.(kml|kmz)$/i, '')
+    .replace(/^(YKN_|UCUS_|TAHDIT_|Normal_|Strip_|YKN_Normal_|YKN_Strip_|Plan_)/gi, '')
+    .trim();
+};
+
 const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) => {
   const mapProvider = localStorage.getItem('default_map_provider') || 'Google Satellite';
   
@@ -60,7 +67,15 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   const [currentCamera, setCurrentCamera] = useState<Camera>(config.camera);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
-  const [exportName, setExportName] = useState(`TAHDIT_${projectName.replace(/\.(kml|kmz)$/i, '')}`);
+  const [exportType, setExportType] = useState<'flight_plan' | 'ykn_plan'>('ykn_plan');
+  const [exportName, setExportName] = useState(`YKN_${getCleanBaseName(projectName)}`);
+
+  const handleOpenExportModal = (type: 'flight_plan' | 'ykn_plan') => {
+    const baseName = getCleanBaseName(projectName);
+    setExportType(type);
+    setExportName(type === 'flight_plan' ? `UCUS_${baseName}` : `YKN_${baseName}`);
+    setShowExportModal(true);
+  };
   
   // Recalculate GSD when altitude changes
   const handleAltitudeChange = (newAlt: number) => {
@@ -162,42 +177,81 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     }
   };
 
-  const handleExport = () => {
+  const handleExport = (type: 'flight_plan' | 'ykn_plan' = exportType) => {
     if (processedFeatures.length === 0) return;
 
-    const generateKML = (name: string, features: any[]) => {
-      return `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>${name}</name>
-    ${features.map((feature, idx) => {
-      const coords = feature.rectangleCoords || feature.gridCoords || feature.expandedCoords || feature.originalCoords;
-      if (!coords || coords.length === 0) return '';
-      
-      return `
+    const generateKML = (name: string, featuresList: any[]) => {
+      let ucusPlaniKml = '';
+      let tahditKml = '';
+
+      featuresList.forEach((feature) => {
+        const coords = feature.rectangleCoords || feature.gridCoords || feature.expandedCoords || feature.originalCoords;
+        if (coords && coords.length > 0) {
+          ucusPlaniKml += `
     <Placemark>
-      <name>${feature.name || name}</name>
+      <name>1-UCUS_PLANI</name>
       <Style>
-        <LineStyle>
-          <color>ff0000ff</color>
-          <width>3</width>
-        </LineStyle>
-        <PolyStyle>
-          <fill>0</fill>
-        </PolyStyle>
+        <LineStyle><color>ff7fffff</color><width>3</width></LineStyle>
+        <PolyStyle><color>807fffff</color><fill>1</fill></PolyStyle>
       </Style>
       <Polygon>
         <outerBoundaryIs>
           <LinearRing>
             <coordinates>
-              ${coords.map(c => `${c.lng},${c.lat},0`).join(' ')}
+              ${coords.map((c: any) => `${c.lng},${c.lat},0`).join(' ')}
               ${coords[0].lng},${coords[0].lat},0
             </coordinates>
           </LinearRing>
         </outerBoundaryIs>
       </Polygon>
     </Placemark>`;
-    }).join('')}
+        }
+
+        if (type === 'ykn_plan' && feature.originalCoords && feature.originalCoords.length > 0) {
+          if (feature.type === 'Polygon') {
+            tahditKml += `
+    <Placemark>
+      <name>2-TAHDIT</name>
+      <Style>
+        <LineStyle><color>ff0000ff</color><width>3</width></LineStyle>
+        <PolyStyle><fill>0</fill></PolyStyle>
+      </Style>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              ${feature.originalCoords.map((c: any) => `${c.lng},${c.lat},0`).join(' ')}
+              ${feature.originalCoords[0].lng},${feature.originalCoords[0].lat},0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>`;
+          } else if (feature.type === 'LineString') {
+            tahditKml += `
+    <Placemark>
+      <name>2-TAHDIT</name>
+      <Style>
+        <LineStyle><color>ff0000ff</color><width>3</width></LineStyle>
+      </Style>
+      <LineString>
+        <coordinates>
+          ${feature.originalCoords.map((c: any) => `${c.lng},${c.lat},0`).join(' ')}
+        </coordinates>
+      </LineString>
+    </Placemark>`;
+          }
+        }
+      });
+
+      const downloadFileName = name;
+
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${downloadFileName}</name>
+    ${ucusPlaniKml}
+    ${tahditKml}
   </Document>
 </kml>`;
     };
@@ -227,7 +281,8 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     } else {
       // Normal behavior: Download Full KML (one file containing all features)
       const fullKml = generateKML(exportName, processedFeatures);
-      downloadFile(fullKml, exportName);
+      const downloadFileName = exportName;
+      downloadFile(fullKml, downloadFileName);
     }
 
     setShowExportModal(false);
@@ -252,12 +307,12 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
             if (f.type === 'Polygon' || (f.type === 'LineString' && config.flightType === 'Strip')) {
               return (
                 <React.Fragment key={i}>
-                  {/* Original Shape (Transparent) */}
+                  {/* Original Shape (Tahdit - Red) */}
                   {f.type === 'Polygon' ? (
                     <Polygon 
                       positions={f.originalCoords.map(c => [c.lat, c.lng] as [number, number])} 
                       color="red"
-                      fillOpacity={0.1}
+                      fillOpacity={0}
                       weight={3}
                     />
                   ) : (
@@ -268,14 +323,14 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
                     />
                   )}
                   
-                  {/* Expanded, Grid or Rectangle Polygon */}
+                  {/* Expanded, Grid or Rectangle Polygon (Yeni oluşturulan Uçuş Planı alanı - Sarı) */}
                   {(f.expandedCoords || f.gridCoords || f.rectangleCoords) && (
                     <Polygon 
                       positions={(f.rectangleCoords || f.gridCoords || f.expandedCoords || []).map(c => [c.lat, c.lng] as [number, number])} 
-                      color="#4f46e5"
-                      fillOpacity={0.2}
-                      weight={2}
-                      dashArray="10, 10"
+                      color="#ffff7f"
+                      fillColor="#ffff7f"
+                      fillOpacity={0.5}
+                      weight={3}
                     >
                       <Popup>
                         <div className="font-bold">Planlanan Alan</div>
@@ -331,13 +386,20 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
           </div>
         </div>
         
-        <button 
-          onClick={() => setShowExportModal(true)}
-          className="w-full py-2.5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-        >
-          <i className="fas fa-file-export"></i>
-          DIŞARI AKTAR
-        </button>
+        <div className="flex gap-2 w-full">
+          <button 
+            onClick={() => handleOpenExportModal('flight_plan')} 
+            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+          >
+            <i className="fas fa-plane-departure"></i>UÇUŞ PLANI
+          </button>
+          <button 
+            onClick={() => handleOpenExportModal('ykn_plan')} 
+            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+          >
+            <i className="fas fa-map-marked-alt"></i>YKN PLANI
+          </button>
+        </div>
       </div>
 
       <GlobalFooter />
@@ -400,10 +462,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       {showExportModal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 animate-in fade-in">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowExportModal(false)}></div>
-          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-8 animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Dışarı Aktar</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 mb-6">Tahdit Dosya Adı Belirleyin</p>
-            
+          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-6 animate-in zoom-in-95 duration-200">
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Dosya Adı</label>
@@ -411,27 +470,26 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
                   type="text" 
                   value={exportName}
                   onChange={(e) => setExportName(e.target.value)}
-                  className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:border-blue-500"
+                  className="w-full p-3.5 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:border-blue-500 text-xs"
                   placeholder="Dosya adı giriniz..."
                   autoFocus
                 />
               </div>
-              
+
               <div className="flex gap-3 pt-2">
                 <button 
-                  onClick={() => setShowExportModal(false)}
-                  className="flex-1 py-4 bg-slate-200 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                  onClick={() => setShowExportModal(false)} 
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all hover:bg-slate-200"
                 >
                   İPTAL
                 </button>
                 <button 
-                  onClick={() => {
-                    handleExport();
-                    setShowExportModal(false);
-                  }}
-                  className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-100"
+                  onClick={() => handleExport(exportType)} 
+                  className={`flex-1 py-3.5 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all ${
+                    exportType === 'flight_plan' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                  }`}
                 >
-                  ONAYLA
+                  İNDİR
                 </button>
               </div>
             </div>

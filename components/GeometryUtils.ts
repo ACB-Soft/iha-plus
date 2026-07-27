@@ -1,5 +1,3 @@
-import L from 'leaflet';
-
 import * as turf from '@turf/turf';
 
 export interface Point {

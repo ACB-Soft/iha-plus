@@ -3,12 +3,11 @@ import { MapContainer, TileLayer, Popup, Polygon, Marker, Polyline, useMap, useM
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
-import { Delaunay } from 'd3-delaunay';
 import { KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { FlightConfig } from '../src/types/flight';
-import { calculatePolygonArea } from './GeometryUtils';
+import { calculatePolygonArea, expandLineToPolygon, splitLineByDistance, Point } from './GeometryUtils';
 
 // Fix Leaflet icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -77,370 +76,192 @@ const FitBounds: React.FC<{ features: KMLFeature[], subArea?: any }> = ({ featur
   return null;
 };
 
+const getCleanBaseName = (pName: string) => {
+  return pName
+    .replace(/\.(kml|kmz)$/i, '')
+    .replace(/^(YKN_|UCUS_|TAHDIT_|Normal_|Strip_|YKN_Normal_|YKN_Strip_|Plan_)/gi, '')
+    .trim();
+};
+
 const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, onBack }) => {
   const mapProvider = localStorage.getItem('default_map_provider') || 'Google Satellite';
   const [points, setPoints] = useState<YKNPoint[]>([]);
-  const [shrunkPolygon, setShrunkPolygon] = useState<[number, number][] | null>(null);
-  const [spine, setSpine] = useState<[number, number][]>([]);
+  const [spineSegments, setSpineSegments] = useState<[number, number][][]>([]);
   const [spineMarkers, setSpineMarkers] = useState<YKNPoint[]>([]);
   const [isAddingPoint, setIsAddingPoint] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportName, setExportName] = useState(`YKN_Strip_${projectName.replace(/\.(kml|kmz)$/i, '')}`);
+  const [exportType, setExportType] = useState<'flight_plan' | 'ykn_plan'>('ykn_plan');
+  const [exportName, setExportName] = useState(`YKN_${getCleanBaseName(projectName)}`);
+
+  const handleOpenExportModal = (type: 'flight_plan' | 'ykn_plan') => {
+    const baseName = getCleanBaseName(projectName);
+    setExportType(type);
+    setExportName(type === 'flight_plan' ? `UCUS_${baseName}` : `YKN_${baseName}`);
+    setShowExportModal(true);
+  };
 
   const boundaryArea = useMemo(() => {
-    const polygonFeature = features.find(f => f.type === 'Polygon');
-    if (!polygonFeature) return 0;
-    return calculatePolygonArea(polygonFeature.coordinates.map(c => ({ lat: c.lat, lng: c.lng })));
-  }, [features]);
+    let totalArea = 0;
+    features.forEach(f => {
+      if (f.type === 'Polygon') {
+        totalArea += calculatePolygonArea(f.coordinates.map(c => ({ lat: c.lat, lng: c.lng })));
+      } else if (f.type === 'LineString') {
+        const stripBuf = config.stripBuffer || 50;
+        const expanded = expandLineToPolygon(f.coordinates.map(c => ({ lat: c.lat, lng: c.lng })), stripBuf);
+        totalArea += calculatePolygonArea(expanded);
+      }
+    });
+    return totalArea;
+  }, [features, config]);
 
   // Initial Point Generation
   useEffect(() => {
-    const generatePoints = (dist: number): { ykns: YKNPoint[], spinePts: [number, number][], spineMarkers: YKNPoint[] } => {
+    const generatePoints = (dist: number): { ykns: YKNPoint[], spineSegs: [number, number][][], spineMarkers: YKNPoint[] } => {
+      const lineFeatures = features.filter(f => f.type === 'LineString');
       const polygonFeature = features.find(f => f.type === 'Polygon');
-      if (!polygonFeature) return { ykns: [], spinePts: [], spineMarkers: [] };
 
-      const coords = polygonFeature.coordinates.map(c => [c.lng, c.lat]);
-      if (coords.length > 0 && (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])) {
-        coords.push(coords[0]);
+      const allLineCoords: [number, number][] = [];
+
+      if (lineFeatures.length > 0) {
+        lineFeatures.forEach(lf => {
+          lf.coordinates.forEach(c => {
+            allLineCoords.push([c.lng, c.lat]);
+          });
+        });
+      } else if (polygonFeature) {
+        polygonFeature.coordinates.forEach(c => {
+          allLineCoords.push([c.lng, c.lat]);
+        });
       }
-      const poly = turf.polygon([coords]);
 
-      const offsetMeters = config.gcpStartOffset || 0;
-      let targetPoly = poly;
-      let shrunkCoords: [number, number][] | null = null;
+      if (allLineCoords.length < 2) return { ykns: [], spineSegs: [], spineMarkers: [] };
 
-      if (offsetMeters > 0) {
-        try {
-          const buffered = turf.buffer(poly, -offsetMeters, { units: 'meters' });
-          if (buffered) {
-            if (buffered.geometry.type === 'Polygon') {
-              targetPoly = buffered as any;
-              shrunkCoords = (buffered.geometry.coordinates[0] as any[]).map((c: any) => [c[1], c[0]] as [number, number]);
-            } else if (buffered.geometry.type === 'MultiPolygon') {
-              const polys = (buffered.geometry.coordinates as any[][][]).map(c => turf.polygon(c));
-              const largest = polys.reduce((prev, current) => (turf.area(prev) > turf.area(current) ? prev : current));
-              targetPoly = largest as any;
-              shrunkCoords = (largest.geometry.coordinates[0] as any[]).map((c: any) => [c[1], c[0]] as [number, number]);
-            }
+      // Optional sub-area polygon filter
+      let subAreaPoly: any = null;
+      if (config.subAreaKmlData && config.subAreaKmlData.features) {
+        const subPolyFeature = config.subAreaKmlData.features.find(f => f.type === 'Polygon');
+        if (subPolyFeature) {
+          const subCoords = subPolyFeature.coordinates.map(c => [c.lng, c.lat]);
+          if (subCoords.length > 0 && (subCoords[0][0] !== subCoords[subCoords.length - 1][0] || subCoords[0][1] !== subCoords[subCoords.length - 1][1])) {
+            subCoords.push(subCoords[0]);
           }
-        } catch (e) {
-          console.error("Buffer error", e);
-        }
-      }
-      setShrunkPolygon(shrunkCoords);
-
-      // --- VORONOI-BASED SKELETONIZATION (MEDIAL AXIS TRANSFORM) ---
-      
-      // 1. Sample points along the boundary
-      const line = turf.polygonToLine(targetPoly) as any;
-      const lineLength = turf.length(line, { units: 'meters' });
-      const sampleDist = 5; // Increased resolution for high fidelity
-      const boundaryPoints: [number, number][] = [];
-      
-      for (let d = 0; d < lineLength; d += sampleDist) {
-        const p = turf.along(line, d, { units: 'meters' }).geometry.coordinates as [number, number];
-        boundaryPoints.push(p);
-      }
-
-      // 2. Compute Voronoi Diagram
-      const bbox = turf.bbox(targetPoly);
-      const delaunay = Delaunay.from(boundaryPoints);
-      const voronoi = delaunay.voronoi(bbox);
-      
-      // 3. Filter Voronoi edges that are inside the polygon
-      const pointsInPoly: [number, number][] = [];
-      const pointMap = new Map<string, number>();
-
-      const getPointId = (pt: [number, number]) => {
-        const key = `${pt[0].toFixed(7)},${pt[1].toFixed(7)}`;
-        if (!pointMap.has(key)) {
-          pointMap.set(key, pointsInPoly.length);
-          pointsInPoly.push(pt);
-        }
-        return pointMap.get(key)!;
-      };
-
-      const circumcenters: [number, number][] = [];
-      for (let i = 0; i < delaunay.triangles.length / 3; i++) {
-        const center = [voronoi.circumcenters[i * 2], voronoi.circumcenters[i * 2 + 1]] as [number, number];
-        circumcenters.push(center);
-      }
-
-      const graph: Map<number, number[]> = new Map();
-      const validCenters = new Set<number>();
-
-      circumcenters.forEach((c, i) => {
-        if (turf.booleanPointInPolygon(c, targetPoly)) {
-          validCenters.add(i);
-        }
-      });
-
-      for (let i = 0; i < delaunay.halfedges.length; i++) {
-        const j = delaunay.halfedges[i];
-        if (j < i || j === -1) continue; 
-        
-        const tri1 = Math.floor(i / 3);
-        const tri2 = Math.floor(j / 3);
-        
-        if (validCenters.has(tri1) && validCenters.has(tri2)) {
-          const p1 = circumcenters[tri1];
-          const p2 = circumcenters[tri2];
-          
-          const mid = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2] as [number, number];
-          if (turf.booleanPointInPolygon(mid, targetPoly)) {
-            const id1 = getPointId(p1);
-            const id2 = getPointId(p2);
-            
-            if (!graph.has(id1)) graph.set(id1, []);
-            if (!graph.has(id2)) graph.set(id2, []);
-            graph.get(id1)!.push(id2);
-            graph.get(id2)!.push(id1);
-          }
+          subAreaPoly = turf.polygon([subCoords]);
         }
       }
 
-      if (pointsInPoly.length < 2) return { ykns: [], spinePts: [], spineMarkers: [] };
+      const linePoints: Point[] = allLineCoords.map(c => ({ lng: c[0], lat: c[1] }));
+      const isSplit = typeof config.stripSplitDistance === 'number' && config.stripSplitDistance > 0;
+      const rawSegments: Point[][] = isSplit
+        ? splitLineByDistance(linePoints, config.stripSplitDistance!, 20)
+        : [linePoints];
 
-      const findFurthest = (startId: number) => {
-        const distances = new Map<number, number>();
-        const parent = new Map<number, number>();
-        const queue = [startId];
-        distances.set(startId, 0);
-        parent.set(startId, -1);
+      const stripBuffer = config.stripBuffer || 50;
+      const startOffset = config.gcpStartOffset || 10;
+      const offsetDist = Math.max(5, stripBuffer - startOffset);
 
-        let furthestId = startId;
-        let maxDist = 0;
+      const resultYKNS: YKNPoint[] = [];
+      const allSpineSegmentsLeaflet: [number, number][][] = [];
+      const spineMarkersList: YKNPoint[] = [];
 
-        while (queue.length > 0) {
-          const curr = queue.shift()!;
-          const d = distances.get(curr)!;
+      let yknCounter = config.gcpStartNumber || 1;
 
-          if (d > maxDist) {
-            maxDist = d;
-            furthestId = curr;
-          }
+      rawSegments.forEach((seg, segIdx) => {
+        const segCoords = seg.map(p => [p.lng, p.lat] as [number, number]);
+        if (segCoords.length < 2) return;
 
-          const neighbors = graph.get(curr) || [];
-          for (const next of neighbors) {
-            if (!distances.has(next)) {
-              distances.set(next, d + 1);
-              parent.set(next, curr);
-              queue.push(next);
-            }
-          }
+        const spineLine = turf.lineString(segCoords);
+        const lineLength = turf.length(spineLine, { units: 'meters' });
+        if (lineLength <= 0) return;
+
+        // 1. Densify spine points for display
+        const smoothedSpine: [number, number][] = [];
+        const sampleStep = 5;
+        for (let d = 0; d < lineLength; d += sampleStep) {
+          const pt = turf.along(spineLine, d, { units: 'meters' }).geometry.coordinates as [number, number];
+          smoothedSpine.push(pt);
         }
-        return { furthestId, parent };
-      };
+        const endPt = turf.along(spineLine, lineLength, { units: 'meters' }).geometry.coordinates as [number, number];
+        smoothedSpine.push(endPt);
 
-      if (graph.size === 0) return { ykns: [], spinePts: [], spineMarkers: [] };
+        allSpineSegmentsLeaflet.push(smoothedSpine.map(p => [p[1], p[0]] as [number, number]));
 
-      const startNode = Array.from(graph.keys())[0];
-      const { furthestId: end1 } = findFurthest(startNode);
-      const { furthestId: end2, parent } = findFurthest(end1);
-
-      const spinePoints: [number, number][] = [];
-      let currNode = end2;
-      while (currNode !== -1) {
-        spinePoints.push(pointsInPoly[currNode]);
-        currNode = parent.get(currNode) ?? -1;
-      }
-
-      const smoothedSpine: [number, number][] = [];
-      const windowSize = 3;
-      for (let i = 0; i < spinePoints.length; i++) {
-        let sumLng = 0;
-        let sumLat = 0;
-        let count = 0;
-        for (let j = i - windowSize; j <= i + windowSize; j++) {
-          if (j >= 0 && j < spinePoints.length) {
-            sumLng += spinePoints[j][0];
-            sumLat += spinePoints[j][1];
-            count++;
+        // Helper function to add YKN
+        const addYknPoint = (lng: number, lat: number) => {
+          let isInsideSubArea = true;
+          if (subAreaPoly) {
+            isInsideSubArea = turf.booleanPointInPolygon(turf.point([lng, lat]), subAreaPoly);
           }
-        }
-        smoothedSpine.push([sumLng / count, sumLat / count]);
-      }
-
-      if (smoothedSpine.length < 2) return { ykns: [], spinePts: [], spineMarkers: [] };
-
-      // 4. Calculate turn angles and directions for corner optimization
-      const turnInfo = smoothedSpine.map((p, i) => {
-        if (i === 0 || i === smoothedSpine.length - 1) return { angle: 0, direction: 0 };
-        const prev = smoothedSpine[i - 1];
-        const next = smoothedSpine[i + 1];
-        const b1 = turf.bearing(prev, p);
-        const b2 = turf.bearing(p, next);
-        let diff = b2 - b1;
-        while (diff > 180) diff -= 360;
-        while (diff < -180) diff += 360;
-        return { angle: Math.abs(diff), direction: Math.sign(diff) }; // 1: right, -1: left
-      });
-
-      const runGeneration = (currentDist: number) => {
-        const resultYKNS: YKNPoint[] = [];
-        let zigzag = 1;
-        let cornerModeCount = 0;
-        let forcedZigzag = 0;
-        
-        const getYKNPos = (idx: number, zz: number): [number, number] => {
-          const spinePt = smoothedSpine[idx];
-          const prevIdx = Math.max(0, idx - 1);
-          const nextIdx = Math.min(smoothedSpine.length - 1, idx + 1);
-          const prevP = smoothedSpine[prevIdx];
-          const nextP = smoothedSpine[nextIdx];
-          const bearing = turf.bearing(prevP, nextP);
-          const perpBearing = bearing + 90 * zz;
-
-          let bestPt = spinePt;
-          for (let o = 5; o <= 200; o += 5) {
-            const testPt = turf.destination(spinePt, o, perpBearing, { units: 'meters' }).geometry.coordinates as [number, number];
-            if (turf.booleanPointInPolygon(testPt, targetPoly)) {
-              bestPt = testPt;
-            } else {
-              break;
-            }
+          if (isInsideSubArea) {
+            resultYKNS.push({
+              id: `ykn-${resultYKNS.length}`,
+              name: `YKN${yknCounter++}`,
+              lng,
+              lat
+            });
           }
-          return bestPt;
         };
 
-        const startNum = config.gcpStartNumber || 1;
-        let lastYKNPos = getYKNPos(0, zigzag);
-        resultYKNS.push({
-          id: `ykn-0`,
-          name: `YKN${startNum}`,
-          lng: lastYKNPos[0],
-          lat: lastYKNPos[1]
-        });
+        // 2. YKN generation for this segment
+        const userStartOffset = config.gcpStartOffset || 10;
+        const startDist = Math.min(userStartOffset, lineLength / 2);
+        const endDist = Math.max(startDist, lineLength - startDist);
 
-        let currentSpineIdx = 0;
-        const targetDist = currentDist;
-        const lowerBound = currentDist * 0.98;
-        const upperBound = currentDist * 1.02;
+        // 1) Start YKN on segment centerline (10m from segment start)
+        const startPt = turf.along(spineLine, startDist, { units: 'meters' });
+        const [startLng, startLat] = startPt.geometry.coordinates;
+        addYknPoint(startLng, startLat);
 
-        while (currentSpineIdx < smoothedSpine.length - 1) {
-          let nextZigzag = zigzag;
-          if (cornerModeCount > 0) {
-            nextZigzag = forcedZigzag;
-          } else {
-            const lookAheadIdx = Math.floor(targetDist / 10);
-            let maxTurnAngle = 0;
-            let turnDirection = 0;
-            for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAheadIdx, smoothedSpine.length); k++) {
-              if (turnInfo[k].angle > maxTurnAngle) {
-                maxTurnAngle = turnInfo[k].angle;
-                turnDirection = turnInfo[k].direction;
-              }
-            }
-            if (maxTurnAngle > 20) nextZigzag = -turnDirection;
-            else nextZigzag = zigzag * -1;
-          }
+        // 2) Intermediate YKNs (Alternating perpendicular offsets)
+        let sideToggle = (segIdx % 2 === 0) ? 1 : -1;
+        let currentD = startDist + dist;
 
-          // Optimization: Find the spine index that yields the point closest to targetDist within ±1% window
-          let bestI = -1;
-          let minDiff = Infinity;
-          
-          for (let i = currentSpineIdx + 1; i < smoothedSpine.length; i++) {
-            const potPos = getYKNPos(i, nextZigzag);
-            const d = turf.distance(lastYKNPos, potPos, { units: 'meters' });
-            const diff = Math.abs(d - targetDist);
+        while (currentD < endDist - (dist * 0.25)) {
+          const currPt = turf.along(spineLine, currentD, { units: 'meters' });
 
-            // If we find a point that is better than previous best, track it
-            if (diff < minDiff) {
-              minDiff = diff;
-              bestI = i;
-            }
+          const pPrev = turf.along(spineLine, Math.max(0, currentD - 2), { units: 'meters' });
+          const pNext = turf.along(spineLine, Math.min(lineLength, currentD + 2), { units: 'meters' });
+          const tangentBearing = turf.bearing(pPrev, pNext);
 
-            // If we have already passed the target distance and the distance is getting worse, stop searching
-            if (d > upperBound && diff > minDiff) {
-              break;
-            }
-          }
+          const perpendicularBearing = tangentBearing + (sideToggle * 90);
 
-          // Fallback: If we couldn't find a point (shouldn't happen with 5m resolution), break
-          if (bestI === -1) break;
+          const dest = turf.destination(currPt, offsetDist, perpendicularBearing, { units: 'meters' });
+          const [yknLng, yknLat] = dest.geometry.coordinates;
 
-          if (cornerModeCount > 0) {
-            cornerModeCount--;
-          } else {
-            const lookAheadIdx = Math.floor(targetDist / 10);
-            let maxTurnAngle = 0;
-            let turnDirection = 0;
-            for (let k = currentSpineIdx; k < Math.min(currentSpineIdx + lookAheadIdx, smoothedSpine.length); k++) {
-              if (turnInfo[k].angle > maxTurnAngle) {
-                maxTurnAngle = turnInfo[k].angle;
-                turnDirection = turnInfo[k].direction;
-              }
-            }
-            if (maxTurnAngle > 20) {
-              forcedZigzag = -turnDirection;
-              cornerModeCount = 2;
-              zigzag = forcedZigzag;
-            } else {
-              zigzag *= -1;
-            }
-          }
+          addYknPoint(yknLng, yknLat);
 
-          currentSpineIdx = bestI;
-          lastYKNPos = getYKNPos(currentSpineIdx, zigzag);
-          const startNum = config.gcpStartNumber || 1;
-          resultYKNS.push({
-            id: `ykn-${resultYKNS.length}`,
-            name: `YKN${resultYKNS.length + startNum}`,
-            lng: lastYKNPos[0],
-            lat: lastYKNPos[1]
-          });
+          sideToggle *= -1;
+          currentD += dist;
         }
-        return resultYKNS;
-      };
 
-      let finalYKNS = runGeneration(dist);
-      let attemptDist = dist;
-      while (finalYKNS.length < 5 && attemptDist > 50) {
-        attemptDist -= 50;
-        finalYKNS = runGeneration(attemptDist);
-      }
+        // 3) End YKN on segment centerline (10m from segment end)
+        if (endDist > startDist + 5) {
+          const endPt = turf.along(spineLine, endDist, { units: 'meters' });
+          const [endLng, endLat] = endPt.geometry.coordinates;
+          addYknPoint(endLng, endLat);
+        }
 
-      // Generate spine markers at exact distance intervals
-      const spineMarkers: YKNPoint[] = [];
-      let currentMarkerDist = 0;
-      
-      // Add start marker
-      spineMarkers.push({
-        id: `sm-0`,
-        name: `0m`,
-        lng: smoothedSpine[0][0],
-        lat: smoothedSpine[0][1]
+        // 3. Spine markers for this segment
+        let markerDist = 0;
+        while (markerDist <= lineLength) {
+          const pt = turf.along(spineLine, markerDist, { units: 'meters' });
+          const [mLng, mLat] = pt.geometry.coordinates;
+          spineMarkersList.push({
+            id: `sm-${segIdx}-${spineMarkersList.length}`,
+            name: rawSegments.length > 1 ? `P${segIdx + 1}: ${Math.round(markerDist)}m` : `${Math.round(markerDist)}m`,
+            lng: mLng,
+            lat: mLat
+          });
+          markerDist += dist;
+        }
       });
 
-      let accumulatedSpineDist = 0;
-      let nextMarkerTarget = attemptDist;
-
-      for (let i = 1; i < smoothedSpine.length; i++) {
-        const d = turf.distance(smoothedSpine[i - 1], smoothedSpine[i], { units: 'meters' });
-        accumulatedSpineDist += d;
-
-        while (accumulatedSpineDist >= nextMarkerTarget) {
-          spineMarkers.push({
-            id: `sm-${spineMarkers.length}`,
-            name: `${Math.round(nextMarkerTarget)}m`,
-            lng: smoothedSpine[i][0],
-            lat: smoothedSpine[i][1]
-          });
-          nextMarkerTarget += attemptDist;
-        }
-      }
-
-      return { ykns: finalYKNS, spinePts: smoothedSpine, spineMarkers };
+      return { ykns: resultYKNS, spineSegs: allSpineSegmentsLeaflet, spineMarkers: spineMarkersList };
     };
 
-    const { ykns, spinePts, spineMarkers: sm } = generatePoints(config.gcpDistance || 400);
+    const { ykns, spineSegs, spineMarkers: sm } = generatePoints(config.gcpDistance || 400);
     setPoints(ykns);
     setSpineMarkers(sm);
-    const leafletSpine: any[] = [];
-    for (const p of spinePts) {
-      leafletSpine.push([p[1], p[0]]);
-    }
-    setSpine(leafletSpine as [number, number][]);
+    setSpineSegments(spineSegs);
   }, [features, config]);
 
   const handleMarkerDragEnd = (id: string, newLat: number, newLng: number) => {
@@ -487,11 +308,17 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
     return connections;
   }, [points]);
 
-  const handleExport = () => {
+  const handleExport = (type: 'flight_plan' | 'ykn_plan' = exportType) => {
     const polygonFeature = features.find(f => f.type === 'Polygon');
-    const polygonKml = polygonFeature ? `
+    const lineFeature = features.find(f => f.type === 'LineString');
+
+    let ucusPlaniKml = '';
+    let tahditKml = '';
+
+    if (type === 'ykn_plan' && polygonFeature) {
+      tahditKml += `
     <Placemark>
-      <name>Tahdit Sınırı</name>
+      <name>2-TAHDIT</name>
       <Style>
         <LineStyle><color>ff0000ff</color><width>3</width></LineStyle>
         <PolyStyle><fill>0</fill></PolyStyle>
@@ -506,15 +333,58 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           </LinearRing>
         </outerBoundaryIs>
       </Polygon>
-    </Placemark>` : '';
+    </Placemark>`;
+    }
 
-    let subAreaKml = '';
+    if (lineFeature) {
+      const linePts = lineFeature.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
+      const isSplit = typeof config.stripSplitDistance === 'number' && config.stripSplitDistance > 0;
+      const splitSegs = isSplit ? splitLineByDistance(linePts, config.stripSplitDistance!, 20) : [linePts];
+
+      if (type === 'ykn_plan') {
+        tahditKml += `
+    <Placemark>
+      <name>2-TAHDIT</name>
+      <Style>
+        <LineStyle><color>ff0000ff</color><width>3</width></LineStyle>
+      </Style>
+      <LineString>
+        <coordinates>
+          ${lineFeature.coordinates.map(c => `${c.lng},${c.lat},0`).join(' ')}
+        </coordinates>
+      </LineString>
+    </Placemark>`;
+      }
+
+      ucusPlaniKml += splitSegs.map((seg, sIdx) => {
+        const expanded = expandLineToPolygon(seg, config.stripBuffer || 50);
+        return `
+    <Placemark>
+      <name>1-UCUS_PLANI${splitSegs.length > 1 ? ` (Bölüm ${sIdx + 1})` : ''}</name>
+      <Style>
+        <LineStyle><color>ff7fffff</color><width>3</width></LineStyle>
+        <PolyStyle><color>807fffff</color><fill>1</fill></PolyStyle>
+      </Style>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              ${expanded.map(c => `${c.lng},${c.lat},0`).join(' ')}
+              ${expanded[0].lng},${expanded[0].lat},0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>`;
+      }).join('');
+    }
+
     if (config.subAreaKmlData) {
       const subAreaFeature = config.subAreaKmlData.features.find(f => f.type === 'Polygon');
       if (subAreaFeature) {
-        subAreaKml = `
+        ucusPlaniKml += `
     <Placemark>
-      <name>Alt Alan</name>
+      <name>1-UCUS_PLANI (Alt Alan)</name>
       <Style>
         <LineStyle><color>ff00ffff</color><width>2</width></LineStyle>
         <PolyStyle><fill>0</fill></PolyStyle>
@@ -533,17 +403,24 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       }
     }
 
-    const kml = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>${projectName} - Şeritvari YKN Planı</name>
-    ${polygonKml}
-    ${subAreaKml}
-    ${points.map(p => `
+    let yknKml = '';
+    if (type === 'ykn_plan') {
+      yknKml = points.map(p => `
     <Placemark>
       <name>${p.name}</name>
       <Point><coordinates>${p.lng},${p.lat},0</coordinates></Point>
-    </Placemark>`).join('')}
+    </Placemark>`).join('');
+    }
+
+    const downloadFileName = exportName;
+
+    const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${downloadFileName}</name>
+    ${ucusPlaniKml}
+    ${tahditKml}
+    ${yknKml}
   </Document>
 </kml>`;
 
@@ -551,7 +428,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${exportName}.kml`;
+    a.download = `${downloadFileName}.kml`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -561,7 +438,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
   return (
     <div className="w-full flex flex-col bg-slate-200 h-full animate-in overflow-hidden">
-      <Header title="Şeritvari YKN Planı" onBack={onBack} />
+      <Header title="Şeritvari Uçuş Planı" onBack={onBack} />
 
       <div className="flex-1 relative z-10">
         <div className="absolute top-6 right-6 z-[1000] pointer-events-none flex flex-col gap-2 items-end">
@@ -592,7 +469,38 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           
           {features.map((f, i) => {
             if (f.type === 'Polygon') {
-              return <Polygon key={i} positions={f.coordinates.map(c => [c.lat, c.lng] as [number, number])} color="red" fillOpacity={0.05} weight={3} />;
+              return (
+                <Polygon 
+                  key={i} 
+                  positions={f.coordinates.map(c => [c.lat, c.lng] as [number, number])} 
+                  color="red" 
+                  fillOpacity={0} 
+                  weight={3} 
+                />
+              );
+            } else if (f.type === 'LineString') {
+              const linePts = f.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
+              const isSplit = typeof config.stripSplitDistance === 'number' && config.stripSplitDistance > 0;
+              const splitSegs = isSplit ? splitLineByDistance(linePts, config.stripSplitDistance!, 20) : [linePts];
+
+              return (
+                <React.Fragment key={i}>
+                  <Polyline positions={f.coordinates.map(c => [c.lat, c.lng] as [number, number])} color="red" weight={3} />
+                  {splitSegs.map((seg, sIdx) => {
+                    const expanded = expandLineToPolygon(seg, config.stripBuffer || 50);
+                    return (
+                      <Polygon 
+                        key={sIdx} 
+                        positions={expanded.map(c => [c.lat, c.lng] as [number, number])} 
+                        color="#ffff7f" 
+                        fillColor="#ffff7f" 
+                        fillOpacity={0.5} 
+                        weight={3} 
+                      />
+                    );
+                  })}
+                </React.Fragment>
+              );
             }
             return null;
           })}
@@ -603,12 +511,10 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
             }
             return null;
           })}
-
-          {shrunkPolygon && <Polygon positions={shrunkPolygon} color="#4f46e5" fillOpacity={0.1} weight={2} dashArray="10, 10" />}
           
-          {spine.length > 0 && (
-            <Polyline positions={spine} color="#ef4444" weight={3} opacity={1} />
-          )}
+          {spineSegments.map((seg, i) => (
+            <Polyline key={`spine-seg-${i}`} positions={seg} color={i % 2 === 0 ? "#ef4444" : "#f59e0b"} weight={3} opacity={1} />
+          ))}
 
           {/* Spine Markers */}
           {spineMarkers.map((m) => (
@@ -693,9 +599,20 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
             <span className="text-[11px] font-black text-orange-600">{config.gcpStartOffset}m</span>
           </div>
         </div>
-        <button onClick={() => setShowExportModal(true)} className="w-full py-2.5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-          <i className="fas fa-file-export"></i>YKN'LERİ DIŞARI AKTAR
-        </button>
+        <div className="flex gap-2 w-full">
+          <button 
+            onClick={() => handleOpenExportModal('flight_plan')} 
+            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+          >
+            <i className="fas fa-plane-departure"></i>UÇUŞ PLANI
+          </button>
+          <button 
+            onClick={() => handleOpenExportModal('ykn_plan')} 
+            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+          >
+            <i className="fas fa-map-marked-alt"></i>YKN PLANI
+          </button>
+        </div>
       </div>
 
       <GlobalFooter />
@@ -703,17 +620,35 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
       {showExportModal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 animate-in fade-in">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowExportModal(false)}></div>
-          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-8 animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Dışarı Aktar</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 mb-6">YKN Planı Dosya Adı Belirleyin</p>
+          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-6 animate-in zoom-in-95 duration-200">
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Dosya Adı</label>
-                <input type="text" value={exportName} onChange={(e) => setExportName(e.target.value)} className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:border-blue-500" placeholder="Dosya adı giriniz..." autoFocus />
+                <input 
+                  type="text" 
+                  value={exportName} 
+                  onChange={(e) => setExportName(e.target.value)} 
+                  className="w-full p-3.5 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:outline-none focus:border-blue-500 text-xs" 
+                  placeholder="Dosya adı giriniz..." 
+                  autoFocus 
+                />
               </div>
+
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowExportModal(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all">İPTAL</button>
-                <button onClick={handleExport} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-200 active:scale-95 transition-all">İNDİR</button>
+                <button 
+                  onClick={() => setShowExportModal(false)} 
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all hover:bg-slate-200"
+                >
+                  İPTAL
+                </button>
+                <button 
+                  onClick={() => handleExport(exportType)} 
+                  className={`flex-1 py-3.5 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all ${
+                    exportType === 'flight_plan' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                  }`}
+                >
+                  İNDİR
+                </button>
               </div>
             </div>
           </div>

@@ -1,4 +1,3 @@
-import { BRAND_NAME, FULL_BRAND } from '../version';
 import JSZip from 'jszip';
 import { KMLFeature, KMLData } from '../src/types/flight';
 
@@ -72,17 +71,4 @@ export const parseKMLorKMZ = async (file: File): Promise<KMLData> => {
     const text = await file.text();
     return parseKML(text);
   }
-};
-
-const escapeXml = (unsafe: string) => {
-  return unsafe.replace(/[<>&'"]/g, (c) => {
-    switch (c) {
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '&': return '&amp;';
-      case '\'': return '&apos;';
-      case '"': return '&quot;';
-      default: return c;
-    }
-  });
 };

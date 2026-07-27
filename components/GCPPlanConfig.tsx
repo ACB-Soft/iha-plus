@@ -9,17 +9,45 @@ interface Props {
   onBack: () => void;
   onPlanCreated: (kmlData: KMLData, config: FlightConfig) => void;
   initialKmlData?: KMLData | null;
+  initialSubAreaKmlData?: KMLData | null;
   onKmlDataChange?: (data: KMLData | null) => void;
+  onSubAreaKmlDataChange?: (data: KMLData | null) => void;
   gcpLayoutType: 'Normal' | 'Strip';
   settings: AppSettings;
 }
 
-const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData, onKmlDataChange, gcpLayoutType, settings }) => {
-  const [gcpDistance, setGcpDistance] = useState(400);
-  const [gcpStartOffset, setGcpStartOffset] = useState(10);
-  const [gcpStartNumber, setGcpStartNumber] = useState(1);
+const GCPPlanConfig: React.FC<Props> = ({ 
+  onBack, 
+  onPlanCreated, 
+  initialKmlData, 
+  initialSubAreaKmlData,
+  onKmlDataChange, 
+  onSubAreaKmlDataChange,
+  gcpLayoutType, 
+  settings 
+}) => {
+  const fd = settings.flightDefaults;
+  const [gcpDistance, setGcpDistance] = useState(fd.defaultGcpDistance ?? 400);
+  const [gcpStartOffset, setGcpStartOffset] = useState(fd.defaultGcpStartOffset ?? 10);
+  const [gcpStartNumber, setGcpStartNumber] = useState(fd.defaultGcpStartNumber ?? 1);
+  const [buffer, setBuffer] = useState(fd.defaultBuffer ?? 0);
+  const [expandToGrid, setExpandToGrid] = useState(fd.defaultExpandToGrid ?? 0);
+  const [expandToRectangle, setExpandToRectangle] = useState(fd.defaultExpandToRectangle ?? false);
+  const [stripBuffer, setStripBuffer] = useState(fd.defaultStripBuffer ?? 50);
+  const [isStripSplitEnabled, setIsStripSplitEnabled] = useState(fd.defaultIsStripSplitEnabled ?? false);
+  const [stripSplitDistance, setStripSplitDistance] = useState(fd.defaultStripSplitDistance ?? 2000);
+
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
-  const [subAreaKmlData, setSubAreaKmlData] = useState<KMLData | null>(null);
+  const [subAreaKmlData, setSubAreaKmlData] = useState<KMLData | null>(initialSubAreaKmlData || null);
+
+  React.useEffect(() => {
+    setKmlData(initialKmlData || null);
+  }, [initialKmlData]);
+
+  React.useEffect(() => {
+    setSubAreaKmlData(initialSubAreaKmlData || null);
+  }, [initialSubAreaKmlData]);
+
   const [isParsing, setIsParsing] = useState(false);
   const [isParsingSubArea, setIsParsingSubArea] = useState(false);
   
@@ -33,12 +61,23 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
       try {
         const data = await parseKMLorKMZ(file);
         
-        const polygonFeatures = data.features.filter(f => f.type === 'Polygon');
-        if (polygonFeatures.length !== 1) {
-          alert('HATA: YKN planı için tahdit dosyası sadece tek bir Polygon (alan) objesi içermelidir. Lütfen dosyanızı kontrol edip tekrar deneyin.');
-          setKmlData(null);
-          onKmlDataChange?.(null);
-          return;
+        if (gcpLayoutType === 'Strip') {
+          const lineFeatures = data.features.filter(f => f.type === 'LineString');
+          const polyFeatures = data.features.filter(f => f.type === 'Polygon');
+          if (lineFeatures.length === 0 && polyFeatures.length === 0) {
+            alert('HATA: Şeritvari YKN planı için tahdit dosyası en az bir Çizgi (LineString) veya Polygon içermelidir.');
+            setKmlData(null);
+            onKmlDataChange?.(null);
+            return;
+          }
+        } else {
+          const polygonFeatures = data.features.filter(f => f.type === 'Polygon');
+          if (polygonFeatures.length !== 1) {
+            alert('HATA: YKN planı için tahdit dosyası sadece tek bir Polygon (alan) objesi içermelidir. Lütfen dosyanızı kontrol edip tekrar deneyin.');
+            setKmlData(null);
+            onKmlDataChange?.(null);
+            return;
+          }
         }
 
         setKmlData(data);
@@ -63,10 +102,12 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
         if (polygonFeatures.length !== 1) {
           alert('HATA: Alt alan dosyası sadece tek bir Polygon (alan) objesi içermelidir.');
           setSubAreaKmlData(null);
+          onSubAreaKmlDataChange?.(null);
           return;
         }
 
         setSubAreaKmlData(data);
+        onSubAreaKmlDataChange?.(data);
       } catch (err) {
         alert('HATA: KML dosyası ayrıştırılamadı.');
       } finally {
@@ -83,16 +124,18 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
     }
 
     const config: FlightConfig = {
-      flightType: 'Normal',
+      flightType: gcpLayoutType === 'Strip' ? 'Strip' : 'Normal',
       camera: CAMERAS[0],
       scale: '1/1000',
       gsd: 0,
       height: 150,
-      buffer: 0,
-      expandToGrid: 0,
+      buffer,
+      expandToGrid,
       overlapFront: 0,
       overlapSide: 0,
-      expandToRectangle: false,
+      expandToRectangle,
+      stripBuffer: gcpLayoutType === 'Strip' ? stripBuffer : undefined,
+      stripSplitDistance: (gcpLayoutType === 'Strip' && isStripSplitEnabled) ? stripSplitDistance : undefined,
       gcpDistance,
       gcpStartOffset,
       gcpStartNumber,
@@ -179,7 +222,10 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
             </div>
             {subAreaKmlData && (
               <button 
-                onClick={() => subAreaKmlData && setSubAreaKmlData(null)}
+                onClick={() => {
+                  setSubAreaKmlData(null);
+                  onSubAreaKmlDataChange?.(null);
+                }}
                 className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
               >
                 KALDIR
@@ -188,9 +234,78 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 3. YKN Arası Mesafe */}
+        {/* 3. Genişletme Ayarları (Sadece Normal YKN için) */}
+        {gcpLayoutType === 'Normal' && (
+          <section className="space-y-4">
+            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Genişletme Ayarları</label>
+            
+            <div className="space-y-3">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Buffer)</span>
+              <div className="flex gap-3">
+                {[0, 5, 10, 20].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setBuffer(val)}
+                    className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                      buffer === val 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    {val === 0 ? 'Hayır' : `${val}m`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Ortogonal)</span>
+              <div className="flex gap-3">
+                {[0, 50, 100, 200].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setExpandToGrid(val)}
+                    className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                      expandToGrid === val 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    {val === 0 ? 'Hayır' : `${val}m`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Dikdörtgen)</span>
+              <div className="flex gap-3">
+                {[false, true].map(val => (
+                  <button
+                    key={val.toString()}
+                    type="button"
+                    onClick={() => setExpandToRectangle(val)}
+                    className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                      expandToRectangle === val 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    {val ? 'EVET' : 'HAYIR'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 4. YKN Arası Mesafe */}
         <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Arası Mesafe</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
+            {gcpLayoutType === 'Normal' ? '4. YKN Arası Mesafe' : '3. YKN Arası Mesafe'}
+          </label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpDistance(p => Math.max(50, p - 50))} 
@@ -208,9 +323,11 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 3. YKN Başlangıç Mesafesi */}
+        {/* 5. YKN Başlangıç Mesafesi */}
         <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. YKN Başlangıç Mesafesi</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
+            {gcpLayoutType === 'Normal' ? '5. YKN Başlangıç Mesafesi' : '4. YKN Başlangıç Mesafesi'}
+          </label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpStartOffset(p => Math.max(0, p - 10))} 
@@ -228,9 +345,11 @@ const GCPPlanConfig: React.FC<Props> = ({ onBack, onPlanCreated, initialKmlData,
           </div>
         </section>
 
-        {/* 4. YKN Başlangıç Numarası */}
+        {/* 6. YKN Başlangıç Numarası */}
         <section className="space-y-2">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">4. YKN Başlangıç Numarası</label>
+          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
+            {gcpLayoutType === 'Normal' ? '6. YKN Başlangıç Numarası' : '5. YKN Başlangıç Numarası'}
+          </label>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
             <button 
               onClick={() => setGcpStartNumber(p => Math.max(1, p - 1))} 

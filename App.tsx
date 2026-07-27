@@ -1,33 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
-import GCPPlanConfig from './components/GCPPlanConfig';
 import HelpView from './components/HelpView';
 import SettingsView from './components/SettingsView';
 import KMLMapView from './components/KMLMapView';
 import FlightPlanConfig from './components/FlightPlanConfig';
-import GCPAreaTypeSelection from './components/GCPAreaTypeSelection';
 import GCPPlanDisplay from './components/GCPPlanDisplay';
 import GlobalFooter from './components/GlobalFooter';
-import { AppSettings } from './types';
+import { AppSettings, DEFAULT_FLIGHT_DEFAULTS } from './types';
 import { KMLData } from './components/KMLUtils';
 import { FlightConfig } from './src/types/flight';
 
-const getInitialSettings = (): AppSettings => ({
-  mapProvider: localStorage.getItem('default_map_provider') || 'Google Satellite'
-});
+const getInitialSettings = (): AppSettings => {
+  let flightDefaults = { ...DEFAULT_FLIGHT_DEFAULTS };
+  const storedFlight = localStorage.getItem('flight_plan_defaults');
+  if (storedFlight) {
+    try {
+      flightDefaults = { ...DEFAULT_FLIGHT_DEFAULTS, ...JSON.parse(storedFlight) };
+    } catch (e) {
+      console.error('Error parsing stored flight defaults', e);
+    }
+  }
+
+  return {
+    mapProvider: localStorage.getItem('default_map_provider') || 'Google Satellite',
+    flightDefaults,
+  };
+};
 
 const App = () => {
-  type ViewType = 'onboarding' | 'dashboard' | 'flightPlanner' | 'help' | 'settings' | 'kmlMap' | 'flightConfig' | 'gcpMap';
-  const [view, setView] = useState<ViewType>('onboarding');
+  type ViewType = 'onboarding' | 'dashboard' | 'help' | 'settings' | 'kmlMap' | 'flightConfig' | 'gcpMap';
+  const [view, setView] = useState<ViewType>('dashboard');
   const [subView, setSubView] = useState<string | null>(null);
   const [normalKmlData, setNormalKmlData] = useState<KMLData | null>(null);
   const [stripKmlData, setStripKmlData] = useState<KMLData | null>(null);
   const [gcpKmlData, setGcpKmlData] = useState<KMLData | null>(null);
+  const [gcpSubAreaKmlData, setGcpSubAreaKmlData] = useState<KMLData | null>(null);
   const [flightType, setFlightType] = useState<'Normal' | 'Strip'>('Normal');
-  const [flightStep, setFlightStep] = useState<'selection' | 'config'>('selection');
-  const [gcpStep, setGcpStep] = useState<'selection' | 'config'>('selection');
-  const [gcpLayoutType, setGcpLayoutType] = useState<'Normal' | 'Strip'>('Normal');
   const [flightConfig, setFlightConfig] = useState<FlightConfig | null>(null);
   const viewRef = React.useRef<ViewType>(view);
   const subViewRef = React.useRef<string | null>(subView);
@@ -65,18 +74,17 @@ const App = () => {
   };
 
   useEffect(() => {
-    // Always start with onboarding as requested
-    setView('onboarding');
+    // Default initial view is dashboard
+    setView('dashboard');
     setSubView(null);
-    window.history.replaceState({ view: 'onboarding', subView: null, index: 0 }, '');
+    window.history.replaceState({ view: 'dashboard', subView: null, index: 0 }, '');
 
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.view) {
         setView(event.state.view);
         setSubView(event.state.subView || null);
-      } else if (viewRef.current !== 'onboarding') {
-        // Only go back to onboarding if we're not already there
-        setView('onboarding');
+      } else if (viewRef.current !== 'dashboard') {
+        setView('dashboard');
         setSubView(null);
       }
     };
@@ -104,14 +112,10 @@ const App = () => {
         {view === 'dashboard' && (
           <div className="flex-1 flex flex-col overflow-y-auto h-full no-scrollbar">
             <Dashboard 
-              onStartFlightConfig={() => {
-                setFlightStep('selection');
+              onSelectFlightType={(type) => {
+                setFlightType(type);
                 navigateTo('flightConfig');
               }} 
-              onShowFlightPlanner={() => {
-                setGcpStep('selection');
-                navigateTo('flightPlanner');
-              }}
               onShowHelp={() => navigateTo('help')}
               onShowSettings={() => navigateTo('settings')}
             />
@@ -130,32 +134,34 @@ const App = () => {
               setSettings(getInitialSettings());
               window.history.back();
             }} 
+            onOpenOnboarding={() => navigateTo('onboarding')}
           />
         )}
 
         {view === 'flightConfig' && (
           <FlightPlanConfig 
-            onBack={() => {
-              if (flightStep === 'config') {
-                setFlightStep('selection');
-              } else {
-                navigateTo('dashboard');
-              }
-            }}
+            onBack={() => navigateTo('dashboard')}
             flightType={flightType}
-            onFlightTypeChange={setFlightType}
-            step={flightStep}
-            onStepChange={setFlightStep}
             initialKmlData={flightType === 'Normal' ? normalKmlData : stripKmlData}
+            initialSubAreaKmlData={gcpSubAreaKmlData}
             onKmlDataChange={(data) => {
               if (flightType === 'Normal') setNormalKmlData(data);
               else setStripKmlData(data);
             }}
-            onPlanCreated={(data, config) => {
+            onSubAreaKmlDataChange={setGcpSubAreaKmlData}
+            onPlanCreated={(data, config, isGcpEnabled) => {
               if (flightType === 'Normal') setNormalKmlData(data);
               else setStripKmlData(data);
+
               setFlightConfig(config);
-              navigateTo('kmlMap');
+
+              if (isGcpEnabled) {
+                setGcpKmlData(data);
+                setGcpSubAreaKmlData(config.subAreaKmlData || null);
+                navigateTo('gcpMap');
+              } else {
+                navigateTo('kmlMap');
+              }
             }}
             settings={settings}
           />
@@ -168,31 +174,6 @@ const App = () => {
             config={flightConfig}
             onBack={() => window.history.back()} 
           />
-        )}
-
-        {view === 'flightPlanner' && (
-          gcpStep === 'selection' ? (
-            <GCPAreaTypeSelection 
-              onBack={() => navigateTo('dashboard')}
-              onTypeSelect={(type) => {
-                setGcpLayoutType(type);
-                setGcpStep('config');
-              }}
-            />
-          ) : (
-            <GCPPlanConfig 
-              onBack={() => setGcpStep('selection')} 
-              initialKmlData={gcpKmlData}
-              onKmlDataChange={setGcpKmlData}
-              gcpLayoutType={gcpLayoutType}
-              onPlanCreated={(data, config) => {
-                setGcpKmlData(data);
-                setFlightConfig(config);
-                navigateTo('gcpMap');
-              }}
-              settings={settings}
-            />
-          )
         )}
 
         {view === 'gcpMap' && gcpKmlData && flightConfig && (

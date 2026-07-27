@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, CAMERAS, SCALES, SCALE_TARGET_GSD, FlightConfig } from '../src/types/flight';
+import { Camera, CAMERAS, SCALES, FlightConfig } from '../src/types/flight';
 import { parseKMLorKMZ, KMLData } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
@@ -8,55 +8,60 @@ import { AppSettings } from '../types';
 interface Props {
   onBack: () => void;
   flightType: 'Normal' | 'Strip';
-  onFlightTypeChange: (type: 'Normal' | 'Strip') => void;
-  step: 'selection' | 'config';
-  onStepChange: (step: 'selection' | 'config') => void;
-  onPlanCreated: (kmlData: KMLData, config: FlightConfig) => void;
+  onPlanCreated: (kmlData: KMLData, config: FlightConfig, isGcpEnabled: boolean) => void;
   initialKmlData?: KMLData | null;
+  initialSubAreaKmlData?: KMLData | null;
   onKmlDataChange?: (data: KMLData | null) => void;
+  onSubAreaKmlDataChange?: (data: KMLData | null) => void;
   settings: AppSettings;
 }
 
 const FlightPlanConfig: React.FC<Props> = ({ 
   onBack, 
   flightType, 
-  onFlightTypeChange, 
-  step, 
-  onStepChange, 
   onPlanCreated, 
   initialKmlData, 
-  onKmlDataChange,
+  initialSubAreaKmlData,
+  onKmlDataChange, 
+  onSubAreaKmlDataChange,
   settings
 }) => {
-  const [selectedCamera, setSelectedCamera] = useState<Camera>(CAMERAS[0]);
-  const [selectedScale, setSelectedScale] = useState(SCALES[0]);
-  const [height, setHeight] = useState(200);
-  const [buffer, setBuffer] = useState(0);
-  const [expandToGrid, setExpandToGrid] = useState<number>(0);
-  const [overlapFront, setOverlapFront] = useState(80);
-  const [overlapSide, setOverlapSide] = useState(70);
-  const [stripBuffer, setStripBuffer] = useState(50);
-  const [isStripSplitEnabled, setIsStripSplitEnabled] = useState(false);
-  const [stripSplitDistance, setStripSplitDistance] = useState(2000);
-  const [expandToRectangle, setExpandToRectangle] = useState(false);
-  const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
+  const fd = settings.flightDefaults;
+
+  const [selectedCamera] = useState<Camera>(() => {
+    return CAMERAS.find(c => c.name === fd.defaultCameraName) || CAMERAS[0];
+  });
+  const [selectedScale] = useState(SCALES[0]);
+  const [height] = useState(fd.defaultHeight ?? 200);
+  const [buffer, setBuffer] = useState(fd.defaultBuffer ?? 0);
+  const [expandToGrid, setExpandToGrid] = useState<number>(fd.defaultExpandToGrid ?? 0);
+  const [expandToRectangle, setExpandToRectangle] = useState(fd.defaultExpandToRectangle ?? false);
+  const [stripBuffer, setStripBuffer] = useState(fd.defaultStripBuffer ?? 50);
+  const [isStripSplitEnabled, setIsStripSplitEnabled] = useState(fd.defaultIsStripSplitEnabled ?? false);
+  const [stripSplitDistance, setStripSplitDistance] = useState(fd.defaultStripSplitDistance ?? 2000);
   
-  // Sync kmlData with initialKmlData when flightType or initialKmlData changes
+  const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
+  const [subAreaKmlData, setSubAreaKmlData] = useState<KMLData | null>(initialSubAreaKmlData || null);
+
+  // GCP (YKN) States
+  const [isGcpEnabled, setIsGcpEnabled] = useState<boolean>(fd.defaultIsGcpEnabled ?? true);
+  const [gcpDistance, setGcpDistance] = useState(fd.defaultGcpDistance ?? 400);
+  const [gcpStartOffset, setGcpStartOffset] = useState(fd.defaultGcpStartOffset ?? 10);
+  const [gcpStartNumber, setGcpStartNumber] = useState(fd.defaultGcpStartNumber ?? 1);
+
   React.useEffect(() => {
     setKmlData(initialKmlData || null);
   }, [initialKmlData, flightType]);
+
+  React.useEffect(() => {
+    setSubAreaKmlData(initialSubAreaKmlData || null);
+  }, [initialSubAreaKmlData]);
+
   const [isParsing, setIsParsing] = useState(false);
+  const [isParsingSubArea, setIsParsingSubArea] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Update height when camera or scale changes
-  React.useEffect(() => {
-    const targetGSD = SCALE_TARGET_GSD[selectedScale];
-    if (targetGSD) {
-      const calculatedHeight = (targetGSD * selectedCamera.focalLength * selectedCamera.imageWidth) / (selectedCamera.sensorWidth * 100);
-      setHeight(Math.round(calculatedHeight));
-    }
-  }, [selectedScale, selectedCamera]);
+  const subAreaFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,13 +99,38 @@ const FlightPlanConfig: React.FC<Props> = ({
     }
   };
 
+  const handleSubAreaFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsParsingSubArea(true);
+      try {
+        const data = await parseKMLorKMZ(file);
+        
+        const polygonFeatures = data.features.filter(f => f.type === 'Polygon');
+        if (polygonFeatures.length !== 1) {
+          alert('HATA: Alt alan dosyası sadece tek bir Polygon (alan) objesi içermelidir.');
+          setSubAreaKmlData(null);
+          onSubAreaKmlDataChange?.(null);
+          return;
+        }
+
+        setSubAreaKmlData(data);
+        onSubAreaKmlDataChange?.(data);
+      } catch (err) {
+        alert('HATA: KML dosyası ayrıştırılamadı.');
+      } finally {
+        setIsParsingSubArea(false);
+        if (subAreaFileInputRef.current) subAreaFileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleCreatePlan = () => {
     if (!kmlData) {
       alert('Lütfen bir KML/KMZ dosyası seçin.');
       return;
     }
 
-    // Calculate GSD: (SensorWidth * Height * 100) / (FocalLength * ImageWidth)
     const gsd = (selectedCamera.sensorWidth * height * 100) / (selectedCamera.focalLength * selectedCamera.imageWidth);
     
     const config: FlightConfig = {
@@ -111,95 +141,25 @@ const FlightPlanConfig: React.FC<Props> = ({
       height,
       buffer,
       expandToGrid,
-      overlapFront,
-      overlapSide,
+      overlapFront: 80,
+      overlapSide: 70,
       expandToRectangle,
       stripBuffer: flightType === 'Strip' ? stripBuffer : undefined,
-      stripSplitDistance: (flightType === 'Strip' && isStripSplitEnabled) ? stripSplitDistance : undefined
+      stripSplitDistance: (flightType === 'Strip' && isStripSplitEnabled) ? stripSplitDistance : undefined,
+      gcpDistance,
+      gcpStartOffset,
+      gcpStartNumber,
+      gcpLayoutType: flightType,
+      subAreaKmlData: isGcpEnabled ? subAreaKmlData : null
     };
     
-    onPlanCreated(kmlData, config);
+    onPlanCreated(kmlData, config, isGcpEnabled);
   };
-
-  if (step === 'selection') {
-    return (
-      <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
-        <Header title="Uçuş Tipi Seçimi" onBack={onBack} />
-        
-        <div className="flex-1 p-6 flex flex-col justify-start gap-4 pt-8">
-          <button 
-            onClick={() => {
-              onFlightTypeChange('Normal');
-              onStepChange('config');
-            }}
-            className="group relative bg-white p-5 rounded-[32px] border-2 border-transparent hover:border-blue-500 transition-all shadow-xl shadow-slate-300/50 active:scale-95 text-left overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <i className="fas fa-draw-polygon text-7xl"></i>
-            </div>
-            <div className="relative z-10 flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200 shrink-0">
-                <i className="fas fa-draw-polygon text-xl"></i>
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Normal Uçuş</h3>
-                <p className="text-xs text-slate-500 mt-0.5 font-medium leading-tight">Poligon tabanlı alan uçuşu. Harita ve modelleme projeleri için idealdir.</p>
-              </div>
-            </div>
-          </button>
-
-          <button 
-            onClick={() => {
-              onFlightTypeChange('Strip');
-              onStepChange('config');
-            }}
-            className="group relative bg-white p-5 rounded-[32px] border-2 border-transparent hover:border-emerald-500 transition-all shadow-xl shadow-slate-300/50 active:scale-95 text-left overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <i className="fas fa-route text-7xl"></i>
-            </div>
-            <div className="relative z-10 flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
-                <i className="fas fa-route text-xl"></i>
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Şeritvari Uçuş</h3>
-                <p className="text-xs text-slate-500 mt-0.5 font-medium leading-tight">Çizgi tabanlı koridor uçuşu. Yol, kanal ve enerji hattı projeleri için idealdir.</p>
-              </div>
-            </div>
-          </button>
-
-          {/* KML Plus Tanıtım */}
-          <div className="mt-4 pt-4 border-t border-slate-300/50">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center mb-4">Tahdit Dosyanız Yok mu?</p>
-            
-            <button 
-              onClick={() => window.open('https://acb-soft.github.io/KML-Plus/', '_blank')}
-              className="w-full group relative bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-[32px] shadow-2xl shadow-blue-400/30 active:scale-95 text-left overflow-hidden border border-blue-500/50"
-            >
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <i className="fas fa-external-link-alt text-7xl text-white"></i>
-              </div>
-              
-              <div className="relative z-10">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">KML Plus</h3>
-                  <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm text-[8px] font-black text-white rounded-full tracking-widest border border-white/30">ACB SOFTWARE</span>
-                </div>
-                <p className="text-xs text-blue-100 mt-0.5 font-medium leading-tight">Hızlıca KML/KMZ tahdit dosyası oluşturmak için yardımcı uygulamayı kullanın.</p>
-              </div>
-            </button>
-          </div>
-        </div>
-        <GlobalFooter />
-      </div>
-    );
-  }
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
       <Header 
-        title={flightType === 'Normal' ? 'Normal Uçuş Hazırlığı' : 'Şeritvari Uçuş Hazırlığı'} 
+        title="Uçuş Hazırlığı" 
         onBack={onBack} 
       />
 
@@ -329,9 +289,9 @@ const FlightPlanConfig: React.FC<Props> = ({
               </p>
             </section>
 
-            {/* 3. Uçuşu Parçalara Ayır */}
+            {/* 2.1 Uçuşu Parçalara Ayır */}
             <section className="space-y-3">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Uçuşu Parçalara Ayır</label>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Uçuşu Parçalara Ayır</span>
               <div className="flex gap-3">
                 {[false, true].map(val => (
                   <button
@@ -368,6 +328,152 @@ const FlightPlanConfig: React.FC<Props> = ({
           </>
         )}
 
+        {/* 3. Yer Kontrol Noktası (YKN) Planlaması */}
+        <section className="space-y-4 pt-2 border-t border-slate-300/60">
+          <div className="flex items-center justify-between">
+            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
+              3. Yer Kontrol Noktası (YKN) Planlaması
+            </label>
+          </div>
+
+          <div className="flex gap-3">
+            {[true, false].map(val => (
+              <button
+                key={val.toString()}
+                onClick={() => setIsGcpEnabled(val)}
+                className={`flex-1 py-3.5 rounded-2xl font-black text-sm transition-all border ${
+                  isGcpEnabled === val 
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
+                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                }`}
+              >
+                {val ? 'YKN İLE PLANLA' : 'YKN\'SİZ PLANLA'}
+              </button>
+            ))}
+          </div>
+
+          {isGcpEnabled && (
+            <div className="space-y-5 animate-in fade-in duration-200 pt-1">
+              {/* Alt Alan Seçimi */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  Alt Alan Seçimi (İsteğe Bağlı)
+                </span>
+                <div className="flex flex-col gap-3">
+                  <div 
+                    onClick={() => !subAreaKmlData && subAreaFileInputRef.current?.click()}
+                    className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
+                      subAreaKmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
+                    }`}
+                  >
+                    <input 
+                      type="file" 
+                      ref={subAreaFileInputRef} 
+                      onChange={handleSubAreaFileChange} 
+                      accept=".kml,.kmz" 
+                      className="hidden" 
+                    />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
+                      subAreaKmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                    }`}>
+                      <i className={`fas ${isParsingSubArea ? 'fa-spinner fa-spin' : subAreaKmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
+                    </div>
+                    <div className="flex-1 truncate">
+                      <p className="font-black text-slate-900 truncate text-sm">{subAreaKmlData ? subAreaKmlData.name : 'Dosya Seçin'}</p>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                        {subAreaKmlData ? '1 Polygon bulundu' : 'Sadece Polygon (Alan) tipi KML/KMZ'}
+                      </p>
+                    </div>
+                  </div>
+                  {subAreaKmlData && (
+                    <button 
+                      onClick={() => {
+                        setSubAreaKmlData(null);
+                        onSubAreaKmlDataChange?.(null);
+                      }}
+                      className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
+                    >
+                      KALDIR
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* YKN Arası Mesafe */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  YKN Arası Mesafe
+                </span>
+                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                  <button 
+                    onClick={() => setGcpDistance(p => Math.max(50, p - 50))} 
+                    className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+                  >
+                    <i className="fas fa-minus text-xs"></i>
+                  </button>
+                  <span className="flex-1 text-center font-black text-slate-900 text-lg">{gcpDistance}m</span>
+                  <button 
+                    onClick={() => setGcpDistance(p => Math.min(2000, p + 50))} 
+                    className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+                  >
+                    <i className="fas fa-plus text-xs"></i>
+                  </button>
+                </div>
+              </div>
+
+              {/* YKN Başlangıç Mesafesi */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  YKN Başlangıç Mesafesi
+                </span>
+                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                  <button 
+                    onClick={() => setGcpStartOffset(p => Math.max(0, p - 10))} 
+                    className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+                  >
+                    <i className="fas fa-minus text-xs"></i>
+                  </button>
+                  <span className="flex-1 text-center font-black text-slate-900 text-lg">{gcpStartOffset}m</span>
+                  <button 
+                    onClick={() => setGcpStartOffset(p => Math.min(500, p + 10))} 
+                    className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+                  >
+                    <i className="fas fa-plus text-xs"></i>
+                  </button>
+                </div>
+              </div>
+
+              {/* YKN Başlangıç Numarası */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  YKN Başlangıç Numarası
+                </span>
+                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                  <button 
+                    onClick={() => setGcpStartNumber(p => Math.max(1, p - 1))} 
+                    className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+                  >
+                    <i className="fas fa-minus text-xs"></i>
+                  </button>
+                  <input 
+                    type="number"
+                    value={gcpStartNumber}
+                    onChange={(e) => setGcpStartNumber(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="flex-1 text-center font-black text-slate-900 text-lg bg-transparent focus:outline-none"
+                    min="1"
+                  />
+                  <button 
+                    onClick={() => setGcpStartNumber(p => p + 1)} 
+                    className="w-10 h-10 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all border border-slate-100"
+                  >
+                    <i className="fas fa-plus text-xs"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
         <div className="pt-4">
           <button 
             onClick={handleCreatePlan}
@@ -383,5 +489,6 @@ const FlightPlanConfig: React.FC<Props> = ({
     </div>
   );
 };
+
 
 export default FlightPlanConfig;
