@@ -73,7 +73,7 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
         {/* Normal Alan Haritalama */}
         <button 
           onClick={() => onSelectFlightType('Normal')}
-          className="w-full py-4.5 md:py-5 px-5 md:px-6 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-600/25 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
+          className="w-full py-4.5 md:py-5 px-5 md:px-6 bg-emerald-600 text-white rounded-2xl shadow-xl shadow-emerald-600/25 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
         >
           <div className="relative z-10 flex items-center gap-3.5 md:gap-4">
             <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 shrink-0 shadow-inner">
@@ -91,7 +91,7 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
         {/* Şeritvari Alan Haritalama */}
         <button 
           onClick={() => onSelectFlightType('Strip')}
-          className="w-full py-4.5 md:py-5 px-5 md:px-6 bg-emerald-600 text-white rounded-2xl shadow-xl shadow-emerald-600/25 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
+          className="w-full py-4.5 md:py-5 px-5 md:px-6 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-600/25 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
         >
           <div className="relative z-10 flex items-center gap-3.5 md:gap-4">
             <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 shrink-0 shadow-inner">
