@@ -140,12 +140,16 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
     setIsGeneratingPdf(true);
     try {
       const mapEl = document.querySelector('.leaflet-container') as HTMLElement | null;
+      const calculatedGsd = (config.camera && config.height) 
+        ? Math.round(((config.camera.sensorWidth * config.height * 100) / (config.camera.focalLength * config.camera.imageWidth)) * 100) / 100 
+        : (config.gsd || 2.5);
+
       await generateFlightPlanPDF({
         projectName: exportName || projectName,
         flightType: 'Normal',
         camera: config.camera,
-        altitude: config.altitude || 200,
-        gsd: config.gsd || 2.5,
+        altitude: config.height || 200,
+        gsd: calculatedGsd,
         areaSizeM2: boundaryArea * 10000,
         bufferMeters: config.buffer || 0,
         expandToGridMeters: config.expandToGrid,

@@ -199,10 +199,7 @@ const DrawBoundaryModal: React.FC<Props> = ({
       return;
     }
 
-    const defaultName =
-      flightType === 'Normal'
-        ? `Çizilen_Tahdit_Alanı_${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`
-        : `Çizilen_Şerit_Güzergahı_${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
+    const defaultName = `TAHDIT_${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
 
     const kmlData: KMLData = {
       name: defaultName,

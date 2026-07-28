@@ -61,14 +61,20 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   const mapProvider = localStorage.getItem('default_map_provider') || 'Google Satellite';
   
   // Initial calculation based on config
-  const initialAltitude = 200;
-  const initialGsd = (initialAltitude * config.camera.sensorWidth) / (config.camera.focalLength * config.camera.imageWidth) * 100;
+  const initialAltitude = config.height || 200;
+  const initialGsd = (initialAltitude && config.camera.focalLength && config.camera.imageWidth) 
+    ? (initialAltitude * config.camera.sensorWidth) / (config.camera.focalLength * config.camera.imageWidth) * 100 
+    : (config.gsd || 0);
   
   const [altitude, setAltitude] = useState(Math.round(initialAltitude));
   const [gsd, setGsd] = useState(Number(initialGsd.toFixed(2)));
   const [currentCamera, setCurrentCamera] = useState<Camera>(config.camera);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [customCamName, setCustomCamName] = useState(config.camera.isCustom ? config.camera.name : 'Özel Drone Model');
+  const [customSW, setCustomSW] = useState(config.camera.sensorWidth || 13.2);
+  const [customFL, setCustomFL] = useState(config.camera.focalLength || 8.8);
+  const [customRes, setCustomRes] = useState(config.camera.imageWidth || 5472);
   const [exportType, setExportType] = useState<'flight_plan' | 'ykn_plan' | 'pdf_summary'>('ykn_plan');
   const [exportName, setExportName] = useState(`YKN_${getCleanBaseName(projectName)}`);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -89,22 +95,27 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
   // Recalculate GSD when altitude changes
   const handleAltitudeChange = (newAlt: number) => {
     setAltitude(newAlt);
-    const newGsd = (newAlt * currentCamera.sensorWidth) / (currentCamera.focalLength * currentCamera.imageWidth) * 100;
-    setGsd(Number(newGsd.toFixed(2)));
+    if (currentCamera.focalLength > 0 && currentCamera.imageWidth > 0) {
+      const newGsd = (newAlt * currentCamera.sensorWidth) / (currentCamera.focalLength * currentCamera.imageWidth) * 100;
+      setGsd(Number(newGsd.toFixed(2)));
+    }
   };
 
   // Recalculate altitude when GSD changes
   const handleGsdChange = (newGsd: number) => {
     setGsd(newGsd);
-    const newAlt = (newGsd * currentCamera.focalLength * currentCamera.imageWidth) / (currentCamera.sensorWidth * 100);
-    setAltitude(Math.round(newAlt));
+    if (currentCamera.sensorWidth > 0) {
+      const newAlt = (newGsd * currentCamera.focalLength * currentCamera.imageWidth) / (currentCamera.sensorWidth * 100);
+      setAltitude(Math.round(newAlt));
+    }
   };
 
   const handleCameraChange = (newCam: Camera) => {
     setCurrentCamera(newCam);
-    // Recalculate GSD based on current altitude and new camera
-    const newGsd = (altitude * newCam.sensorWidth) / (newCam.focalLength * newCam.imageWidth) * 100;
-    setGsd(Number(newGsd.toFixed(2)));
+    if (newCam.focalLength > 0 && newCam.imageWidth > 0 && altitude > 0) {
+      const newGsd = (altitude * newCam.sensorWidth) / (newCam.focalLength * newCam.imageWidth) * 100;
+      setGsd(Number(newGsd.toFixed(2)));
+    }
   };
 
   // Calculate all geometry and flight lines once
@@ -481,30 +492,105 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {CAMERAS.map(cam => (
-                <button
-                  key={cam.name}
-                  onClick={() => {
-                    handleCameraChange(cam);
-                    setShowCameraModal(false);
-                  }}
-                  className={`w-full p-4 rounded-2xl text-left transition-all border ${
-                    currentCamera.name === cam.name 
-                    ? 'bg-blue-50 border-blue-200' 
-                    : 'bg-white border-slate-100 hover:border-blue-100'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className={`font-black text-sm ${currentCamera.name === cam.name ? 'text-blue-600' : 'text-slate-900'}`}>{cam.name}</p>
-                    {currentCamera.name === cam.name && <i className="fas fa-check-circle text-blue-500"></i>}
+              {CAMERAS.map(cam => {
+                const isSelected = currentCamera.name === cam.name || (cam.isCustom && currentCamera.isCustom);
+                return (
+                  <div key={cam.name} className="space-y-2">
+                    <button
+                      onClick={() => {
+                        if (cam.isCustom) {
+                          const customCamObj: Camera = {
+                            name: customCamName || 'Özel / Diğer Kamera Model',
+                            sensorWidth: customSW,
+                            focalLength: customFL,
+                            imageWidth: customRes,
+                            isCustom: true
+                          };
+                          handleCameraChange(customCamObj);
+                        } else {
+                          handleCameraChange(cam);
+                          setShowCameraModal(false);
+                        }
+                      }}
+                      className={`w-full p-4 rounded-2xl text-left transition-all border ${
+                        isSelected
+                        ? 'bg-blue-50 border-blue-200' 
+                        : 'bg-white border-slate-100 hover:border-blue-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className={`font-black text-sm ${isSelected ? 'text-blue-600' : 'text-slate-900'}`}>{cam.name}</p>
+                        {isSelected && <i className="fas fa-check-circle text-blue-500"></i>}
+                      </div>
+                      <div className="flex gap-3 mt-1">
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">SW: {cam.isCustom ? customSW : cam.sensorWidth}mm</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">FL: {cam.isCustom ? customFL : cam.focalLength}mm</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">RES: {cam.isCustom ? customRes : cam.imageWidth}px</span>
+                      </div>
+                    </button>
+
+                    {cam.isCustom && isSelected && (
+                      <div className="p-3 bg-white border border-blue-200 rounded-2xl space-y-2 text-xs">
+                        <div>
+                          <label className="text-[8px] font-bold text-slate-400 uppercase">Kamera Adı</label>
+                          <input 
+                            type="text"
+                            value={customCamName}
+                            onChange={(e) => {
+                              setCustomCamName(e.target.value);
+                              handleCameraChange({ name: e.target.value || 'Özel Kamera', sensorWidth: customSW, focalLength: customFL, imageWidth: customRes, isCustom: true });
+                            }}
+                            className="w-full h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <div>
+                            <label className="text-[8px] font-bold text-slate-400 uppercase block truncate">SW (mm)</label>
+                            <input 
+                              type="number"
+                              step="0.1"
+                              value={customSW}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setCustomSW(val);
+                                handleCameraChange({ name: customCamName, sensorWidth: val, focalLength: customFL, imageWidth: customRes, isCustom: true });
+                              }}
+                              className="w-full h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[8px] font-bold text-slate-400 uppercase block truncate">FL (mm)</label>
+                            <input 
+                              type="number"
+                              step="0.1"
+                              value={customFL}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setCustomFL(val);
+                                handleCameraChange({ name: customCamName, sensorWidth: customSW, focalLength: val, imageWidth: customRes, isCustom: true });
+                              }}
+                              className="w-full h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[8px] font-bold text-slate-400 uppercase block truncate">RES (px)</label>
+                            <input 
+                              type="number"
+                              value={customRes}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setCustomRes(val);
+                                handleCameraChange({ name: customCamName, sensorWidth: customSW, focalLength: customFL, imageWidth: val, isCustom: true });
+                              }}
+                              className="w-full h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-3 mt-1">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">SW: {cam.sensorWidth}mm</span>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">FL: {cam.focalLength}mm</span>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">RES: {cam.imageWidth}px</span>
-                  </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
             
             <div className="p-4 bg-slate-50 shrink-0">

@@ -29,11 +29,11 @@ const FlightPlanConfig: React.FC<Props> = ({
 }) => {
   const fd = settings.flightDefaults;
 
-  const [selectedCamera] = useState<Camera>(() => {
+  const [selectedCamera, setSelectedCamera] = useState<Camera>(() => {
     return CAMERAS.find(c => c.name === fd.defaultCameraName) || CAMERAS[0];
   });
   const [selectedScale] = useState(SCALES[0]);
-  const [height] = useState(fd.defaultHeight ?? 200);
+  const [height, setHeight] = useState(fd.defaultHeight ?? 200);
   const [buffer, setBuffer] = useState(fd.defaultBuffer ?? 0);
   const [expandToGrid, setExpandToGrid] = useState<number>(fd.defaultExpandToGrid ?? 0);
   const [expandToRectangle, setExpandToRectangle] = useState(fd.defaultExpandToRectangle ?? false);
@@ -49,6 +49,60 @@ const FlightPlanConfig: React.FC<Props> = ({
   const [gcpDistance, setGcpDistance] = useState(fd.defaultGcpDistance ?? 400);
   const [gcpStartOffset, setGcpStartOffset] = useState(fd.defaultGcpStartOffset ?? 10);
   const [gcpStartNumber, setGcpStartNumber] = useState(fd.defaultGcpStartNumber ?? 1);
+
+  // Camera Step Optional & Custom Camera States
+  const [isCameraStepEnabled, setIsCameraStepEnabled] = useState<boolean>(false);
+  const [customCamName, setCustomCamName] = useState<string>('Özel Drone Kamera');
+  const [customSensorWidth, setCustomSensorWidth] = useState<number>(13.2);
+  const [customFocalLength, setCustomFocalLength] = useState<number>(8.8);
+  const [customImageWidth, setCustomImageWidth] = useState<number>(5472);
+
+  const activeCamera: Camera = React.useMemo(() => {
+    if (!isCameraStepEnabled) {
+      return {
+        name: 'Belirtilmedi (İsteğe Bağlı)',
+        sensorWidth: 13.2,
+        focalLength: 8.8,
+        imageWidth: 5472,
+        isCustom: true
+      };
+    }
+    if (selectedCamera.isCustom || selectedCamera.name.includes('Özel')) {
+      return {
+        name: customCamName.trim() || 'Özel / Diğer Kamera Model',
+        sensorWidth: Number(customSensorWidth) || 13.2,
+        focalLength: Number(customFocalLength) || 8.8,
+        imageWidth: Number(customImageWidth) || 5472,
+        isCustom: true
+      };
+    }
+    return selectedCamera;
+  }, [isCameraStepEnabled, selectedCamera, customCamName, customSensorWidth, customFocalLength, customImageWidth]);
+
+  const effectiveGsd = React.useMemo(() => {
+    if (!isCameraStepEnabled || !activeCamera.focalLength || !activeCamera.imageWidth) {
+      return 0;
+    }
+    return (activeCamera.sensorWidth * height * 100) / (activeCamera.focalLength * activeCamera.imageWidth);
+  }, [isCameraStepEnabled, activeCamera, height]);
+
+  React.useEffect(() => {
+    if (settings.flightDefaults) {
+      const defCam = CAMERAS.find(c => c.name === settings.flightDefaults.defaultCameraName) || CAMERAS[0];
+      setSelectedCamera(defCam);
+      setHeight(settings.flightDefaults.defaultHeight ?? 200);
+      setBuffer(settings.flightDefaults.defaultBuffer ?? 0);
+      setExpandToGrid(settings.flightDefaults.defaultExpandToGrid ?? 0);
+      setExpandToRectangle(settings.flightDefaults.defaultExpandToRectangle ?? false);
+      setStripBuffer(settings.flightDefaults.defaultStripBuffer ?? 50);
+      setIsStripSplitEnabled(settings.flightDefaults.defaultIsStripSplitEnabled ?? false);
+      setStripSplitDistance(settings.flightDefaults.defaultStripSplitDistance ?? 2000);
+      setIsGcpEnabled(settings.flightDefaults.defaultIsGcpEnabled ?? true);
+      setGcpDistance(settings.flightDefaults.defaultGcpDistance ?? 400);
+      setGcpStartOffset(settings.flightDefaults.defaultGcpStartOffset ?? 10);
+      setGcpStartNumber(settings.flightDefaults.defaultGcpStartNumber ?? 1);
+    }
+  }, [settings.flightDefaults]);
 
   React.useEffect(() => {
     setKmlData(initialKmlData || null);
@@ -133,14 +187,12 @@ const FlightPlanConfig: React.FC<Props> = ({
       return;
     }
 
-    const gsd = (selectedCamera.sensorWidth * height * 100) / (selectedCamera.focalLength * selectedCamera.imageWidth);
-    
     const config: FlightConfig = {
       flightType,
-      camera: selectedCamera,
+      camera: activeCamera,
       scale: selectedScale,
-      gsd: Math.round(gsd * 100) / 100,
-      height,
+      gsd: Math.round(effectiveGsd * 100) / 100,
+      height: isCameraStepEnabled ? height : 0,
       buffer,
       expandToGrid,
       overlapFront: 80,
@@ -245,11 +297,165 @@ const FlightPlanConfig: React.FC<Props> = ({
           )}
         </section>
 
+        {/* 2. Kamera & Uçuş Yüksekliği */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
+              2. Kamera & Uçuş Yüksekliği
+            </label>
+            <div className="flex bg-slate-200 p-1 rounded-xl gap-1 border border-slate-300/60">
+              <button
+                type="button"
+                onClick={() => setIsCameraStepEnabled(true)}
+                className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all ${
+                  isCameraStepEnabled
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                EVET
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsCameraStepEnabled(false)}
+                className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all ${
+                  !isCameraStepEnabled
+                    ? 'bg-slate-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                HAYIR
+              </button>
+            </div>
+          </div>
+
+          {!isCameraStepEnabled ? (
+            <div className="p-4 bg-amber-50/80 border border-amber-200/80 rounded-[20px] text-amber-900 space-y-1 animate-in fade-in">
+              <p className="text-[11px] text-amber-800 leading-relaxed font-medium flex items-start gap-2">
+                <i className="fas fa-info-circle text-amber-600 text-xs mt-0.5 shrink-0"></i>
+                <span>Bu adım zorunlu değildir. Uçuş haritası ve YKN planı yine üretilecek, raporlarda kamera ve uçuş bilgileri boş bırakılacaktır.</span>
+              </p>
+            </div>
+          ) : (
+            <div className="p-4 bg-slate-100 rounded-[24px] border border-slate-200 space-y-4 animate-in fade-in">
+              {/* Kamera Seçimi */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Kamera Modeli
+                  </label>
+                  {!selectedCamera.isCustom && (
+                    <span className="text-[10px] font-bold text-slate-400">
+                      {selectedCamera.sensorWidth}mm / {selectedCamera.focalLength}mm
+                    </span>
+                  )}
+                </div>
+                <select 
+                  value={selectedCamera.name}
+                  onChange={(e) => {
+                    const cam = CAMERAS.find(c => c.name === e.target.value);
+                    if (cam) setSelectedCamera(cam);
+                  }}
+                  className="w-full h-11 px-3.5 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none shadow-sm text-xs cursor-pointer"
+                >
+                  {CAMERAS.map(cam => (
+                    <option key={cam.name} value={cam.name}>{cam.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Special Custom Camera Fields if selectedCamera is custom / unlisted */}
+              {(selectedCamera.isCustom || selectedCamera.name.includes('Özel')) && (
+                <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-2xl space-y-3 animate-in fade-in">
+                  <div className="flex items-center gap-1.5 text-[10px] font-black text-blue-800 uppercase tracking-wider">
+                    <i className="fas fa-sliders-h text-blue-600"></i>
+                    Özel / Listede Olmayan Cihaz Parametreleri
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase">Cihaz / Kamera Adı</label>
+                    <input 
+                      type="text"
+                      value={customCamName}
+                      onChange={(e) => setCustomCamName(e.target.value)}
+                      placeholder="Örn: Custom Payload Drone"
+                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[8px] font-bold text-slate-500 uppercase block truncate">Sensör Gen. (mm)</label>
+                      <input 
+                        type="number"
+                        step="0.1"
+                        value={customSensorWidth}
+                        onChange={(e) => setCustomSensorWidth(Number(e.target.value))}
+                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-bold text-slate-500 uppercase block truncate">Odak Uzak. (mm)</label>
+                      <input 
+                        type="number"
+                        step="0.1"
+                        value={customFocalLength}
+                        onChange={(e) => setCustomFocalLength(Number(e.target.value))}
+                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-bold text-slate-500 uppercase block truncate">Res. Gen. (px)</label>
+                      <input 
+                        type="number"
+                        value={customImageWidth}
+                        onChange={(e) => setCustomImageWidth(Number(e.target.value))}
+                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Uçuş Yüksekliği */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Uçuş Yüksekliği (m)
+                  </label>
+                  <span className="text-[10px] font-bold text-blue-600">
+                    GSD: ~{effectiveGsd.toFixed(2)} cm/px
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+                  <button 
+                    type="button"
+                    onClick={() => setHeight(p => Math.max(20, p - 10))}
+                    className="w-9 h-9 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold active:scale-95 transition-all flex items-center justify-center"
+                  >
+                    <i className="fas fa-minus text-xs"></i>
+                  </button>
+                  <div className="flex-1 text-center font-black text-slate-900 text-sm">
+                    {height}m
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setHeight(p => Math.min(500, p + 10))}
+                    className="w-9 h-9 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold active:scale-95 transition-all flex items-center justify-center"
+                  >
+                    <i className="fas fa-plus text-xs"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
         {flightType === 'Normal' ? (
           <>
-            {/* 2. Genişletme Ayarları */}
+            {/* 3. Genişletme Ayarları */}
             <section className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Genişletme Ayarları</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Genişletme Ayarları</label>
               
               <div className="space-y-3">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Buffer)</span>
@@ -311,9 +517,9 @@ const FlightPlanConfig: React.FC<Props> = ({
           </>
         ) : (
           <>
-            {/* 2. Uçuş Genişliği (Buffer) */}
+            {/* 3. Uçuş Genişliği (Buffer) */}
             <section className="space-y-3">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">2. Uçuş Genişliği (Buffer)</label>
+              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">3. Uçuş Genişliği (Buffer)</label>
               <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-10 h-10 bg-slate-50 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all">
                   <i className="fas fa-minus text-xs"></i>
@@ -330,7 +536,7 @@ const FlightPlanConfig: React.FC<Props> = ({
               </p>
             </section>
 
-            {/* 2.1 Uçuşu Parçalara Ayır */}
+            {/* 3.1 Uçuşu Parçalara Ayır */}
             <section className="space-y-3">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Uçuşu Parçalara Ayır</span>
               <div className="flex gap-3">
@@ -369,11 +575,11 @@ const FlightPlanConfig: React.FC<Props> = ({
           </>
         )}
 
-        {/* 3. Yer Kontrol Noktası (YKN) Planlaması */}
+        {/* 4. Yer Kontrol Noktası (YKN) Planlaması */}
         <section className="space-y-4 pt-2 border-t border-slate-300/60">
           <div className="flex items-center justify-between">
             <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
-              3. Yer Kontrol Noktası (YKN) Planlaması
+              4. Yer Kontrol Noktası (YKN) Planlaması
             </label>
           </div>
 

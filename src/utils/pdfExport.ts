@@ -39,7 +39,7 @@ export interface PDFExportData {
 function renderYknTableColumns(points: { id: string; name: string; lat: number; lng: number }[]) {
   if (points.length === 0) {
     return `
-      <div style="text-align: center; padding: 12px; color: #94a3b8; font-size: 11px; font-weight: 700; font-style: italic;">
+      <div style="text-align: center; padding: 16px; color: #94a3b8; font-size: 11px; font-weight: 700; font-style: italic;">
         Bu plan için henüz YKN noktası üretilmedi veya YKN planlaması kapalı.
       </div>
     `;
@@ -50,20 +50,20 @@ function renderYknTableColumns(points: { id: string; name: string; lat: number; 
   const rightCol = points.slice(half);
 
   const renderTable = (items: typeof points) => `
-    <table style="width: 100%; font-size: 9px; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
+    <table style="width: 100%; table-layout: fixed; font-size: 9px; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; border: 1px solid #cbd5e1; box-sizing: border-box;">
       <thead>
-        <tr style="background: #2563eb; color: white; text-align: left;">
-          <th style="padding: 5px 8px; font-weight: 900;">Ad</th>
-          <th style="padding: 5px 8px; font-weight: 900;">Enlem</th>
-          <th style="padding: 5px 8px; font-weight: 900;">Boylam</th>
+        <tr style="background: #2563eb; color: white; text-align: left; height: 26px;">
+          <th style="width: 32%; padding: 4px 8px; font-weight: 900; vertical-align: middle;">Ad</th>
+          <th style="width: 34%; padding: 4px 8px; font-weight: 900; vertical-align: middle;">Enlem</th>
+          <th style="width: 34%; padding: 4px 8px; font-weight: 900; vertical-align: middle;">Boylam</th>
         </tr>
       </thead>
       <tbody>
         ${items.map((pt, idx) => `
-          <tr style="border-bottom: 1px solid #f1f5f9; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-            <td style="padding: 4px 8px; font-weight: 800; color: #2563eb;">${pt.name}</td>
-            <td style="padding: 4px 8px; font-family: monospace; color: #334155;">${pt.lat.toFixed(6)}°</td>
-            <td style="padding: 4px 8px; font-family: monospace; color: #334155;">${pt.lng.toFixed(6)}°</td>
+          <tr style="border-bottom: 1px solid #f1f5f9; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}; height: 22px;">
+            <td style="padding: 3px 8px; font-weight: 800; color: #2563eb; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pt.name}</td>
+            <td style="padding: 3px 8px; font-family: monospace, sans-serif; color: #334155; vertical-align: middle; white-space: nowrap;">${pt.lat.toFixed(6)}°</td>
+            <td style="padding: 3px 8px; font-family: monospace, sans-serif; color: #334155; vertical-align: middle; white-space: nowrap;">${pt.lng.toFixed(6)}°</td>
           </tr>
         `).join('')}
       </tbody>
@@ -71,11 +71,11 @@ function renderYknTableColumns(points: { id: string; name: string; lat: number; 
   `;
 
   return `
-    <div style="display: flex; gap: 16px;">
-      <div style="flex: 1;">
+    <div style="display: flex; gap: 16px; align-items: flex-start; width: 100%; box-sizing: border-box;">
+      <div style="flex: 1; min-width: 0;">
         ${renderTable(leftCol)}
       </div>
-      <div style="flex: 1;">
+      <div style="flex: 1; min-width: 0;">
         ${rightCol.length > 0 ? renderTable(rightCol) : ''}
       </div>
     </div>
@@ -117,217 +117,162 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
 
   const pageElements: HTMLDivElement[] = [];
 
-  // Create Page 1
-  const page1 = document.createElement('div');
-  page1.style.width = '800px';
-  page1.style.backgroundColor = '#ffffff';
-  page1.style.color = '#0f172a';
-  page1.style.fontFamily = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
-  page1.style.padding = '32px';
-  page1.style.boxSizing = 'border-box';
+  // Create Pages
+  for (let p = 0; p < totalPages; p++) {
+    const isFirstPage = p === 0;
+    const startIdx = isFirstPage ? 0 : PAGE_1_MAX_YKN + (p - 1) * SUBSEQUENT_PAGE_MAX_YKN;
+    const endIdx = Math.min(startIdx + (isFirstPage ? PAGE_1_MAX_YKN : SUBSEQUENT_PAGE_MAX_YKN), yknList.length);
+    const currentPageYkns = yknList.slice(startIdx, endIdx);
+    const currentPageNum = p + 1;
 
-  const page1Ykns = yknList.slice(0, PAGE_1_MAX_YKN);
+    const page = document.createElement('div');
+    page.style.width = '800px';
+    page.style.backgroundColor = '#ffffff';
+    page.style.color = '#0f172a';
+    page.style.fontFamily = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
+    page.style.padding = '32px';
+    page.style.boxSizing = 'border-box';
 
-  page1.innerHTML = `
-    <div style="border: 2px solid #e2e8f0; border-radius: 20px; padding: 24px; background: #ffffff;">
-      <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 20px;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 32px; height: 32px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 16px;">
+    page.innerHTML = `
+      <div style="border: 2px solid #e2e8f0; border-radius: 20px; padding: 24px; background: #ffffff; box-sizing: border-box;">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 14px; margin-bottom: 18px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 36px; height: 36px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 18px; line-height: 1;">
               ✈
             </div>
-            <h1 style="margin: 0; font-size: 20px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: -0.02em;">
-              PLANLANAN UÇUŞ RAPORU
-            </h1>
-          </div>
-          <p style="margin: 4px 0 0 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">
-            Proje: <span style="color: #0f172a; font-weight: 900;">${data.projectName}</span>
-          </p>
-        </div>
-        <div style="text-align: right;">
-          <span style="display: inline-block; padding: 4px 12px; background: ${isStrip ? '#0284c7' : '#2563eb'}; color: white; font-size: 10px; font-weight: 900; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">
-            ${isStrip ? 'ŞERİTVARİ UÇUŞ' : 'NORMAL ALAN UÇUŞU'}
-          </span>
-          <div style="font-size: 10px; font-weight: 700; color: #94a3b8;">${formattedDate}</div>
-        </div>
-      </div>
-
-      <!-- Main Info Cards Grid -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-        
-        <!-- Box 1: Field & Flight Geometry -->
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px;">
-          <h2 style="margin: 0 0 12px 0; font-size: 12px; font-weight: 900; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
-            <span>📐</span> Uçuş Alanı & Geometri
-          </h2>
-          <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Uçuş Alanı Büyüklüğü:</td>
-              <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #0f172a;">
-                ${data.areaSizeM2.toLocaleString('tr-TR')} m² (${areaHa} ha)
-              </td>
-            </tr>
-            ${isStrip ? `
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Güzergah Toplam Uzunluğu:</td>
-                <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #0369a1;">
-                  ${stripLen.toLocaleString('tr-TR')} m (${(stripLen / 1000).toFixed(2)} km)
-                </td>
-              </tr>
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Şerit Genişliği (Sol / Sağ):</td>
-                <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #0f172a;">
-                  ±${stripBuffer} m (Toplam: ${stripBuffer * 2} m)
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Şerit Parçalama:</td>
-                <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #0f172a;">
-                  ${data.isStripSplitEnabled ? `EVET (${data.stripSplitDistance} m)` : 'HAYIR'}
-                </td>
-              </tr>
-            ` : `
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Tahditi Genişlet (Buffer):</td>
-                <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #0f172a;">
-                  +${data.bufferMeters || 0} m
-                </td>
-              </tr>
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Ortogonal Genişletme:</td>
-                <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #0f172a;">
-                  ${data.expandToGridMeters ? `${data.expandToGridMeters} m` : 'Hayır'}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Dikdörtgen Genişletme:</td>
-                <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #0f172a;">
-                  ${data.expandToRectangle ? 'EVET' : 'HAYIR'}
-                </td>
-              </tr>
-            `}
-          </table>
-        </div>
-
-        <!-- Box 2: Flight Parameters & Camera -->
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px;">
-          <h2 style="margin: 0 0 12px 0; font-size: 12px; font-weight: 900; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
-            <span>📷</span> Kamera & Uçuş Parametreleri
-          </h2>
-          <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Kamera Modeli:</td>
-              <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #0f172a;">
-                ${data.camera.name}
-              </td>
-            </tr>
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Sensör / Odak Uzaklığı:</td>
-              <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #0f172a;">
-                ${data.camera.sensorWidth} mm / ${data.camera.focalLength} mm
-              </td>
-            </tr>
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Uçuş Yüksekliği (H):</td>
-              <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #16a34a;">
-                ${data.altitude} m
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 6px 0; font-weight: 700; color: #64748b;">Piksel Boyutu (GSD):</td>
-              <td style="padding: 6px 0; text-align: right; font-weight: 900; color: #16a34a;">
-                ${data.gsd} cm/px
-              </td>
-            </tr>
-          </table>
-        </div>
-
-      </div>
-
-      <!-- Box 3: Ground Control Points (YKN / GCP) Summary -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <h2 style="margin: 0; font-size: 12px; font-weight: 900; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
-            <span>📍</span> Yer Kontrol Noktaları (YKN) Listesi
-          </h2>
-          <span style="font-size: 11px; font-weight: 900; color: #1e40af; background: #dbeafe; padding: 3px 10px; border-radius: 8px;">
-            Toplam: ${yknList.length} Adet YKN ${yknList.length > PAGE_1_MAX_YKN ? `(Sayfa 1: 1 - ${page1Ykns.length})` : ''}
-          </span>
-        </div>
-
-        ${renderYknTableColumns(page1Ykns)}
-      </div>
-
-      <!-- Footer Note -->
-      <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #94a3b8; font-weight: 700;">
-        <div>ACB MAPS - İHA PLUS</div>
-        <div>Sayfa 1 / ${totalPages}</div>
-      </div>
-    </div>
-  `;
-
-  wrapper.appendChild(page1);
-  pageElements.push(page1);
-
-  // Subsequent pages if yknList.length > 50
-  if (yknList.length > PAGE_1_MAX_YKN) {
-    let currentPageNum = 2;
-    for (let startIdx = PAGE_1_MAX_YKN; startIdx < yknList.length; startIdx += SUBSEQUENT_PAGE_MAX_YKN) {
-      const pagePoints = yknList.slice(startIdx, startIdx + SUBSEQUENT_PAGE_MAX_YKN);
-      const endIdx = startIdx + pagePoints.length;
-
-      const nextPage = document.createElement('div');
-      nextPage.style.width = '800px';
-      nextPage.style.backgroundColor = '#ffffff';
-      nextPage.style.color = '#0f172a';
-      nextPage.style.fontFamily = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
-      nextPage.style.padding = '32px';
-      nextPage.style.boxSizing = 'border-box';
-
-      nextPage.innerHTML = `
-        <div style="border: 2px solid #e2e8f0; border-radius: 20px; padding: 24px; background: #ffffff;">
-          <!-- Header -->
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 20px;">
             <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 32px; height: 32px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 16px;">
-                  📍
-                </div>
-                <h1 style="margin: 0; font-size: 18px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: -0.02em;">
-                  YKN KOORDİNAT LİSTESİ (DEVAM)
-                </h1>
-              </div>
-              <p style="margin: 4px 0 0 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">
+              <h1 style="margin: 0; font-size: 18px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: -0.01em; line-height: 1.2;">
+                PLANLANAN UÇUŞ RAPORU
+              </h1>
+              <p style="margin: 3px 0 0 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em;">
                 Proje: <span style="color: #0f172a; font-weight: 900;">${data.projectName}</span>
               </p>
             </div>
-            <div style="text-align: right;">
-              <span style="display: inline-block; padding: 4px 12px; background: #2563eb; color: white; font-size: 10px; font-weight: 900; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">
-                Nokta ${startIdx + 1} - ${endIdx} / ${yknList.length}
-              </span>
-              <div style="font-size: 10px; font-weight: 700; color: #94a3b8;">${formattedDate}</div>
-            </div>
           </div>
-
-          <!-- YKN Table Box -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; margin-bottom: 20px;">
-            ${renderYknTableColumns(pagePoints)}
-          </div>
-
-          <!-- Footer Note -->
-          <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #94a3b8; font-weight: 700;">
-            <div>ACB MAPS - İHA PLUS</div>
-            <div>Sayfa ${currentPageNum} / ${totalPages}</div>
+          <div style="text-align: right;">
+            <div style="font-size: 10px; font-weight: 700; color: #64748b;">${formattedDate}</div>
           </div>
         </div>
-      `;
 
-      wrapper.appendChild(nextPage);
-      pageElements.push(nextPage);
-      currentPageNum++;
-    }
+        <!-- Main Info Cards Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+          
+          <!-- Box 1: Field & Flight Geometry -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-sizing: border-box;">
+            <h2 style="margin: 0 0 10px 0; font-size: 11px; font-weight: 900; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; line-height: 1.2;">
+              <span style="font-size: 13px;">📐</span> Uçuş Alanı & Geometri
+            </h2>
+            <table style="width: 100%; table-layout: fixed; font-size: 10px; border-collapse: collapse; line-height: 1.3;">
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Uçuş Alanı Büyüklüğü:</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                  ${areaHa} ha
+                </td>
+              </tr>
+              ${isStrip ? `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Güzergah Toplam Uzunluğu:</td>
+                  <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0369a1; vertical-align: middle;">
+                    ${(stripLen / 1000).toFixed(2)} km
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Şerit Genişliği (Sol / Sağ):</td>
+                  <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                    ${stripBuffer} metre x 2
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Şerit Parçalama:</td>
+                  <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                    ${data.isStripSplitEnabled ? `EVET (${data.stripSplitDistance} m)` : 'HAYIR'}
+                  </td>
+                </tr>
+              ` : `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Tahditi Genişlet (Buffer):</td>
+                  <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                    +${data.bufferMeters || 0} m
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Ortogonal Genişletme:</td>
+                  <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                    ${data.expandToGridMeters ? `${data.expandToGridMeters} m` : 'Hayır'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Dikdörtgen Genişletme:</td>
+                  <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                    ${data.expandToRectangle ? 'EVET' : 'HAYIR'}
+                  </td>
+                </tr>
+              `}
+            </table>
+          </div>
+
+          <!-- Box 2: Flight Parameters & Camera -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-sizing: border-box;">
+            <h2 style="margin: 0 0 10px 0; font-size: 11px; font-weight: 900; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; line-height: 1.2;">
+              <span style="font-size: 13px;">📷</span> Kamera & Uçuş Parametreleri
+            </h2>
+            <table style="width: 100%; table-layout: fixed; font-size: 10px; border-collapse: collapse; line-height: 1.3;">
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Kamera Modeli:</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                  ${(!data.camera.name || data.camera.name.includes('Belirtilmedi')) ? '' : data.camera.name}
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Sensör / Odak Uzaklığı:</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                  ${(!data.camera.name || data.camera.name.includes('Belirtilmedi') || !data.camera.sensorWidth || !data.camera.focalLength) ? '' : `${data.camera.sensorWidth} mm / ${data.camera.focalLength} mm`}
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Uçuş Yüksekliği (H):</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: 900; color: ${data.altitude ? '#16a34a' : '#64748b'}; vertical-align: middle;">
+                  ${data.altitude ? `${data.altitude} m` : ''}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Piksel Boyutu (GSD):</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: 900; color: ${data.gsd ? '#16a34a' : '#64748b'}; vertical-align: middle;">
+                  ${data.gsd ? `~${data.gsd} cm/px` : ''}
+                </td>
+              </tr>
+            </table>
+          </div>
+
+        </div>
+
+        <!-- Box 3: Ground Control Points (YKN / GCP) Summary -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; margin-bottom: 20px; box-sizing: border-box;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h2 style="margin: 0; font-size: 11px; font-weight: 900; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; line-height: 1.2;">
+              <span style="font-size: 13px;">📍</span> Yer Kontrol Noktaları (YKN) Listesi
+            </h2>
+            <span style="font-size: 10px; font-weight: 900; color: #1e40af; background: #dbeafe; padding: 3px 10px; border-radius: 8px;">
+              Toplam: ${yknList.length} Adet YKN ${totalPages > 1 ? `(Sayfa ${currentPageNum}: ${startIdx + 1} - ${endIdx})` : ''}
+            </span>
+          </div>
+
+          ${renderYknTableColumns(currentPageYkns)}
+        </div>
+
+        <!-- Footer Note -->
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #94a3b8; font-weight: 700; line-height: 1;">
+          <div>ACB MAPS - İHA PLUS</div>
+          <div>Sayfa ${currentPageNum} / ${totalPages}</div>
+        </div>
+      </div>
+    `;
+
+    wrapper.appendChild(page);
+    pageElements.push(page);
   }
+
 
   document.body.appendChild(wrapper);
 

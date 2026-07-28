@@ -137,12 +137,16 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
     setIsGeneratingPdf(true);
     try {
       const mapEl = document.querySelector('.leaflet-container') as HTMLElement | null;
+      const calculatedGsd = (config.camera && config.height) 
+        ? Math.round(((config.camera.sensorWidth * config.height * 100) / (config.camera.focalLength * config.camera.imageWidth)) * 100) / 100 
+        : (config.gsd || 2.5);
+
       await generateFlightPlanPDF({
         projectName: exportName || projectName,
         flightType: 'Strip',
         camera: config.camera,
-        altitude: config.altitude || 200,
-        gsd: config.gsd || 2.5,
+        altitude: config.height || 200,
+        gsd: calculatedGsd,
         areaSizeM2: boundaryArea * 10000,
         stripLengthMeters: totalStripLength,
         stripBufferMeters: config.stripBuffer || 50,

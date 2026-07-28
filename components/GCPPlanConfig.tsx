@@ -125,12 +125,16 @@ const GCPPlanConfig: React.FC<Props> = ({
       return;
     }
 
+    const selectedCam = CAMERAS.find(c => c.name === fd.defaultCameraName) || CAMERAS[0];
+    const flightHeight = fd.defaultHeight ?? 200;
+    const calcGsd = Math.round(((selectedCam.sensorWidth * flightHeight * 100) / (selectedCam.focalLength * selectedCam.imageWidth)) * 100) / 100;
+
     const config: FlightConfig = {
       flightType: gcpLayoutType === 'Strip' ? 'Strip' : 'Normal',
-      camera: CAMERAS[0],
+      camera: selectedCam,
       scale: '1/1000',
-      gsd: 0,
-      height: 150,
+      gsd: calcGsd,
+      height: flightHeight,
       buffer,
       expandToGrid,
       overlapFront: 0,
