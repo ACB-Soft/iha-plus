@@ -56,7 +56,7 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
           {/* Logo (Genişliğin 1/4'ü, Metin Yüksekliğinde) */}
           <div className="col-span-1 flex items-center justify-center h-full">
             <img 
-              src="/favicon.svg" 
+              src="./favicon.svg" 
               alt="iHA Plus Logo" 
               className="w-full h-full object-contain filter drop-shadow-md"
             />
