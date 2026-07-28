@@ -53,9 +53,11 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                 <br/><br/>
                 • <b>GSD Hesaplama:</b> Kamera sensörü ve uçuş yüksekliğine bağlı olarak Yer Örnekleme Aralığı (GSD) otomatik hesaplanır.
                 <br/>
-                • <b>Grid Planlama:</b> Belirlediğiniz aralıklarla (metre) çalışma alanınıza homojen YKN noktaları yerleştirin.
+                • <b>Grid & Şeritvari Planlama:</b> Belirlediğiniz aralıklarla (metre) çalışma alanınıza homojen YKN noktaları yerleştirin.
                 <br/>
-                • <b>Manuel Düzenleme:</b> Harita üzerindeki noktaları sürükleyerek arazi şartlarına en uygun konuma yerleştirin.
+                • <b>Nokta Ekleme & Araya Nokta Yerleştirme:</b> Haritada istediğiniz yere yeni YKN ekleyebilir veya iki YKN noktası arasındaki çizgi üzerindeki <b>"+"</b> simgesine tıklayarak araya kolayca yeni YKN noktası ekleyebilirsiniz.
+                <br/>
+                • <b>Manuel Konumlandırma & Silme:</b> Harita üzerindeki noktaları sürükleyerek arazi şartlarına en uygun konuma taşıyabilir veya noktaya tıklayarak silebilirsiniz.
               </p>
             </div>
 
@@ -127,7 +129,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                 Normal Alan Tipi YKN Planlama
               </h4>
               <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
-                Poligon şeklindeki çalışma alanları için homojen bir Yer Kontrol Noktası (YKN) ağı oluşturur. Belirlediğiniz grid aralığına göre noktalar, fotogrametrik blok dengelemesi için en ideal geometrik dağılımda yerleştirilir. Kullanıcıya noktaları harita üzerinde serbestçe kaydırma ve araziye göre optimize etme imkanı sunar.
+                Poligon şeklindeki çalışma alanları için homojen bir Yer Kontrol Noktası (YKN) ağı oluşturur. Belirlediğiniz grid aralığına göre noktalar, fotogrametrik blok dengelemesi için en ideal geometrik dağılımda yerleştirilir. Haritada iki nokta arasındaki mesafe etiketinde bulunan <b>"+"</b> butonuna tıklayarak tam o araya yeni YKN ekleyebilir, noktaları sürükleyebilir ve tüm numaralandırmanın otomatik olarak güncellenmesini sağlayabilirsiniz.
               </p>
             </div>
 

@@ -322,11 +322,60 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
     setPoints(prev => prev.map(p => p.id === id ? { ...p, lat: newLat, lng: newLng } : p));
   };
 
-  const handleAddPoint = (lat: number, lng: number) => {
+  const findBestInsertIndex = (lat: number, lng: number, currentPoints: YKNPoint[]): number => {
+    if (currentPoints.length < 2) {
+      return currentPoints.length;
+    }
+
+    const clickPt = turf.point([lng, lat]);
+    let minDistance = Infinity;
+    let bestIndex = currentPoints.length;
+
+    const firstPt = turf.point([currentPoints[0].lng, currentPoints[0].lat]);
+    const distToStart = turf.distance(clickPt, firstPt, { units: 'meters' });
+
+    const lastPt = turf.point([currentPoints[currentPoints.length - 1].lng, currentPoints[currentPoints.length - 1].lat]);
+    const distToEnd = turf.distance(clickPt, lastPt, { units: 'meters' });
+
+    for (let i = 0; i < currentPoints.length - 1; i++) {
+      const p1 = currentPoints[i];
+      const p2 = currentPoints[i + 1];
+      const line = turf.lineString([[p1.lng, p1.lat], [p2.lng, p2.lat]]);
+      const distToSeg = turf.pointToLineDistance(clickPt, line, { units: 'meters' });
+
+      if (distToSeg < minDistance) {
+        minDistance = distToSeg;
+        bestIndex = i + 1;
+      }
+    }
+
+    if (distToStart < minDistance * 0.7) {
+      return 0;
+    }
+    if (distToEnd < minDistance * 0.7) {
+      return currentPoints.length;
+    }
+
+    return bestIndex;
+  };
+
+  const insertPointAtIndex = (lat: number, lng: number, targetIndex: number) => {
     const newId = `ykn-${Date.now()}`;
     const startNum = config.gcpStartNumber || 1;
-    const newName = `YKN${points.length + startNum}`;
-    setPoints(prev => [...prev, { id: newId, name: newName, lat, lng }]);
+    setPoints(prev => {
+      const updated = [...prev];
+      const idx = Math.max(0, Math.min(targetIndex, updated.length));
+      updated.splice(idx, 0, { id: newId, name: '', lat, lng });
+      return updated.map((p, i) => ({
+        ...p,
+        name: `YKN${i + startNum}`
+      }));
+    });
+  };
+
+  const handleAddPoint = (lat: number, lng: number) => {
+    const targetIdx = findBestInsertIndex(lat, lng, points);
+    insertPointAtIndex(lat, lng, targetIdx);
     setIsAddingPoint(false);
   };
 
@@ -357,12 +406,12 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
   };
 
   const pointConnections = useMemo(() => {
-    const connections: { from: YKNPoint; to: YKNPoint; distance: number }[] = [];
+    const connections: { from: YKNPoint; to: YKNPoint; distance: number; index: number }[] = [];
     for (let i = 0; i < points.length - 1; i++) {
       const from = points[i];
       const to = points[i + 1];
       const dist = turf.distance([from.lng, from.lat], [to.lng, to.lat], { units: 'meters' });
-      connections.push({ from, to, distance: Math.round(dist) });
+      connections.push({ from, to, distance: Math.round(dist), index: i });
     }
     return connections;
   }, [points]);
@@ -594,7 +643,7 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
             />
           ))}
 
-          {points.map((p) => (
+          {points.map((p, idx) => (
             <Marker 
               key={p.id} 
               position={[p.lat, p.lng]} 
@@ -617,25 +666,44 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
               }}
             >
               <Popup>
-                <div className="font-black text-slate-900">{p.name}</div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Sürükleyerek konumlandırın</div>
+                <div className="font-black text-slate-900 mb-2">{p.name}</div>
                 <button onClick={() => handleDeletePoint(p.id)} className="w-full py-1.5 bg-red-50 text-red-600 rounded border border-red-100 text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors">SİL</button>
               </Popup>
             </Marker>
           ))}
 
-          {pointConnections.map((conn, i) => (
-            <React.Fragment key={i}>
-              <Polyline positions={[[conn.from.lat, conn.from.lng], [conn.to.lat, conn.to.lng]]} color="#94a3b8" weight={1} dashArray="4, 4" />
-              <Marker position={[(conn.from.lat + conn.to.lat) / 2, (conn.from.lng + conn.to.lng) / 2]} icon={L.divIcon({
-                  className: 'bg-white/80 backdrop-blur-sm px-1.5 py-0.5 rounded border border-slate-200 shadow-sm text-[9px] font-black text-slate-600 whitespace-nowrap',
-                  html: `${conn.distance}m`,
-                  iconSize: [40, 16],
-                  iconAnchor: [20, 8]
-                })}
-              />
-            </React.Fragment>
-          ))}
+          {pointConnections.map((conn, i) => {
+            const midLat = (conn.from.lat + conn.to.lat) / 2;
+            const midLng = (conn.from.lng + conn.to.lng) / 2;
+            const fromNum = conn.from.name.replace('YKN', '');
+            const toNum = conn.to.name.replace('YKN', '');
+
+            return (
+              <React.Fragment key={i}>
+                <Polyline positions={[[conn.from.lat, conn.from.lng], [conn.to.lat, conn.to.lng]]} color="#3b82f6" weight={2} dashArray="4, 4" />
+                <Marker 
+                  position={[midLat, midLng]} 
+                  icon={L.divIcon({
+                    className: 'custom-conn-badge',
+                    html: `
+                      <div title="YKN${fromNum} ile YKN${toNum} arasına yeni nokta ekle" class="group flex items-center gap-1.5 bg-white hover:bg-blue-600 text-slate-700 hover:text-white px-2 py-0.5 rounded-full shadow-md border border-slate-300 hover:border-blue-500 transition-all cursor-pointer select-none">
+                        <i class="fas fa-plus text-[8px] text-blue-600 group-hover:text-white"></i>
+                        <span class="text-[9px] font-black">${conn.distance}m</span>
+                      </div>
+                    `,
+                    iconSize: [64, 22],
+                    iconAnchor: [32, 11]
+                  })}
+                  eventHandlers={{
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      insertPointAtIndex(midLat, midLng, conn.index + 1);
+                    }
+                  }}
+                />
+              </React.Fragment>
+            );
+          })}
         </MapContainer>
       </div>
 

@@ -1,6 +1,7 @@
 // Shared interfaces for application settings
 export interface FlightPlanDefaults {
   defaultCameraName: string;
+  defaultIsCameraStepEnabled: boolean;
   defaultHeight: number;
   defaultBuffer: number;
   defaultExpandToGrid: number;
@@ -21,6 +22,7 @@ export interface AppSettings {
 
 export const DEFAULT_FLIGHT_DEFAULTS: FlightPlanDefaults = {
   defaultCameraName: 'DJI Zenmuse P1 (35mm)',
+  defaultIsCameraStepEnabled: false,
   defaultHeight: 200,
   defaultBuffer: 0,
   defaultExpandToGrid: 0,
@@ -28,7 +30,7 @@ export const DEFAULT_FLIGHT_DEFAULTS: FlightPlanDefaults = {
   defaultStripBuffer: 50,
   defaultIsStripSplitEnabled: false,
   defaultStripSplitDistance: 2000,
-  defaultIsGcpEnabled: true,
+  defaultIsGcpEnabled: false,
   defaultGcpDistance: 400,
   defaultGcpStartOffset: 10,
   defaultGcpStartNumber: 1,

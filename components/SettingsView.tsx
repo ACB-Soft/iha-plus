@@ -206,19 +206,42 @@ const SettingsView: React.FC<Props> = ({ onBack, onOpenOnboarding }) => {
             </div>
 
             <div className="soft-card p-5 space-y-5">
-              {/* Kamera Seçimi */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Varsayılan Kamera</label>
-                <select 
-                  value={flightDefaults.defaultCameraName}
-                  onChange={(e) => updateFlightDefault('defaultCameraName', e.target.value)}
-                  className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none shadow-sm text-xs"
-                >
-                  {CAMERAS.map(cam => (
-                    <option key={cam.name} value={cam.name}>{cam.name}</option>
+              {/* Kamera Seçimi Durumu */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Varsayılan Kamera Seçimi</label>
+                <div className="flex gap-2">
+                  {[true, false].map(val => (
+                    <button
+                      key={val.toString()}
+                      type="button"
+                      onClick={() => updateFlightDefault('defaultIsCameraStepEnabled', val)}
+                      className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all border ${
+                        flightDefaults.defaultIsCameraStepEnabled === val 
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                      }`}
+                    >
+                      {val ? 'EVET' : 'HAYIR'}
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
+
+              {/* Kamera Model Seçimi */}
+              {flightDefaults.defaultIsCameraStepEnabled && (
+                <div className="space-y-1 animate-in fade-in">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Varsayılan Kamera Modeli</label>
+                  <select 
+                    value={flightDefaults.defaultCameraName}
+                    onChange={(e) => updateFlightDefault('defaultCameraName', e.target.value)}
+                    className="w-full h-12 px-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none shadow-sm text-xs"
+                  >
+                    {CAMERAS.map(cam => (
+                      <option key={cam.name} value={cam.name}>{cam.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Uçuş Yüksekliği */}
               <div className="space-y-1">
@@ -387,83 +410,88 @@ const SettingsView: React.FC<Props> = ({ onBack, onOpenOnboarding }) => {
                         : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
                       }`}
                     >
-                      {val ? 'YKN İLE' : 'YKN\'SİZ'}
+                      {val ? 'EVET' : 'HAYIR'}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* YKN Arası Mesafe */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">YKN Arası Mesafe (m)</label>
-                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                  <button 
-                    type="button"
-                    onClick={() => updateFlightDefault('defaultGcpDistance', Math.max(50, flightDefaults.defaultGcpDistance - 50))} 
-                    className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
-                  >
-                    <i className="fas fa-minus text-xs"></i>
-                  </button>
-                  <span className="flex-1 text-center font-black text-slate-900 text-sm">{flightDefaults.defaultGcpDistance}m</span>
-                  <button 
-                    type="button"
-                    onClick={() => updateFlightDefault('defaultGcpDistance', Math.min(2000, flightDefaults.defaultGcpDistance + 50))} 
-                    className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
-                  >
-                    <i className="fas fa-plus text-xs"></i>
-                  </button>
-                </div>
-              </div>
+              {/* YKN Detay Ayarları */}
+              {flightDefaults.defaultIsGcpEnabled && (
+                <div className="space-y-4 animate-in fade-in">
+                  {/* YKN Arası Mesafe */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">YKN Arası Mesafe (m)</label>
+                    <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                      <button 
+                        type="button"
+                        onClick={() => updateFlightDefault('defaultGcpDistance', Math.max(50, flightDefaults.defaultGcpDistance - 50))} 
+                        className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
+                      >
+                        <i className="fas fa-minus text-xs"></i>
+                      </button>
+                      <span className="flex-1 text-center font-black text-slate-900 text-sm">{flightDefaults.defaultGcpDistance}m</span>
+                      <button 
+                        type="button"
+                        onClick={() => updateFlightDefault('defaultGcpDistance', Math.min(2000, flightDefaults.defaultGcpDistance + 50))} 
+                        className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
+                      >
+                        <i className="fas fa-plus text-xs"></i>
+                      </button>
+                    </div>
+                  </div>
 
-              {/* YKN Başlangıç Mesafesi */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">YKN Başlangıç Mesafesi (m)</label>
-                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                  <button 
-                    type="button"
-                    onClick={() => updateFlightDefault('defaultGcpStartOffset', Math.max(0, flightDefaults.defaultGcpStartOffset - 10))} 
-                    className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
-                  >
-                    <i className="fas fa-minus text-xs"></i>
-                  </button>
-                  <span className="flex-1 text-center font-black text-slate-900 text-sm">{flightDefaults.defaultGcpStartOffset}m</span>
-                  <button 
-                    type="button"
-                    onClick={() => updateFlightDefault('defaultGcpStartOffset', Math.min(500, flightDefaults.defaultGcpStartOffset + 10))} 
-                    className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
-                  >
-                    <i className="fas fa-plus text-xs"></i>
-                  </button>
-                </div>
-              </div>
+                  {/* YKN Başlangıç Mesafesi */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">YKN Başlangıç Mesafesi (m)</label>
+                    <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                      <button 
+                        type="button"
+                        onClick={() => updateFlightDefault('defaultGcpStartOffset', Math.max(0, flightDefaults.defaultGcpStartOffset - 10))} 
+                        className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
+                      >
+                        <i className="fas fa-minus text-xs"></i>
+                      </button>
+                      <span className="flex-1 text-center font-black text-slate-900 text-sm">{flightDefaults.defaultGcpStartOffset}m</span>
+                      <button 
+                        type="button"
+                        onClick={() => updateFlightDefault('defaultGcpStartOffset', Math.min(500, flightDefaults.defaultGcpStartOffset + 10))} 
+                        className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
+                      >
+                        <i className="fas fa-plus text-xs"></i>
+                      </button>
+                    </div>
+                  </div>
 
-              {/* YKN Başlangıç Numarası */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">YKN Başlangıç Numarası</label>
-                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                  <button 
-                    type="button"
-                    onClick={() => updateFlightDefault('defaultGcpStartNumber', Math.max(1, flightDefaults.defaultGcpStartNumber - 1))} 
-                    className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
-                  >
-                    <i className="fas fa-minus text-xs"></i>
-                  </button>
-                  <input 
-                    type="number"
-                    value={flightDefaults.defaultGcpStartNumber}
-                    onChange={(e) => updateFlightDefault('defaultGcpStartNumber', Math.max(1, parseInt(e.target.value) || 1))}
-                    className="flex-1 text-center font-black text-slate-900 text-sm bg-transparent focus:outline-none"
-                    min="1"
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => updateFlightDefault('defaultGcpStartNumber', flightDefaults.defaultGcpStartNumber + 1)} 
-                    className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
-                  >
-                    <i className="fas fa-plus text-xs"></i>
-                  </button>
+                  {/* YKN Başlangıç Numarası */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">YKN Başlangıç Numarası</label>
+                    <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                      <button 
+                        type="button"
+                        onClick={() => updateFlightDefault('defaultGcpStartNumber', Math.max(1, flightDefaults.defaultGcpStartNumber - 1))} 
+                        className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
+                      >
+                        <i className="fas fa-minus text-xs"></i>
+                      </button>
+                      <input 
+                        type="number"
+                        value={flightDefaults.defaultGcpStartNumber}
+                        onChange={(e) => updateFlightDefault('defaultGcpStartNumber', Math.max(1, parseInt(e.target.value) || 1))}
+                        className="flex-1 text-center font-black text-slate-900 text-sm bg-transparent focus:outline-none"
+                        min="1"
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => updateFlightDefault('defaultGcpStartNumber', flightDefaults.defaultGcpStartNumber + 1)} 
+                        className="w-9 h-9 bg-white rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all font-bold"
+                      >
+                        <i className="fas fa-plus text-xs"></i>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </section>
         </div>
