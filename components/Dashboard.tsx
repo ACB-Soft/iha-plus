@@ -51,23 +51,18 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
       </div>
 
       {/* Header - Logo ve Marka Bilgisi */}
-      <header className="flex shrink-0 mb-8 md:mb-12 justify-center w-full max-w-sm mx-auto">
-        <div className="grid grid-cols-4 items-center gap-3 md:gap-4 w-full">
-          {/* Logo (Genişliğin 1/4'ü, Metin Yüksekliğinde) */}
-          <div className="col-span-1 flex items-center justify-center h-full">
+      <header className="flex flex-col items-center shrink-0 mb-8 md:mb-12">
+        <div className="space-y-2 md:space-y-3 text-center">
+          <p className="text-slate-900 font-black text-[12px] md:text-[14px] uppercase tracking-[0.18em] leading-tight max-w-[260px] mx-auto opacity-80">
+            Mobil Cihazlarınız için<br/>Uçuş Planlama Uygulaması
+          </p>
+          <div className="flex items-center justify-center gap-2.5 md:gap-3">
             <img 
               src="./favicon.svg" 
               alt="iHA Plus Logo" 
-              className="w-full h-full object-contain filter drop-shadow-md"
+              className="h-11 w-11 md:h-14 md:w-14 object-contain filter drop-shadow-md shrink-0"
             />
-          </div>
-
-          {/* Metin (Genişliğin 3/4'ü) */}
-          <div className="col-span-3 flex flex-col justify-center items-center text-center space-y-1 md:space-y-1.5">
-            <p className="text-slate-900 font-black text-[11px] md:text-[13px] uppercase tracking-[0.12em] leading-tight opacity-80">
-              Mobil Cihazlarınız için<br/>Uçuş Planlama Uygulaması
-            </p>
-            <h1 className="text-4xl md:text-5xl font-black text-blue-600 tracking-tighter leading-none">
+            <h1 className="text-5xl md:text-6xl font-black text-blue-600 tracking-tighter leading-none">
               {BRAND_NAME}
             </h1>
           </div>
