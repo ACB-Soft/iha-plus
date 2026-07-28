@@ -4,6 +4,7 @@ import { parseKMLorKMZ, KMLData } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { AppSettings } from '../types';
+import DrawBoundaryModal from './DrawBoundaryModal';
 
 interface Props {
   onBack: () => void;
@@ -59,6 +60,7 @@ const FlightPlanConfig: React.FC<Props> = ({
 
   const [isParsing, setIsParsing] = useState(false);
   const [isParsingSubArea, setIsParsingSubArea] = useState(false);
+  const [isDrawModalOpen, setIsDrawModalOpen] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const subAreaFileInputRef = useRef<HTMLInputElement>(null);
@@ -156,6 +158,8 @@ const FlightPlanConfig: React.FC<Props> = ({
     onPlanCreated(kmlData, config, isGcpEnabled);
   };
 
+  const initialPoints = React.useMemo(() => kmlData?.features[0]?.coordinates || [], [kmlData]);
+
   return (
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
       <Header 
@@ -167,41 +171,78 @@ const FlightPlanConfig: React.FC<Props> = ({
         {/* 1. Tahdit Dosyası */}
         <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
-          <div className="flex flex-col gap-3">
-            <div 
-              onClick={() => !kmlData && fileInputRef.current?.click()}
-              className={`w-full p-3 border-2 border-dashed rounded-[24px] flex items-center gap-4 transition-all ${
-                kmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-100 border-slate-200 hover:border-blue-300 cursor-pointer'
-              }`}
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                accept=".kml,.kmz" 
-                className="hidden" 
-              />
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
-                kmlData ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
-              }`}>
-                <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : kmlData ? 'fa-check' : 'fa-file-upload'} text-lg`}></i>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileChange} 
+            accept=".kml,.kmz" 
+            className="hidden" 
+          />
+
+          {!kmlData ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* File Upload Option */}
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="p-4 bg-slate-100 border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-[24px] flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.98] group"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200 shrink-0 group-hover:scale-105 transition-transform">
+                  <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : 'fa-file-upload'} text-lg`}></i>
+                </div>
+                <div className="flex-1 truncate">
+                  <p className="font-black text-slate-900 text-xs uppercase tracking-wider">KML / KMZ Dosyası Yükle</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Bilgisayardan dosya seçin</p>
+                </div>
               </div>
-              <div className="flex-1 truncate">
-                <p className="font-black text-slate-900 truncate text-sm">{kmlData ? kmlData.name : 'Dosya Seçin'}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-                  {kmlData ? (flightType === 'Normal' ? '1 Polygon bulundu' : '1 Çizgi bulundu') : 'KML veya KMZ formatında'}
-                </p>
+
+              {/* Draw on Map Option */}
+              <div 
+                onClick={() => setIsDrawModalOpen(true)}
+                className="p-4 bg-emerald-50 border-2 border-dashed border-emerald-300 hover:border-emerald-600 rounded-[24px] flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.98] group"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-200 shrink-0 group-hover:scale-105 transition-transform">
+                  <i className={`fas ${flightType === 'Normal' ? 'fa-draw-polygon' : 'fa-route'} text-lg`}></i>
+                </div>
+                <div className="flex-1 truncate">
+                  <p className="font-black text-slate-900 text-xs uppercase tracking-wider">Harita Üzerinden Çiz</p>
+                  <p className="text-[10px] text-emerald-700 font-semibold">
+                    {flightType === 'Normal' ? 'Noktaları tıklayarak alan çiz' : 'Noktaları tıklayarak hat çiz'}
+                  </p>
+                </div>
               </div>
             </div>
-            {kmlData && (
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3.5 bg-slate-100 border border-slate-200 rounded-[24px] font-black text-slate-600 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95 transition-all"
-              >
-                DEĞİŞTİR
-              </button>
-            )}
-          </div>
+          ) : (
+            <div className="p-4 bg-emerald-50 border-2 border-emerald-200 rounded-[24px] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3 truncate">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-200 shrink-0">
+                  <i className="fas fa-check text-lg"></i>
+                </div>
+                <div className="truncate">
+                  <p className="font-black text-slate-900 text-sm truncate">{kmlData.name}</p>
+                  <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">
+                    {kmlData.features[0]?.coordinates?.length || 0} Nokta • {flightType === 'Normal' ? 'Tahdit Alanı' : 'Şerit Hattı'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                <button 
+                  onClick={() => setIsDrawModalOpen(true)}
+                  className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md"
+                >
+                  <i className="fas fa-map-marked-alt"></i>
+                  <span>DÜZENLE</span>
+                </button>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                >
+                  <i className="fas fa-folder-open"></i>
+                  <span>DOSYA YÜKLE</span>
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         {flightType === 'Normal' ? (
@@ -486,6 +527,17 @@ const FlightPlanConfig: React.FC<Props> = ({
       </div>
 
       <GlobalFooter />
+
+      <DrawBoundaryModal 
+        isOpen={isDrawModalOpen}
+        onClose={() => setIsDrawModalOpen(false)}
+        flightType={flightType}
+        initialPoints={initialPoints}
+        onSave={(data) => {
+          setKmlData(data);
+          onKmlDataChange?.(data);
+        }}
+      />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { FlightConfig } from '../src/types/flight';
 import { calculatePolygonArea, expandLineToPolygon, expandPolygon, getSteppedGridPolygon, getGridPolygon } from './GeometryUtils';
+import { generateFlightPlanPDF } from '../src/utils/pdfExport';
 
 // Helper to compute boundary expansion
 function getExpandedPolygonCoords(featureCoords: { lat: number, lng: number }[], config: FlightConfig) {
@@ -118,14 +119,51 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
   const [shrunkPolygon, setShrunkPolygon] = useState<[number, number][] | null>(null);
   const [isAddingPoint, setIsAddingPoint] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportType, setExportType] = useState<'flight_plan' | 'ykn_plan'>('ykn_plan');
+  const [exportType, setExportType] = useState<'flight_plan' | 'ykn_plan' | 'pdf_summary'>('ykn_plan');
   const [exportName, setExportName] = useState(`YKN_${getCleanBaseName(projectName)}`);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  const handleOpenExportModal = (type: 'flight_plan' | 'ykn_plan') => {
+  const handleOpenExportModal = (type: 'flight_plan' | 'ykn_plan' | 'pdf_summary') => {
     const baseName = getCleanBaseName(projectName);
     setExportType(type);
-    setExportName(type === 'flight_plan' ? `UCUS_${baseName}` : `YKN_${baseName}`);
+    if (type === 'flight_plan') {
+      setExportName(`UCUS_${baseName}`);
+    } else if (type === 'pdf_summary') {
+      setExportName(`RAPOR_${baseName}`);
+    } else {
+      setExportName(`YKN_${baseName}`);
+    }
     setShowExportModal(true);
+  };
+
+  const handleExportPdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const mapEl = document.querySelector('.leaflet-container') as HTMLElement | null;
+      await generateFlightPlanPDF({
+        projectName: exportName || projectName,
+        flightType: 'Normal',
+        camera: config.camera,
+        altitude: config.altitude || 200,
+        gsd: config.gsd || 2.5,
+        areaSizeM2: boundaryArea * 10000,
+        bufferMeters: config.buffer || 0,
+        expandToGridMeters: config.expandToGrid,
+        expandToRectangle: config.expandToRectangle,
+        gcpEnabled: true,
+        gcpPoints: points,
+        gcpDistance: config.gcpDistance || 400,
+        gcpStartOffset: config.gcpStartOffset || 10,
+        gcpStartNumber: config.gcpStartNumber || 1,
+        mapElement: mapEl
+      }, exportName || `RAPOR_${getCleanBaseName(projectName)}`);
+    } catch (err) {
+      console.error('PDF Export Error:', err);
+      alert('PDF raporu oluşturulurken bir hata oluştu.');
+    } finally {
+      setIsGeneratingPdf(false);
+      setShowExportModal(false);
+    }
   };
 
   const boundaryArea = useMemo(() => {
@@ -346,13 +384,18 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
   const getTileLayer = () => {
     switch (mapProvider) {
       case 'Google Satellite':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" attribution="&copy; Google" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
       case 'Google Hybrid':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" attribution="&copy; Google" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+      case 'Esri Satellite':
+      case 'Esri World Imagery':
+        return <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="&copy; Esri" crossOrigin="anonymous" />;
       case 'OpenStreetMap':
-        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />;
+        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" crossOrigin="anonymous" />;
+      case 'OpenTopoMap':
+        return <TileLayer url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" crossOrigin="anonymous" />;
       default:
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" attribution="&copy; Google" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
     }
   };
 
@@ -658,6 +701,12 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
           >
             <i className="fas fa-map-marked-alt"></i>YKN PLANI
           </button>
+          <button 
+            onClick={() => handleOpenExportModal('pdf_summary')} 
+            className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+          >
+            <i className="fas fa-file-pdf"></i>PDF ÖZETİ
+          </button>
         </div>
       </div>
 
@@ -668,6 +717,30 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowExportModal(false)}></div>
           <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-6 animate-in zoom-in-95 duration-200">
             <div className="space-y-4">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dışa Aktar</p>
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
+                  <button 
+                    onClick={() => setExportType('flight_plan')} 
+                    className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'flight_plan' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600'}`}
+                  >
+                    Uçuş Planı
+                  </button>
+                  <button 
+                    onClick={() => setExportType('ykn_plan')} 
+                    className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'ykn_plan' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600'}`}
+                  >
+                    YKN Planı
+                  </button>
+                  <button 
+                    onClick={() => setExportType('pdf_summary')} 
+                    className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'pdf_summary' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-600'}`}
+                  >
+                    PDF Raporu
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Dosya Adı</label>
                 <input 
@@ -688,12 +761,20 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
                   İPTAL
                 </button>
                 <button 
-                  onClick={() => handleExport(exportType)} 
-                  className={`flex-1 py-3.5 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all ${
-                    exportType === 'flight_plan' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                  disabled={isGeneratingPdf}
+                  onClick={() => exportType === 'pdf_summary' ? handleExportPdf() : handleExport(exportType)} 
+                  className={`flex-1 py-3.5 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${
+                    exportType === 'pdf_summary' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' : exportType === 'flight_plan' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
                   }`}
                 >
-                  İNDİR
+                  {isGeneratingPdf ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin text-xs"></i>
+                      <span>RAPORLANIYOR...</span>
+                    </>
+                  ) : (
+                    <span>İNDİR</span>
+                  )}
                 </button>
               </div>
             </div>

@@ -1,7 +1,7 @@
 {
   "name": "iha-plus",
   "private": true,
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,6 +18,8 @@
     "@turf/turf": "^7.3.4",
     "@types/leaflet": "^1.9.21",
     "d3-delaunay": "^6.0.4",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.0.1",

@@ -179,6 +179,8 @@ const SettingsView: React.FC<Props> = ({ onBack, onOpenOnboarding }) => {
                 >
                   <option value="Google Hybrid">Google Hibrit</option>
                   <option value="Google Satellite">Google Satellite</option>
+                  <option value="Esri World Imagery">Esri World Imagery (Uydu)</option>
+                  <option value="OpenStreetMap">OpenStreetMap</option>
                   <option value="OpenTopoMap">OpenTopoMap</option>
                 </select>
               </div>
