@@ -307,24 +307,52 @@ const SettingsView: React.FC<Props> = ({ onBack, onOpenOnboarding }) => {
                 </div>
               </div>
 
-              {/* Dikdörtgen Genişletme */}
+              {/* Geometrik Genişletme */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tahditi Genişlet (Dikdörtgen)</label>
-                <div className="flex gap-2">
-                  {[false, true].map(val => (
-                    <button
-                      key={val.toString()}
-                      type="button"
-                      onClick={() => updateFlightDefault('defaultExpandToRectangle', val)}
-                      className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all border ${
-                        flightDefaults.defaultExpandToRectangle === val 
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                      }`}
-                    >
-                      {val ? 'EVET' : 'HAYIR'}
-                    </button>
-                  ))}
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tahditi Genişlet (Geometri / Şekil)</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateFlightDefault('defaultExpandToRectangle', false);
+                      updateFlightDefault('defaultExpandToMinRectangle', false);
+                    }}
+                    className={`py-2.5 px-2 rounded-xl font-black text-xs transition-all border ${
+                      !flightDefaults.defaultExpandToRectangle && !flightDefaults.defaultExpandToMinRectangle
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    HAYIR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateFlightDefault('defaultExpandToRectangle', true);
+                      updateFlightDefault('defaultExpandToMinRectangle', false);
+                    }}
+                    className={`py-2.5 px-2 rounded-xl font-black text-xs transition-all border ${
+                      flightDefaults.defaultExpandToRectangle && !flightDefaults.defaultExpandToMinRectangle
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    Eksenel Dikdörtgen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateFlightDefault('defaultExpandToRectangle', false);
+                      updateFlightDefault('defaultExpandToMinRectangle', true);
+                    }}
+                    className={`py-2.5 px-2 rounded-xl font-black text-xs transition-all border ${
+                      flightDefaults.defaultExpandToMinRectangle
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    Döndürülmüş Dikdörtgen
+                  </button>
                 </div>
               </div>
 

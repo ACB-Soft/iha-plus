@@ -37,6 +37,7 @@ const FlightPlanConfig: React.FC<Props> = ({
   const [buffer, setBuffer] = useState(fd.defaultBuffer ?? 0);
   const [expandToGrid, setExpandToGrid] = useState<number>(fd.defaultExpandToGrid ?? 0);
   const [expandToRectangle, setExpandToRectangle] = useState(fd.defaultExpandToRectangle ?? false);
+  const [expandToMinRectangle, setExpandToMinRectangle] = useState(fd.defaultExpandToMinRectangle ?? false);
   const [stripBuffer, setStripBuffer] = useState(fd.defaultStripBuffer ?? 50);
   const [isStripSplitEnabled, setIsStripSplitEnabled] = useState(fd.defaultIsStripSplitEnabled ?? false);
   const [stripSplitDistance, setStripSplitDistance] = useState(fd.defaultStripSplitDistance ?? 2000);
@@ -60,7 +61,7 @@ const FlightPlanConfig: React.FC<Props> = ({
   const activeCamera: Camera = React.useMemo(() => {
     if (!isCameraStepEnabled) {
       return {
-        name: 'Belirtilmedi (İsteğe Bağlı)',
+        name: 'Seç',
         sensorWidth: 13.2,
         focalLength: 8.8,
         imageWidth: 5472,
@@ -198,6 +199,7 @@ const FlightPlanConfig: React.FC<Props> = ({
       overlapFront: 80,
       overlapSide: 70,
       expandToRectangle,
+      expandToMinRectangle,
       stripBuffer: flightType === 'Strip' ? stripBuffer : undefined,
       stripSplitDistance: (flightType === 'Strip' && isStripSplitEnabled) ? stripSplitDistance : undefined,
       gcpDistance,
@@ -344,21 +346,50 @@ const FlightPlanConfig: React.FC<Props> = ({
               </div>
 
               <div className="space-y-3">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Dikdörtgen)</span>
-                <div className="flex gap-3">
-                  {[false, true].map(val => (
-                    <button
-                      key={val.toString()}
-                      onClick={() => setExpandToRectangle(val)}
-                      className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
-                        expandToRectangle === val 
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                      }`}
-                    >
-                      {val ? 'EVET' : 'HAYIR'}
-                    </button>
-                  ))}
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Geometri / Şekil)</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpandToRectangle(false);
+                      setExpandToMinRectangle(false);
+                    }}
+                    className={`py-3 px-2 rounded-xl font-black text-xs transition-all border ${
+                      !expandToRectangle && !expandToMinRectangle
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    HAYIR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpandToRectangle(true);
+                      setExpandToMinRectangle(false);
+                    }}
+                    className={`py-3 px-2 rounded-xl font-black text-xs transition-all border ${
+                      expandToRectangle && !expandToMinRectangle
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    Eksenel Dikdörtgen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpandToRectangle(false);
+                      setExpandToMinRectangle(true);
+                    }}
+                    className={`py-3 px-2 rounded-xl font-black text-xs transition-all border ${
+                      expandToMinRectangle
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                    }`}
+                  >
+                    Döndürülmüş Dikdörtgen
+                  </button>
                 </div>
               </div>
             </div>
@@ -538,7 +569,7 @@ const FlightPlanConfig: React.FC<Props> = ({
               {/* YKN Başlangıç Mesafesi */}
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  YKN Başlangıç Mesafesi
+                  YKN Başlangıç Mesafesi (m)
                 </span>
                 <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                   <button 

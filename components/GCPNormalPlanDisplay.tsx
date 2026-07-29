@@ -7,7 +7,7 @@ import { KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { FlightConfig } from '../src/types/flight';
-import { calculatePolygonArea, expandLineToPolygon, expandPolygon, getSteppedGridPolygon, getGridPolygon } from './GeometryUtils';
+import { calculatePolygonArea, expandLineToPolygon, expandPolygon, getSteppedGridPolygon, getGridPolygon, getMinBoundingBoxPolygon, calculateOptimumFlightAngle, Point } from './GeometryUtils';
 import { generateFlightPlanPDF } from '../src/utils/pdfExport';
 
 // Helper to compute boundary expansion
@@ -22,14 +22,19 @@ function getExpandedPolygonCoords(featureCoords: { lat: number, lng: number }[],
     ? getSteppedGridPolygon(expandedCoords || originalCoords, config.expandToGrid) 
     : null;
 
-  const rectangleCoords = config.expandToRectangle 
-    ? getGridPolygon(gridCoords || expandedCoords || originalCoords, 1) 
-    : null;
+  const baseForRect = gridCoords || expandedCoords || originalCoords;
+
+  let rectangleCoords: { lat: number; lng: number }[] | null = null;
+  if (config.expandToMinRectangle) {
+    rectangleCoords = getMinBoundingBoxPolygon(baseForRect);
+  } else if (config.expandToRectangle) {
+    rectangleCoords = getGridPolygon(baseForRect, 1);
+  }
 
   const finalCoords = rectangleCoords || gridCoords || expandedCoords || originalCoords;
   const isExpanded = !!(rectangleCoords || gridCoords || expandedCoords);
 
-  return { originalCoords, finalCoords, isExpanded };
+  return { originalCoords, finalCoords, isExpanded, baseForRect };
 }
 
 // Fix Leaflet icon issue
@@ -123,6 +128,17 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
   const [exportName, setExportName] = useState(`YKN_${getCleanBaseName(projectName)}`);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+  const allPoints = useMemo(() => {
+    const pts: Point[] = [];
+    features.forEach(f => {
+      const { baseForRect } = getExpandedPolygonCoords(f.coordinates, config);
+      baseForRect.forEach(c => pts.push(c));
+    });
+    return pts;
+  }, [features, config]);
+
+  const optResult = useMemo(() => calculateOptimumFlightAngle(allPoints, config.overlapSide || 70, config.camera.sensorWidth, config.camera.focalLength, config.height || 120), [allPoints, config]);
+
   const handleOpenExportModal = (type: 'flight_plan' | 'ykn_plan' | 'pdf_summary') => {
     const baseName = getCleanBaseName(projectName);
     setExportType(type);
@@ -154,11 +170,14 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
         bufferMeters: config.buffer || 0,
         expandToGridMeters: config.expandToGrid,
         expandToRectangle: config.expandToRectangle,
+        expandToMinRectangle: config.expandToMinRectangle,
         gcpEnabled: true,
         gcpPoints: points,
         gcpDistance: config.gcpDistance || 400,
         gcpStartOffset: config.gcpStartOffset || 10,
         gcpStartNumber: config.gcpStartNumber || 1,
+        flightAngle: optResult.angle,
+        estimatedDurationMinutes: optResult.durationMinutes,
         mapElement: mapEl
       }, exportName || `RAPOR_${getCleanBaseName(projectName)}`);
     } catch (err) {
@@ -758,6 +777,16 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
           <div className="flex flex-col items-end w-1/4">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Ofset</span>
             <span className="text-[11px] font-black text-orange-600">{config.gcpStartOffset}m</span>
+          </div>
+        </div>
+        <div className="flex gap-2 w-full mb-1">
+          <div className="flex flex-col w-1/2">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Optimum Uçuş Açısı</span>
+            <span className="text-[11px] font-black text-blue-600">{optResult.angle}°</span>
+          </div>
+          <div className="flex flex-col items-end w-1/2">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahmini Uçuş Süresi</span>
+            <span className="text-[11px] font-black text-purple-600">~{optResult.durationMinutes} dk</span>
           </div>
         </div>
         <div className="flex gap-2 w-full">

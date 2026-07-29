@@ -7,7 +7,7 @@ import { KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { FlightConfig } from '../src/types/flight';
-import { calculatePolygonArea, expandLineToPolygon, splitLineByDistance, Point } from './GeometryUtils';
+import { calculatePolygonArea, expandLineToPolygon, splitLineByDistance, Point, calculateOptimumFlightAngle } from './GeometryUtils';
 import { generateFlightPlanPDF } from '../src/utils/pdfExport';
 
 // Fix Leaflet icon issue
@@ -95,6 +95,16 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
   const [exportName, setExportName] = useState(`YKN_${getCleanBaseName(projectName)}`);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+  const allPoints = useMemo(() => {
+    const pts: Point[] = [];
+    features.forEach(f => {
+      f.coordinates.forEach(c => pts.push({ lat: c.lat, lng: c.lng }));
+    });
+    return pts;
+  }, [features]);
+
+  const optResult = useMemo(() => calculateOptimumFlightAngle(allPoints, config.overlapSide || 70, config.camera.sensorWidth, config.camera.focalLength, config.height || 120), [allPoints, config]);
+
   const handleOpenExportModal = (type: 'flight_plan' | 'ykn_plan' | 'pdf_summary') => {
     const baseName = getCleanBaseName(projectName);
     setExportType(type);
@@ -157,6 +167,8 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         gcpDistance: config.gcpDistance || 400,
         gcpStartOffset: config.gcpStartOffset || 10,
         gcpStartNumber: config.gcpStartNumber || 1,
+        flightAngle: optResult.angle,
+        estimatedDurationMinutes: optResult.durationMinutes,
         mapElement: mapEl
       }, exportName || `RAPOR_${getCleanBaseName(projectName)}`);
     } catch (err) {
@@ -724,6 +736,16 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           <div className="flex flex-col items-end w-1/4">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Ofset</span>
             <span className="text-[11px] font-black text-orange-600">{config.gcpStartOffset}m</span>
+          </div>
+        </div>
+        <div className="flex gap-2 w-full mb-1">
+          <div className="flex flex-col w-1/2">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Optimum Uçuş Açısı</span>
+            <span className="text-[11px] font-black text-blue-600">{optResult.angle}°</span>
+          </div>
+          <div className="flex flex-col items-end w-1/2">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahmini Uçuş Süresi</span>
+            <span className="text-[11px] font-black text-purple-600">~{optResult.durationMinutes} dk</span>
           </div>
         </div>
         <div className="flex gap-2 w-full">

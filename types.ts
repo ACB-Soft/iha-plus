@@ -6,6 +6,7 @@ export interface FlightPlanDefaults {
   defaultBuffer: number;
   defaultExpandToGrid: number;
   defaultExpandToRectangle: boolean;
+  defaultExpandToMinRectangle?: boolean;
   defaultStripBuffer: number;
   defaultIsStripSplitEnabled: boolean;
   defaultStripSplitDistance: number;
@@ -27,6 +28,7 @@ export const DEFAULT_FLIGHT_DEFAULTS: FlightPlanDefaults = {
   defaultBuffer: 0,
   defaultExpandToGrid: 0,
   defaultExpandToRectangle: false,
+  defaultExpandToMinRectangle: false,
   defaultStripBuffer: 50,
   defaultIsStripSplitEnabled: false,
   defaultStripSplitDistance: 2000,

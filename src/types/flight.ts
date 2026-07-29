@@ -76,11 +76,13 @@ export interface FlightConfig {
   overlapFront: number;
   overlapSide: number;
   expandToRectangle: boolean;
+  expandToMinRectangle?: boolean;
   gcpDistance?: number;
   gcpStartOffset?: number;
   gcpStartNumber?: number;
   gcpLayoutType?: 'Normal' | 'Strip';
   stripBuffer?: number;
   stripSplitDistance?: number;
+  flightAngle?: number;
   subAreaKmlData?: KMLData | null;
 }

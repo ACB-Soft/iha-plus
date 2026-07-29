@@ -418,3 +418,214 @@ export const getSteppedGridPolygon = (
   result.push(result[0]); // Close the loop
   return result;
 };
+
+/**
+ * Computes 2D Convex Hull of a set of Cartesian points using Monotone Chain algorithm.
+ */
+function convexHull2D(points: { x: number; y: number }[]): { x: number; y: number }[] {
+  if (points.length <= 3) return [...points];
+  const sorted = [...points].sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x));
+
+  const crossProduct = (o: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+
+  const lower: { x: number; y: number }[] = [];
+  for (const p of sorted) {
+    while (lower.length >= 2 && crossProduct(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
+      lower.pop();
+    }
+    lower.push(p);
+  }
+
+  const upper: { x: number; y: number }[] = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const p = sorted[i];
+    while (upper.length >= 2 && crossProduct(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
+      upper.pop();
+    }
+    upper.push(p);
+  }
+
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+/**
+ * Calculates the Minimum Area Rotated Bounding Box for a set of coordinates (Minimum Çevreleyen Dikdörtgen).
+ */
+export const getMinBoundingBoxPolygon = (coords: Point[]): Point[] => {
+  if (coords.length < 3) return coords;
+
+  const centerLat = coords.reduce((sum, c) => sum + c.lat, 0) / coords.length;
+  const centerLng = coords.reduce((sum, c) => sum + c.lng, 0) / coords.length;
+  const { latDeg, lngDeg } = metersToDegrees(1, centerLat);
+
+  // Convert to Cartesian (x, y) in meters
+  const points = coords.map(c => ({
+    x: (c.lng - centerLng) / lngDeg,
+    y: (c.lat - centerLat) / latDeg
+  }));
+
+  const hull = convexHull2D(points);
+  if (hull.length < 3) return getGridPolygon(coords, 1);
+
+  let minArea = Infinity;
+  let bestAngle = 0;
+  let bestBox = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+
+  // Candidate angles from convex hull edges
+  const angles: number[] = [];
+  const n = hull.length;
+  for (let i = 0; i < n; i++) {
+    const p1 = hull[i];
+    const p2 = hull[(i + 1) % n];
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    angles.push(Math.atan2(dy, dx));
+  }
+
+  for (let a = 0; a < 180; a += 2) {
+    angles.push((a * Math.PI) / 180);
+  }
+
+  for (const angle of angles) {
+    const cos = Math.cos(-angle);
+    const sin = Math.sin(-angle);
+
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    for (const p of points) {
+      const xr = p.x * cos - p.y * sin;
+      const yr = p.x * sin + p.y * cos;
+      if (xr < minX) minX = xr;
+      if (xr > maxX) maxX = xr;
+      if (yr < minY) minY = yr;
+      if (yr > maxY) maxY = yr;
+    }
+
+    const area = (maxX - minX) * (maxY - minY);
+    if (area < minArea) {
+      minArea = area;
+      bestAngle = angle;
+      bestBox = { minX, maxX, minY, maxY };
+    }
+  }
+
+  const cos = Math.cos(bestAngle);
+  const sin = Math.sin(bestAngle);
+  const { minX, maxX, minY, maxY } = bestBox;
+
+  const rawCorners = [
+    { x: minX, y: minY },
+    { x: maxX, y: minY },
+    { x: maxX, y: maxY },
+    { x: minX, y: maxY }
+  ];
+
+  const corners = rawCorners.map(c => {
+    const x = c.x * cos - c.y * sin;
+    const y = c.x * sin + c.y * cos;
+    return {
+      lat: centerLat + y * latDeg,
+      lng: centerLng + x * lngDeg
+    };
+  });
+
+  corners.push(corners[0]); // Close polygon
+  return corners;
+};
+
+/**
+ * Calculates the Optimal Flight Angle and estimates duration.
+ * Finds the orientation angle that minimizes total flight turns (pass count)
+ * and total flight time penalty (acceleration/deceleration at ends of lines).
+ */
+export const calculateOptimumFlightAngle = (
+  coords: Point[], 
+  overlapSide: number = 70, 
+  sensorWidth: number = 13.2, 
+  focalLength: number = 8.8, 
+  altitude: number = 120,
+  droneSpeed: number = 10 // m/s
+): { angle: number, durationMinutes: number } => {
+  if (coords.length < 3) return { angle: 0, durationMinutes: 0 };
+
+  const centerLat = coords.reduce((sum, c) => sum + c.lat, 0) / coords.length;
+  const centerLng = coords.reduce((sum, c) => sum + c.lng, 0) / coords.length;
+  const { latDeg, lngDeg } = metersToDegrees(1, centerLat);
+
+  // Convert to Cartesian (x, y) in meters
+  const points = coords.map(c => ({
+    x: (c.lng - centerLng) / lngDeg,
+    y: (c.lat - centerLat) / latDeg
+  }));
+
+  const hull = convexHull2D(points);
+  if (hull.length < 3) return { angle: 0, durationMinutes: 0 };
+
+  // Footprint Width = (altitude * sensorWidth) / focalLength
+  const footprintWidth = (altitude * sensorWidth) / focalLength;
+  const stripWidth = footprintWidth * (1 - overlapSide / 100);
+
+  let minFlightCost = Infinity;
+  let bestAngle = 0;
+  let bestDuration = 0;
+
+  // Turn penalty in seconds (time lost per turn)
+  const turnPenaltySeconds = 15;
+
+  const candidateAngles: number[] = [];
+  const n = hull.length;
+  for (let i = 0; i < n; i++) {
+    const p1 = hull[i];
+    const p2 = hull[(i + 1) % n];
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const angle = Math.atan2(dy, dx);
+    candidateAngles.push(angle);
+  }
+  
+  // Sweep every 2 degrees for more candidates
+  for (let deg = 0; deg < 180; deg += 2) {
+    candidateAngles.push((deg * Math.PI) / 180);
+  }
+
+  for (const angle of candidateAngles) {
+    const cos = Math.cos(-angle);
+    const sin = Math.sin(-angle);
+
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    for (const p of points) {
+      const xr = p.x * cos - p.y * sin;
+      const yr = p.x * sin + p.y * cos;
+      if (xr < minX) minX = xr;
+      if (xr > maxX) maxX = xr;
+      if (yr < minY) minY = yr;
+      if (yr > maxY) maxY = yr;
+    }
+
+    const width = maxY - minY;   // Perpendicular distance across flight lines
+    const length = maxX - minX; // Length of individual flight line
+
+    const passes = Math.ceil(width / stripWidth);
+    const totalDistance = passes * length;
+    const totalTimeSeconds = (totalDistance / droneSpeed) + (passes * turnPenaltySeconds);
+
+    if (totalTimeSeconds < minFlightCost) {
+      minFlightCost = totalTimeSeconds;
+      let finalAngle = (angle * 180 / Math.PI) % 180;
+      if (finalAngle < 0) finalAngle += 180;
+      bestAngle = finalAngle;
+      bestDuration = totalTimeSeconds / 60;
+    }
+  }
+
+  return { 
+    angle: Math.round(bestAngle), 
+    durationMinutes: Math.round(bestDuration * 10) / 10 
+  };
+};

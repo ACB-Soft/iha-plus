@@ -6,7 +6,7 @@ import { KMLData, KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { SCALE_TARGET_GSD, FlightConfig, Camera, CAMERAS } from '../src/types/flight';
-import { getBoundingBox, expandPolygon, expandLineToPolygon, splitLineByDistance, getGridPolygon, getSteppedGridPolygon, calculatePolygonArea } from './GeometryUtils';
+import { getBoundingBox, expandPolygon, expandLineToPolygon, splitLineByDistance, getGridPolygon, getSteppedGridPolygon, calculatePolygonArea, getMinBoundingBoxPolygon } from './GeometryUtils';
 import { generateFlightPlanPDF } from '../src/utils/pdfExport';
 import * as turf from '@turf/turf';
 
@@ -162,9 +162,14 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
         )
       : null;
 
-    const rectangleCoords = config.expandToRectangle
-      ? getGridPolygon(gridCoords || expandedCoords || originalCoords, 1)
-      : null;
+    const baseForRect = gridCoords || expandedCoords || originalCoords;
+
+    let rectangleCoords: any = null;
+    if (config.expandToMinRectangle) {
+      rectangleCoords = getMinBoundingBoxPolygon(baseForRect);
+    } else if (config.expandToRectangle) {
+      rectangleCoords = getGridPolygon(baseForRect, 1);
+    }
       
     const finalArea = calculatePolygonArea(rectangleCoords || gridCoords || expandedCoords || originalCoords);
       
@@ -213,6 +218,7 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
         bufferMeters: config.buffer || 0,
         expandToGridMeters: config.expandToGrid,
         expandToRectangle: config.expandToRectangle,
+        expandToMinRectangle: config.expandToMinRectangle,
         gcpEnabled: false,
         mapElement: mapEl
       }, exportName || `RAPOR_${getCleanBaseName(projectName)}`);

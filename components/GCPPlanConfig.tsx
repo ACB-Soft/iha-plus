@@ -34,6 +34,7 @@ const GCPPlanConfig: React.FC<Props> = ({
   const [buffer, setBuffer] = useState(fd.defaultBuffer ?? 0);
   const [expandToGrid, setExpandToGrid] = useState(fd.defaultExpandToGrid ?? 0);
   const [expandToRectangle, setExpandToRectangle] = useState(fd.defaultExpandToRectangle ?? false);
+  const [expandToMinRectangle, setExpandToMinRectangle] = useState(fd.defaultExpandToMinRectangle ?? false);
   const [stripBuffer, setStripBuffer] = useState(fd.defaultStripBuffer ?? 50);
   const [isStripSplitEnabled, setIsStripSplitEnabled] = useState(fd.defaultIsStripSplitEnabled ?? false);
   const [stripSplitDistance, setStripSplitDistance] = useState(fd.defaultStripSplitDistance ?? 2000);
@@ -140,6 +141,7 @@ const GCPPlanConfig: React.FC<Props> = ({
       overlapFront: 0,
       overlapSide: 0,
       expandToRectangle,
+      expandToMinRectangle,
       stripBuffer: gcpLayoutType === 'Strip' ? stripBuffer : undefined,
       stripSplitDistance: (gcpLayoutType === 'Strip' && isStripSplitEnabled) ? stripSplitDistance : undefined,
       gcpDistance,
@@ -325,22 +327,50 @@ const GCPPlanConfig: React.FC<Props> = ({
             </div>
 
             <div className="space-y-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Dikdörtgen)</span>
-              <div className="flex gap-3">
-                {[false, true].map(val => (
-                  <button
-                    key={val.toString()}
-                    type="button"
-                    onClick={() => setExpandToRectangle(val)}
-                    className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
-                      expandToRectangle === val 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
-                    }`}
-                  >
-                    {val ? 'EVET' : 'HAYIR'}
-                  </button>
-                ))}
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tahditi Genişlet (Geometri / Şekil)</span>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandToRectangle(false);
+                    setExpandToMinRectangle(false);
+                  }}
+                  className={`py-3 px-2 rounded-xl font-black text-xs transition-all border ${
+                    !expandToRectangle && !expandToMinRectangle
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                  }`}
+                >
+                  HAYIR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandToRectangle(true);
+                    setExpandToMinRectangle(false);
+                  }}
+                  className={`py-3 px-2 rounded-xl font-black text-xs transition-all border ${
+                    expandToRectangle && !expandToMinRectangle
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                  }`}
+                >
+                  Eksenel Dikdörtgen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandToRectangle(false);
+                    setExpandToMinRectangle(true);
+                  }}
+                  className={`py-3 px-2 rounded-xl font-black text-xs transition-all border ${
+                    expandToMinRectangle
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-blue-200'
+                  }`}
+                >
+                  Döndürülmüş Dikdörtgen
+                </button>
               </div>
             </div>
           </section>

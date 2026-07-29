@@ -24,6 +24,7 @@ export interface PDFExportData {
   bufferMeters?: number;
   expandToGridMeters?: number;
   expandToRectangle?: boolean;
+  expandToMinRectangle?: boolean;
 
   // GCP / YKN details
   gcpEnabled?: boolean;
@@ -31,6 +32,8 @@ export interface PDFExportData {
   gcpDistance?: number;
   gcpStartOffset?: number;
   gcpStartNumber?: number;
+  flightAngle?: number;
+  estimatedDurationMinutes?: number;
 
   // Map container reference (optional, legacy)
   mapElement?: HTMLElement | null;
@@ -203,9 +206,9 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Dikdörtgen Genişletme:</td>
+                  <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Geometrik Genişletme:</td>
                   <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
-                    ${data.expandToRectangle ? 'EVET' : 'HAYIR'}
+                    ${data.expandToMinRectangle ? 'Döndürülmüş Dikdörtgen' : data.expandToRectangle ? 'Eksenel Dikdörtgen' : 'Hayır'}
                   </td>
                 </tr>
               `}
@@ -221,13 +224,13 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
               <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Kamera Modeli:</td>
                 <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
-                  ${(!data.camera.name || data.camera.name.includes('Belirtilmedi')) ? '' : data.camera.name}
+                  ${(!data.camera.name || data.camera.name.includes('Belirtilmedi') || data.camera.name === 'Seç') ? '' : data.camera.name}
                 </td>
               </tr>
               <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Sensör / Odak Uzaklığı:</td>
                 <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
-                  ${(!data.camera.name || data.camera.name.includes('Belirtilmedi') || !data.camera.sensorWidth || !data.camera.focalLength) ? '' : `${data.camera.sensorWidth} mm / ${data.camera.focalLength} mm`}
+                  ${(!data.camera.name || data.camera.name.includes('Belirtilmedi') || data.camera.name === 'Seç' || !data.camera.sensorWidth || !data.camera.focalLength) ? '' : `${data.camera.sensorWidth} mm / ${data.camera.focalLength} mm`}
                 </td>
               </tr>
               <tr style="border-bottom: 1px solid #e2e8f0;">
@@ -236,10 +239,22 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
                   ${data.altitude ? `${data.altitude} m` : ''}
                 </td>
               </tr>
-              <tr>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Piksel Boyutu (GSD):</td>
                 <td style="padding: 5px 0; text-align: right; font-weight: 900; color: ${data.gsd ? '#16a34a' : '#64748b'}; vertical-align: middle;">
                   ${data.gsd ? `~${data.gsd} cm/px` : ''}
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Uçuş Açısı:</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                  ${data.flightAngle || 0}°
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Tahmini Uçuş Süresi:</td>
+                <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
+                  ~${data.estimatedDurationMinutes || 0} dk
                 </td>
               </tr>
             </table>
