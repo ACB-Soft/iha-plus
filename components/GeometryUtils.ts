@@ -542,15 +542,23 @@ export const getMinBoundingBoxPolygon = (coords: Point[]): Point[] => {
  * Finds the orientation angle that minimizes total flight turns (pass count)
  * and total flight time penalty (including climb, descent, turns, and overshoot).
  */
+export const formatDurationText = (durationMinutes: number): string => {
+  if (!durationMinutes || isNaN(durationMinutes) || durationMinutes <= 0) return '0dk 0sn';
+  const totalSec = Math.round(durationMinutes * 60);
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  return `${mins}dk ${secs}sn`;
+};
+
 export const calculateOptimumFlightAngle = (
   coords: Point[], 
   overlapSide: number = 70, 
   sensorWidth: number = 13.2, 
   focalLength: number = 8.8, 
   altitude: number = 120,
-  droneSpeed: number = 10 // m/s
-): { angle: number, durationMinutes: number } => {
-  if (coords.length < 3) return { angle: 0, durationMinutes: 0 };
+  droneSpeed: number = 10 // m/s (Flight cruise speed)
+): { angle: number, durationMinutes: number, durationText: string } => {
+  if (coords.length < 3) return { angle: 0, durationMinutes: 0, durationText: '0dk 0sn' };
 
   const centerLat = coords.reduce((sum, c) => sum + c.lat, 0) / coords.length;
   const centerLng = coords.reduce((sum, c) => sum + c.lng, 0) / coords.length;
@@ -563,27 +571,27 @@ export const calculateOptimumFlightAngle = (
   }));
 
   const hull = convexHull2D(points);
-  if (hull.length < 3) return { angle: 0, durationMinutes: 0 };
+  if (hull.length < 3) return { angle: 0, durationMinutes: 0, durationText: '0dk 0sn' };
 
   // Sensor geometry & footprint calculation
   const sensorHeight = sensorWidth * 0.667; // 3:2 aspect ratio standard for mapping sensors
   const footprintWidth = (altitude * sensorWidth) / focalLength;
   const footprintLength = (altitude * sensorHeight) / focalLength;
   const stripWidth = Math.max(1, footprintWidth * (1 - overlapSide / 100));
-  const overshootMeters = Math.max(15, footprintLength / 2);
+  const overshootMeters = Math.max(5, footprintLength / 4);
 
-  // Ascent/Descent speeds & pre-flight margins
-  const ascentSpeed = 4.0;   // m/s
-  const descentSpeed = 3.0;  // m/s
+  // Ascent/Descent speeds & pre-flight margins (10 m/s climb/descent)
+  const ascentSpeed = 10.0;  // m/s takeoff climb
+  const descentSpeed = 10.0; // m/s landing descent
   const ascentTimeSec = altitude / ascentSpeed;
   const descentTimeSec = altitude / descentSpeed;
-  const transitMarginSec = 30; // takeoff/landing hover, transit to start
+  const transitMarginSec = 15; // takeoff/landing hover margin
 
   let minFlightCost = Infinity;
   let bestAngleCompass = 0;
   let bestDurationMinutes = 0;
 
-  const turnPenaltySeconds = 15;
+  const turnPenaltySeconds = 3; // Smooth curved turns in DJI Pilot 2
 
   // Candidate angles in Cartesian radians
   const candidateAngles: number[] = [];
@@ -606,29 +614,63 @@ export const calculateOptimumFlightAngle = (
     const cos = Math.cos(-cartesianAngle);
     const sin = Math.sin(-cartesianAngle);
 
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
+    const rotatedPoints = points.map(p => ({
+      x: p.x * cos - p.y * sin,
+      y: p.x * sin + p.y * cos
+    }));
 
-    for (const p of points) {
-      const xr = p.x * cos - p.y * sin;
-      const yr = p.x * sin + p.y * cos;
-      if (xr < minX) minX = xr;
-      if (xr > maxX) maxX = xr;
-      if (yr < minY) minY = yr;
-      if (yr > maxY) maxY = yr;
+    let minY = Infinity, maxY = -Infinity;
+    for (const p of rotatedPoints) {
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
     }
 
-    const width = Math.max(0.1, maxY - minY);   // Perpendicular width across flight lines
-    const lineLength = Math.max(0.1, maxX - minX); // Length of individual flight line
+    const width = Math.max(0.1, maxY - minY);
+    const passesCount = Math.max(1, Math.round(width / stripWidth));
+    const actualSpan = (passesCount - 1) * stripWidth;
+    const startY = minY + (width - actualSpan) / 2;
 
-    const passes = Math.ceil(width / stripWidth);
-    const effectiveLineLength = lineLength + (2 * overshootMeters);
-    const totalGridDistance = passes * effectiveLineLength;
+    let totalGridDistance = 0;
+    let actualPassesCount = 0;
+    const numPts = rotatedPoints.length;
+
+    for (let i = 0; i < passesCount; i++) {
+      const yPass = startY + i * stripWidth;
+      const intersects: number[] = [];
+
+      for (let j = 0; j < numPts; j++) {
+        const p1 = rotatedPoints[j];
+        const p2 = rotatedPoints[(j + 1) % numPts];
+
+        if ((p1.y <= yPass && p2.y > yPass) || (p2.y <= yPass && p1.y > yPass)) {
+          if (p1.y !== p2.y) {
+            const t = (yPass - p1.y) / (p2.y - p1.y);
+            const xInt = p1.x + t * (p2.x - p1.x);
+            intersects.push(xInt);
+          }
+        }
+      }
+
+      if (intersects.length >= 2) {
+        intersects.sort((a, b) => a - b);
+        const lineLen = intersects[intersects.length - 1] - intersects[0];
+        if (lineLen > 0.5) {
+          totalGridDistance += lineLen;
+          actualPassesCount++;
+        }
+      }
+    }
 
     const gridTimeSec = totalGridDistance / Math.max(1, droneSpeed);
-    const turnTimeSec = Math.max(0, passes - 1) * turnPenaltySeconds;
+    // Connecting U-turn distance between passes (semicircle turn arc = pi/2 * stripWidth)
+    const transitionCount = Math.max(0, actualPassesCount - 1);
+    const turnConnectDistance = transitionCount * (stripWidth * Math.PI / 2);
+    const turnConnectTimeSec = turnConnectDistance / Math.max(1, droneSpeed);
+    // Double turn maneuver per pass transition (exit turn + entry alignment turn)
+    // Each turn maneuver takes ~2 seconds for acceleration/deceleration and heading change
+    const turnDelaySec = transitionCount * 2 * 2.0;
 
-    const totalTimeSeconds = ascentTimeSec + descentTimeSec + transitMarginSec + gridTimeSec + turnTimeSec;
+    const totalTimeSeconds = ascentTimeSec + descentTimeSec + transitMarginSec + gridTimeSec + turnConnectTimeSec + turnDelaySec;
 
     if (totalTimeSeconds < minFlightCost) {
       minFlightCost = totalTimeSeconds;
@@ -651,6 +693,270 @@ export const calculateOptimumFlightAngle = (
 
   return { 
     angle: bestAngleCompass, 
-    durationMinutes: Math.max(0.5, Math.round(bestDurationMinutes * 10) / 10) 
+    durationMinutes: Math.max(0.1, Math.round(bestDurationMinutes * 100) / 100),
+    durationText: formatDurationText(bestDurationMinutes)
+  };
+};
+
+/**
+ * Calculates the overall bearing (compass angle 0-360) of a LineString.
+ */
+export const calculateLineBearing = (lineCoords: Point[]): number => {
+  if (!lineCoords || lineCoords.length < 2) return 0;
+  const p1 = turf.point([lineCoords[0].lng, lineCoords[0].lat]);
+  const p2 = turf.point([lineCoords[lineCoords.length - 1].lng, lineCoords[lineCoords.length - 1].lat]);
+  let b = Math.round(turf.bearing(p1, p2));
+  if (b < 0) b += 360;
+  return b;
+};
+
+/**
+ * Generates corridor/strip flight route parallel to the center line (LineString).
+ * Spaces parallel passes based on stripBuffer and side overlap.
+ */
+export const generateStripFlightRoute = (
+  lineCoords: Point[],
+  stripBuffer: number = 50,
+  overlapSide: number = 70,
+  overlapFront: number = 80,
+  sensorWidth: number = 13.2,
+  focalLength: number = 8.8,
+  altitude: number = 120
+): Point[] => {
+  if (!lineCoords || lineCoords.length < 2) return [];
+
+  // Footprint & strip width calculation
+  const footprintWidth = (altitude * sensorWidth) / focalLength;
+  const stripWidth = Math.max(1, footprintWidth * (1 - Math.min(95, Math.max(10, overlapSide)) / 100));
+
+  // Total corridor width is 2 * stripBuffer (buffer on left and right)
+  const totalWidth = stripBuffer * 2;
+  const passesCount = Math.max(1, Math.round(totalWidth / stripWidth));
+
+  const totalSpan = (passesCount - 1) * stripWidth;
+  const startOffset = -totalSpan / 2;
+
+  const lineGeoJson = turf.lineString(lineCoords.map(c => [c.lng, c.lat]));
+
+  const route: Point[] = [];
+
+  for (let i = 0; i < passesCount; i++) {
+    const offsetDist = passesCount === 1 ? 0 : (startOffset + i * stripWidth);
+    
+    let passPoints: Point[] = [];
+    if (Math.abs(offsetDist) < 0.1) {
+      passPoints = lineCoords.map(c => ({ lat: c.lat, lng: c.lng }));
+    } else {
+      try {
+        const offsetGeo = turf.lineOffset(lineGeoJson, offsetDist, { units: 'meters' });
+        passPoints = offsetGeo.geometry.coordinates.map(([lng, lat]) => ({ lat, lng }));
+      } catch (err) {
+        passPoints = lineCoords.map(c => ({ lat: c.lat, lng: c.lng }));
+      }
+    }
+
+    // Reverse alternate passes for smooth serpentine flight
+    if (i % 2 === 1) {
+      passPoints.reverse();
+    }
+
+    passPoints.forEach(p => route.push(p));
+  }
+
+  return route;
+};
+
+/**
+ * Generates estimated photogrammetric lawnmower flight path route matching DJI Pilot 2 logic.
+ * Trims flight lines strictly to polygon boundary edges (no overshoot outside restriction area).
+ */
+export const generateFlightRoute = (
+  polygonCoords: Point[],
+  angleCompass: number = 0,
+  overlapSide: number = 70,
+  overlapFront: number = 80,
+  sensorWidth: number = 13.2,
+  focalLength: number = 8.8,
+  altitude: number = 120
+): Point[] => {
+  if (!polygonCoords || polygonCoords.length < 3) return [];
+
+  const centerLat = polygonCoords.reduce((sum, c) => sum + c.lat, 0) / polygonCoords.length;
+  const centerLng = polygonCoords.reduce((sum, c) => sum + c.lng, 0) / polygonCoords.length;
+  const { latDeg, lngDeg } = metersToDegrees(1, centerLat);
+
+  // Convert polygon points to local Cartesian meters (x = East, y = North)
+  const cartesianPoly = polygonCoords.map(c => ({
+    x: (c.lng - centerLng) / lngDeg,
+    y: (c.lat - centerLat) / latDeg
+  }));
+
+  // Convert Compass angle (0° = North, 90° = East) to Cartesian angle (rad)
+  let degCartesian = (90 - angleCompass) % 180;
+  if (degCartesian < 0) degCartesian += 180;
+  const theta = (degCartesian * Math.PI) / 180;
+
+  const cos = Math.cos(-theta);
+  const sin = Math.sin(-theta);
+
+  // Rotate points so flight direction aligns with X-axis
+  const rotatedPoly = cartesianPoly.map(p => ({
+    x: p.x * cos - p.y * sin,
+    y: p.x * sin + p.y * cos
+  }));
+
+  // Find bounding box in rotated space
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  for (const p of rotatedPoly) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+
+  // Camera footprint & strip width calculation
+  const footprintWidth = (altitude * sensorWidth) / focalLength;
+  const stripWidth = Math.max(1, footprintWidth * (1 - Math.min(95, Math.max(10, overlapSide)) / 100));
+
+  const width = maxY - minY;
+  if (width <= 0) return [];
+
+  const passesCount = Math.max(1, Math.round(width / stripWidth));
+  const actualSpan = (passesCount - 1) * stripWidth;
+  const startY = minY + (width - actualSpan) / 2;
+
+  const routeRotated: { x: number; y: number }[] = [];
+
+  for (let i = 0; i < passesCount; i++) {
+    const yPass = startY + i * stripWidth;
+
+    // Find intersections of line y = yPass with polygon edges in rotated space
+    const intersects: number[] = [];
+    const n = rotatedPoly.length;
+    for (let j = 0; j < n; j++) {
+      const p1 = rotatedPoly[j];
+      const p2 = rotatedPoly[(j + 1) % n];
+
+      if ((p1.y <= yPass && p2.y > yPass) || (p2.y <= yPass && p1.y > yPass)) {
+        if (p1.y !== p2.y) {
+          const t = (yPass - p1.y) / (p2.y - p1.y);
+          const xInt = p1.x + t * (p2.x - p1.x);
+          intersects.push(xInt);
+        }
+      }
+    }
+
+    if (intersects.length < 2) continue;
+
+    intersects.sort((a, b) => a - b);
+    const lineMinX = intersects[0];
+    const lineMaxX = intersects[intersects.length - 1];
+
+    if (lineMaxX - lineMinX < 1) continue; // Skip near zero length passes
+
+    // DJI Pilot 2 behavior: exact polygon boundary intersection clipping (no overshoot outside boundary)
+    if (i % 2 === 0) {
+      routeRotated.push({ x: lineMinX, y: yPass });
+      routeRotated.push({ x: lineMaxX, y: yPass });
+    } else {
+      routeRotated.push({ x: lineMaxX, y: yPass });
+      routeRotated.push({ x: lineMinX, y: yPass });
+    }
+  }
+
+  // Convert back to original coordinate system
+  const invCos = Math.cos(theta);
+  const invSin = Math.sin(theta);
+
+  return routeRotated.map(p => {
+    const x = p.x * invCos - p.y * invSin;
+    const y = p.x * invSin + p.y * invCos;
+    return {
+      lat: centerLat + y * latDeg,
+      lng: centerLng + x * lngDeg
+    };
+  });
+};
+
+/**
+ * Calculates complete DJI Pilot 2 style flight statistics.
+ */
+export const calculateDJIPilot2Stats = (
+  route: Point[],
+  altitude: number = 100,
+  sensorWidth: number = 35.9,
+  focalLength: number = 35,
+  imageWidthPx: number = 8192,
+  overlapFront: number = 80,
+  flightSpeed: number = 10 // m/s
+) => {
+  if (!route || route.length < 2) {
+    return {
+      totalDistanceMeters: 0,
+      durationText: '0 dk 0 s',
+      durationMinutes: 0,
+      waypointCount: 0,
+      photoCount: 0,
+      gsdCm: 0
+    };
+  }
+
+  // Calculate GSD (cm/px)
+  const gsdCm = (altitude * sensorWidth * 100) / (focalLength * imageWidthPx);
+
+  // Calculate total route distance (in meters)
+  let totalDistanceMeters = 0;
+  for (let i = 0; i < route.length - 1; i++) {
+    const p1 = route[i];
+    const p2 = route[i + 1];
+    const latMid = (p1.lat + p2.lat) / 2;
+    const { latDeg, lngDeg } = metersToDegrees(1, latMid);
+    const dx = (p2.lng - p1.lng) / lngDeg;
+    const dy = (p2.lat - p1.lat) / latDeg;
+    totalDistanceMeters += Math.sqrt(dx * dx + dy * dy);
+  }
+
+  // Waypoints (endpoints of each pass segment)
+  const waypointCount = route.length;
+
+  // Sensor height & ground footprint height
+  const sensorHeight = sensorWidth * 0.667;
+  const footprintHeight = (altitude * sensorHeight) / focalLength;
+  const photoDistance = Math.max(1, footprintHeight * (1 - Math.min(95, Math.max(10, overlapFront)) / 100));
+
+  // Photo count estimation across pass segments
+  let photoCount = 0;
+  for (let i = 0; i < route.length - 1; i += 2) {
+    const p1 = route[i];
+    const p2 = route[i + 1];
+    const latMid = (p1.lat + p2.lat) / 2;
+    const { latDeg, lngDeg } = metersToDegrees(1, latMid);
+    const dx = (p2.lng - p1.lng) / lngDeg;
+    const dy = (p2.lat - p1.lat) / latDeg;
+    const passLength = Math.sqrt(dx * dx + dy * dy);
+
+    photoCount += Math.max(1, Math.floor(passLength / photoDistance) + 1);
+  }
+
+  // Flight duration calculation:
+  // Speed during flight: flightSpeed (10 m/s)
+  // Takeoff/climb and descent speed: 10 m/s
+  const flightTimeSec = totalDistanceMeters / Math.max(1, flightSpeed);
+  const climbDescentTimeSec = (altitude / 10.0) + (altitude / 10.0) + 15; // ascent/descent at 10m/s + margin
+  const totalSec = Math.round(flightTimeSec + climbDescentTimeSec);
+
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  const durationText = `${mins} dk. ${secs} s.`;
+  const durationMinutes = Math.round((totalSec / 60) * 10) / 10;
+
+  return {
+    totalDistanceMeters: Math.round(totalDistanceMeters),
+    durationText,
+    durationMinutes,
+    waypointCount,
+    photoCount,
+    gsdCm: Math.round(gsdCm * 100) / 100
   };
 };

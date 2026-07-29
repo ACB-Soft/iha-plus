@@ -38,6 +38,19 @@ const App = () => {
   const [gcpSubAreaKmlData, setGcpSubAreaKmlData] = useState<KMLData | null>(null);
   const [flightType, setFlightType] = useState<'Normal' | 'Strip'>('Normal');
   const [flightConfig, setFlightConfig] = useState<FlightConfig | null>(null);
+  const [savedNormalConfig, setSavedNormalConfig] = useState<FlightConfig | null>(null);
+  const [savedStripConfig, setSavedStripConfig] = useState<FlightConfig | null>(null);
+
+  const resetSessionData = () => {
+    setNormalKmlData(null);
+    setStripKmlData(null);
+    setGcpKmlData(null);
+    setGcpSubAreaKmlData(null);
+    setFlightConfig(null);
+    setSavedNormalConfig(null);
+    setSavedStripConfig(null);
+  };
+
   const viewRef = React.useRef<ViewType>(view);
   const subViewRef = React.useRef<string | null>(subView);
 
@@ -56,6 +69,7 @@ const App = () => {
       const currentIndex = (currentState && typeof currentState.index === 'number') ? currentState.index : 0;
 
       if (newView === 'dashboard') {
+        resetSessionData();
         // Reset to dashboard: jump back to the root entry
         if (currentIndex > 0) {
           window.history.go(-currentIndex);
@@ -81,9 +95,13 @@ const App = () => {
 
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.view) {
+        if (event.state.view === 'dashboard') {
+          resetSessionData();
+        }
         setView(event.state.view);
         setSubView(event.state.subView || null);
       } else if (viewRef.current !== 'dashboard') {
+        resetSessionData();
         setView('dashboard');
         setSubView(null);
       }
@@ -113,6 +131,7 @@ const App = () => {
           <div className="flex-1 flex flex-col overflow-y-auto h-full no-scrollbar">
             <Dashboard 
               onSelectFlightType={(type) => {
+                resetSessionData();
                 setFlightType(type);
                 navigateTo('flightConfig');
               }} 
@@ -144,14 +163,20 @@ const App = () => {
             flightType={flightType}
             initialKmlData={flightType === 'Normal' ? normalKmlData : stripKmlData}
             initialSubAreaKmlData={gcpSubAreaKmlData}
+            initialConfig={flightType === 'Normal' ? savedNormalConfig : savedStripConfig}
             onKmlDataChange={(data) => {
               if (flightType === 'Normal') setNormalKmlData(data);
               else setStripKmlData(data);
             }}
             onSubAreaKmlDataChange={setGcpSubAreaKmlData}
             onPlanCreated={(data, config, isGcpEnabled) => {
-              if (flightType === 'Normal') setNormalKmlData(data);
-              else setStripKmlData(data);
+              if (flightType === 'Normal') {
+                setNormalKmlData(data);
+                setSavedNormalConfig(config);
+              } else {
+                setStripKmlData(data);
+                setSavedStripConfig(config);
+              }
 
               setFlightConfig(config);
 

@@ -7,7 +7,7 @@ import { KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { FlightConfig } from '../src/types/flight';
-import { calculatePolygonArea, expandLineToPolygon, splitLineByDistance, Point, calculateOptimumFlightAngle } from './GeometryUtils';
+import { calculatePolygonArea, expandLineToPolygon, splitLineByDistance, Point, calculateOptimumFlightAngle, generateStripFlightRoute, calculateLineBearing, calculateDJIPilot2Stats, formatDurationText } from './GeometryUtils';
 import { generateFlightPlanPDF } from '../src/utils/pdfExport';
 
 // Fix Leaflet icon issue
@@ -110,6 +110,53 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
   const optResult = useMemo(() => calculateOptimumFlightAngle(allPoints, config.overlapSide || 70, config.camera.sensorWidth, config.camera.focalLength, config.height || 120), [allPoints, config]);
 
+  const stripFlightRoute = useMemo(() => {
+    const lineFeatures = features.filter(f => f.type === 'LineString');
+    if (lineFeatures.length === 0) return [];
+    const pts: Point[] = [];
+    lineFeatures.forEach(lf => {
+      const linePts = lf.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
+      const isSplit = typeof config.stripSplitDistance === 'number' && config.stripSplitDistance > 0;
+      const splitSegs = isSplit ? splitLineByDistance(linePts, config.stripSplitDistance!, 20) : [linePts];
+      splitSegs.forEach(seg => {
+        const route = generateStripFlightRoute(
+          seg,
+          config.stripBuffer || 50,
+          config.overlapSide || 70,
+          config.overlapFront || 80,
+          config.camera.sensorWidth,
+          config.camera.focalLength,
+          config.height || 120
+        );
+        route.forEach(r => pts.push(r));
+      });
+    });
+    return pts;
+  }, [features, config]);
+
+  const displayOptResult = useMemo(() => {
+    if (stripFlightRoute.length > 0) {
+      const lineFeature = features.find(f => f.type === 'LineString');
+      const lineCoords = lineFeature ? lineFeature.coordinates.map(c => ({ lat: c.lat, lng: c.lng })) : [];
+      const angle = calculateLineBearing(lineCoords);
+      const stats = calculateDJIPilot2Stats(
+        stripFlightRoute,
+        config.height || 120,
+        config.camera.sensorWidth,
+        config.camera.focalLength,
+        config.camera.imageWidth,
+        config.overlapFront || 80,
+        10
+      );
+      return {
+        angle,
+        durationMinutes: stats.durationMinutes,
+        durationText: stats.durationText
+      };
+    }
+    return optResult;
+  }, [stripFlightRoute, features, optResult, config]);
+
   const handleOpenExportModal = (type: 'flight_plan' | 'ykn_plan' | 'pdf_summary') => {
     const baseName = getCleanBaseName(projectName);
     setExportType(type);
@@ -172,8 +219,8 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         gcpDistance: config.gcpDistance || 400,
         gcpStartOffset: config.gcpStartOffset || 10,
         gcpStartNumber: config.gcpStartNumber || 1,
-        flightAngle: optResult.angle,
-        estimatedDurationMinutes: optResult.durationMinutes,
+        flightAngle: displayOptResult.angle,
+        estimatedDurationMinutes: displayOptResult.durationMinutes,
         mapElement: mapEl
       }, exportName || `RAPOR_${getCleanBaseName(projectName)}`);
     } catch (err) {
@@ -724,33 +771,25 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
         </MapContainer>
       </div>
 
-      <div className="bg-slate-200 px-6 py-2 border-t border-slate-300 flex flex-col gap-2 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col items-start w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahdit Alanı</span>
+      <div className="bg-slate-200 px-6 py-2.5 border-t border-slate-300 flex flex-col gap-2.5 shrink-0">
+        <div className="grid grid-cols-4 gap-2 w-full py-1">
+          <div className="flex flex-col items-start">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Alanı</span>
             <span className="text-[11px] font-black text-slate-900">{boundaryArea.toFixed(2)} ha</span>
           </div>
-          <div className="flex flex-col items-center w-1/4">
+          <div className="flex flex-col items-center">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Toplam YKN</span>
-            <span className="text-[11px] font-black text-blue-600">{points.length} Adet</span>
+            <span className="text-[11px] font-black text-blue-600">
+              {config.isGcpEnabled && points.length > 0 ? `${points.length} Adet` : '0'}
+            </span>
           </div>
-          <div className="flex flex-col items-center w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Mesafe</span>
-            <span className="text-[11px] font-black text-emerald-600">{config.gcpDistance}m</span>
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Açısı</span>
+            <span className="text-[11px] font-black text-emerald-600">{displayOptResult.angle}°</span>
           </div>
-          <div className="flex flex-col items-end w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Ofset</span>
-            <span className="text-[11px] font-black text-orange-600">{config.gcpStartOffset}m</span>
-          </div>
-        </div>
-        <div className="flex gap-2 w-full mb-1">
-          <div className="flex flex-col w-1/2">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Optimum Uçuş Açısı</span>
-            <span className="text-[11px] font-black text-blue-600">{optResult.angle}°</span>
-          </div>
-          <div className="flex flex-col items-end w-1/2">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahmini Uçuş Süresi</span>
-            <span className="text-[11px] font-black text-purple-600">~{optResult.durationMinutes} dk</span>
+          <div className="flex flex-col items-end">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Süresi</span>
+            <span className="text-[11px] font-black text-purple-600">~{displayOptResult.durationText || formatDurationText(displayOptResult.durationMinutes)}</span>
           </div>
         </div>
         <div className="flex gap-2 w-full">
@@ -760,12 +799,14 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
           >
             <i className="fas fa-plane-departure"></i>UÇUŞ PLANI
           </button>
-          <button 
-            onClick={() => handleOpenExportModal('ykn_plan')} 
-            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
-          >
-            <i className="fas fa-map-marked-alt"></i>YKN PLANI
-          </button>
+          {config.isGcpEnabled && (
+            <button 
+              onClick={() => handleOpenExportModal('ykn_plan')} 
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            >
+              <i className="fas fa-map-marked-alt"></i>YKN PLANI
+            </button>
+          )}
           <button 
             onClick={() => handleOpenExportModal('pdf_summary')} 
             className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
@@ -784,19 +825,21 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
             <div className="space-y-4">
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dışa Aktar</p>
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
+                <div className={`grid ${config.isGcpEnabled ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 p-1 bg-slate-100 rounded-2xl`}>
                   <button 
                     onClick={() => setExportType('flight_plan')} 
                     className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'flight_plan' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600'}`}
                   >
                     Uçuş Planı
                   </button>
-                  <button 
-                    onClick={() => setExportType('ykn_plan')} 
-                    className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'ykn_plan' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600'}`}
-                  >
-                    YKN Planı
-                  </button>
+                  {config.isGcpEnabled && (
+                    <button 
+                      onClick={() => setExportType('ykn_plan')} 
+                      className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'ykn_plan' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600'}`}
+                    >
+                      YKN Planı
+                    </button>
+                  )}
                   <button 
                     onClick={() => setExportType('pdf_summary')} 
                     className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'pdf_summary' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-600'}`}

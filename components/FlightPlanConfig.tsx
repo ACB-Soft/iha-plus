@@ -12,6 +12,7 @@ interface Props {
   onPlanCreated: (kmlData: KMLData, config: FlightConfig, isGcpEnabled: boolean) => void;
   initialKmlData?: KMLData | null;
   initialSubAreaKmlData?: KMLData | null;
+  initialConfig?: FlightConfig | null;
   onKmlDataChange?: (data: KMLData | null) => void;
   onSubAreaKmlDataChange?: (data: KMLData | null) => void;
   settings: AppSettings;
@@ -23,6 +24,7 @@ const FlightPlanConfig: React.FC<Props> = ({
   onPlanCreated, 
   initialKmlData, 
   initialSubAreaKmlData,
+  initialConfig,
   onKmlDataChange, 
   onSubAreaKmlDataChange,
   settings
@@ -30,33 +32,41 @@ const FlightPlanConfig: React.FC<Props> = ({
   const fd = settings.flightDefaults;
 
   const [selectedCamera, setSelectedCamera] = useState<Camera>(() => {
+    if (initialConfig?.camera) {
+      const found = CAMERAS.find(c => c.name === initialConfig.camera.name);
+      if (found) return found;
+      if (initialConfig.camera.isCustom) {
+        return CAMERAS.find(c => c.isCustom) || initialConfig.camera;
+      }
+      return initialConfig.camera;
+    }
     return CAMERAS.find(c => c.name === fd.defaultCameraName) || CAMERAS[0];
   });
   const [selectedScale] = useState(SCALES[0]);
-  const [height, setHeight] = useState(fd.defaultHeight ?? 200);
-  const [buffer, setBuffer] = useState(fd.defaultBuffer ?? 0);
-  const [expandToGrid, setExpandToGrid] = useState<number>(fd.defaultExpandToGrid ?? 0);
-  const [expandToRectangle, setExpandToRectangle] = useState(fd.defaultExpandToRectangle ?? false);
-  const [expandToMinRectangle, setExpandToMinRectangle] = useState(fd.defaultExpandToMinRectangle ?? false);
-  const [stripBuffer, setStripBuffer] = useState(fd.defaultStripBuffer ?? 50);
-  const [isStripSplitEnabled, setIsStripSplitEnabled] = useState(fd.defaultIsStripSplitEnabled ?? false);
-  const [stripSplitDistance, setStripSplitDistance] = useState(fd.defaultStripSplitDistance ?? 2000);
+  const [height, setHeight] = useState<number>(() => initialConfig?.height ?? fd.defaultHeight ?? 200);
+  const [buffer, setBuffer] = useState<number>(() => initialConfig?.buffer ?? fd.defaultBuffer ?? 0);
+  const [expandToGrid, setExpandToGrid] = useState<number>(() => initialConfig?.expandToGrid ?? fd.defaultExpandToGrid ?? 0);
+  const [expandToRectangle, setExpandToRectangle] = useState<boolean>(() => initialConfig?.expandToRectangle ?? fd.defaultExpandToRectangle ?? false);
+  const [expandToMinRectangle, setExpandToMinRectangle] = useState<boolean>(() => initialConfig?.expandToMinRectangle ?? fd.defaultExpandToMinRectangle ?? false);
+  const [stripBuffer, setStripBuffer] = useState<number>(() => initialConfig?.stripBuffer ?? fd.defaultStripBuffer ?? 50);
+  const [isStripSplitEnabled, setIsStripSplitEnabled] = useState<boolean>(() => initialConfig?.stripSplitDistance !== undefined ? true : (fd.defaultIsStripSplitEnabled ?? false));
+  const [stripSplitDistance, setStripSplitDistance] = useState<number>(() => initialConfig?.stripSplitDistance ?? fd.defaultStripSplitDistance ?? 2000);
   
   const [kmlData, setKmlData] = useState<KMLData | null>(initialKmlData || null);
-  const [subAreaKmlData, setSubAreaKmlData] = useState<KMLData | null>(initialSubAreaKmlData || null);
+  const [subAreaKmlData, setSubAreaKmlData] = useState<KMLData | null>(initialSubAreaKmlData || initialConfig?.subAreaKmlData || null);
 
   // GCP (YKN) States
-  const [isGcpEnabled, setIsGcpEnabled] = useState<boolean>(fd.defaultIsGcpEnabled ?? false);
-  const [gcpDistance, setGcpDistance] = useState(fd.defaultGcpDistance ?? 400);
-  const [gcpStartOffset, setGcpStartOffset] = useState(fd.defaultGcpStartOffset ?? 10);
-  const [gcpStartNumber, setGcpStartNumber] = useState(fd.defaultGcpStartNumber ?? 1);
+  const [isGcpEnabled, setIsGcpEnabled] = useState<boolean>(() => initialConfig?.isGcpEnabled ?? fd.defaultIsGcpEnabled ?? false);
+  const [gcpDistance, setGcpDistance] = useState<number>(() => initialConfig?.gcpDistance ?? fd.defaultGcpDistance ?? 400);
+  const [gcpStartOffset, setGcpStartOffset] = useState<number>(() => initialConfig?.gcpStartOffset ?? fd.defaultGcpStartOffset ?? 10);
+  const [gcpStartNumber, setGcpStartNumber] = useState<number>(() => initialConfig?.gcpStartNumber ?? fd.defaultGcpStartNumber ?? 1);
 
   // Camera Step Optional & Custom Camera States
-  const [isCameraStepEnabled, setIsCameraStepEnabled] = useState<boolean>(fd.defaultIsCameraStepEnabled ?? false);
-  const [customCamName, setCustomCamName] = useState<string>('Özel Drone Kamera');
-  const [customSensorWidth, setCustomSensorWidth] = useState<number>(13.2);
-  const [customFocalLength, setCustomFocalLength] = useState<number>(8.8);
-  const [customImageWidth, setCustomImageWidth] = useState<number>(5472);
+  const [isCameraStepEnabled, setIsCameraStepEnabled] = useState<boolean>(() => initialConfig?.isCameraStepEnabled ?? fd.defaultIsCameraStepEnabled ?? false);
+  const [customCamName, setCustomCamName] = useState<string>(() => initialConfig?.customCamName ?? initialConfig?.camera?.name ?? 'Özel Drone Kamera');
+  const [customSensorWidth, setCustomSensorWidth] = useState<number>(() => initialConfig?.customSensorWidth ?? initialConfig?.camera?.sensorWidth ?? 13.2);
+  const [customFocalLength, setCustomFocalLength] = useState<number>(() => initialConfig?.customFocalLength ?? initialConfig?.camera?.focalLength ?? 8.8);
+  const [customImageWidth, setCustomImageWidth] = useState<number>(() => initialConfig?.customImageWidth ?? initialConfig?.camera?.imageWidth ?? 5472);
 
   const activeCamera: Camera = React.useMemo(() => {
     if (!isCameraStepEnabled) {
@@ -86,24 +96,6 @@ const FlightPlanConfig: React.FC<Props> = ({
     }
     return (activeCamera.sensorWidth * height * 100) / (activeCamera.focalLength * activeCamera.imageWidth);
   }, [isCameraStepEnabled, activeCamera, height]);
-
-  React.useEffect(() => {
-    if (settings.flightDefaults) {
-      const defCam = CAMERAS.find(c => c.name === settings.flightDefaults.defaultCameraName) || CAMERAS[0];
-      setSelectedCamera(defCam);
-      setHeight(settings.flightDefaults.defaultHeight ?? 200);
-      setBuffer(settings.flightDefaults.defaultBuffer ?? 0);
-      setExpandToGrid(settings.flightDefaults.defaultExpandToGrid ?? 0);
-      setExpandToRectangle(settings.flightDefaults.defaultExpandToRectangle ?? false);
-      setStripBuffer(settings.flightDefaults.defaultStripBuffer ?? 50);
-      setIsStripSplitEnabled(settings.flightDefaults.defaultIsStripSplitEnabled ?? false);
-      setStripSplitDistance(settings.flightDefaults.defaultStripSplitDistance ?? 2000);
-      setIsGcpEnabled(settings.flightDefaults.defaultIsGcpEnabled ?? true);
-      setGcpDistance(settings.flightDefaults.defaultGcpDistance ?? 400);
-      setGcpStartOffset(settings.flightDefaults.defaultGcpStartOffset ?? 10);
-      setGcpStartNumber(settings.flightDefaults.defaultGcpStartNumber ?? 1);
-    }
-  }, [settings.flightDefaults]);
 
   React.useEffect(() => {
     setKmlData(initialKmlData || null);
@@ -193,7 +185,7 @@ const FlightPlanConfig: React.FC<Props> = ({
       camera: activeCamera,
       scale: selectedScale,
       gsd: Math.round(effectiveGsd * 100) / 100,
-      height: isCameraStepEnabled ? height : 0,
+      height,
       buffer,
       expandToGrid,
       overlapFront: 80,
@@ -206,7 +198,13 @@ const FlightPlanConfig: React.FC<Props> = ({
       gcpStartOffset,
       gcpStartNumber,
       gcpLayoutType: flightType,
-      subAreaKmlData: isGcpEnabled ? subAreaKmlData : null
+      subAreaKmlData: isGcpEnabled ? subAreaKmlData : null,
+      isGcpEnabled,
+      isCameraStepEnabled,
+      customCamName,
+      customSensorWidth,
+      customFocalLength,
+      customImageWidth
     };
     
     onPlanCreated(kmlData, config, isGcpEnabled);

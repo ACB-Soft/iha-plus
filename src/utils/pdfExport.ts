@@ -1,41 +1,34 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { formatDurationText } from '../../components/GeometryUtils';
 
 export interface PDFExportData {
   projectName: string;
-  flightType: 'Normal' | 'Strip';
+  areaSizeM2: number;
+  flightType?: 'Normal' | 'Strip';
+  stripLengthMeters?: number;
+  stripBuffer?: number;
+  stripBufferMeters?: number;
+  isStripSplitEnabled?: boolean;
+  stripSplitDistance?: number;
+  bufferMeters?: number;
+  expandToGridMeters?: number;
+  expandToRectangle?: boolean;
+  expandToMinRectangle?: boolean;
   camera: {
     name: string;
     sensorWidth: number;
     focalLength: number;
     imageWidth: number;
   };
-  altitude: number;
-  gsd: number;
-  areaSizeM2: number;
-  
-  // Strip Flight specific
-  stripLengthMeters?: number;
-  stripBufferMeters?: number;
-  isStripSplitEnabled?: boolean;
-  stripSplitDistance?: number;
-  
-  // Normal Area specific
-  bufferMeters?: number;
-  expandToGridMeters?: number;
-  expandToRectangle?: boolean;
-  expandToMinRectangle?: boolean;
-
-  // GCP / YKN details
-  gcpEnabled?: boolean;
+  altitude?: number;
+  gsd?: string | number;
+  flightAngle?: number;
+  estimatedDurationMinutes?: number | string;
   gcpPoints?: { id: string; name: string; lat: number; lng: number }[];
   gcpDistance?: number;
   gcpStartOffset?: number;
   gcpStartNumber?: number;
-  flightAngle?: number;
-  estimatedDurationMinutes?: number;
-
-  // Map container reference (optional, legacy)
   mapElement?: HTMLElement | null;
 }
 
@@ -85,6 +78,47 @@ function renderYknTableColumns(points: { id: string; name: string; lat: number; 
   `;
 }
 
+function addSelectableTextOverlay(
+  pdf: jsPDF,
+  pageElement: HTMLElement,
+  pdfWidthMm: number,
+  pageWidthPx: number
+) {
+  const pageRect = pageElement.getBoundingClientRect();
+  const scale = pdfWidthMm / pageWidthPx;
+
+  const range = document.createRange();
+  const walker = document.createTreeWalker(pageElement, NodeFilter.SHOW_TEXT, null);
+
+  pdf.internal.write('3 Tr'); // Set PDF Text Rendering Mode to 3 (Invisible text layer)
+
+  let currentNode = walker.nextNode();
+  while (currentNode) {
+    const rawText = currentNode.nodeValue;
+    if (rawText && rawText.trim().length > 0) {
+      const parentEl = currentNode.parentElement;
+      if (parentEl) {
+        range.selectNodeContents(currentNode);
+        const rect = range.getBoundingClientRect();
+
+        if (rect.width > 0 && rect.height > 0) {
+          const xMm = (rect.left - pageRect.left) * scale;
+          const computedStyle = window.getComputedStyle(parentEl);
+          const fontSizePx = parseFloat(computedStyle.fontSize) || 12;
+          const yMm = (rect.top - pageRect.top + fontSizePx * 0.78) * scale;
+          const fontSizePt = fontSizePx * scale * (72 / 25.4);
+
+          pdf.setFontSize(Math.max(4, fontSizePt));
+          pdf.text(rawText.trim(), xMm, yMm);
+        }
+      }
+    }
+    currentNode = walker.nextNode();
+  }
+
+  pdf.internal.write('0 Tr'); // Reset PDF Text Rendering Mode to 0 (Fill)
+}
+
 export async function generateFlightPlanPDF(data: PDFExportData, fileName: string): Promise<void> {
   const formattedDate = new Date().toLocaleDateString('tr-TR', {
     day: '2-digit',
@@ -97,7 +131,7 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
   const areaHa = (data.areaSizeM2 / 10000).toFixed(2);
   const isStrip = data.flightType === 'Strip';
   const stripLen = data.stripLengthMeters || 0;
-  const stripBuffer = data.stripBufferMeters || 50;
+  const stripBuffer = data.stripBuffer || data.stripBufferMeters || 50;
   const yknList = data.gcpPoints || [];
 
   const PAGE_1_MAX_YKN = 50;
@@ -109,7 +143,6 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
     totalPages = 1 + Math.ceil(remaining / SUBSEQUENT_PAGE_MAX_YKN);
   }
 
-  // Wrapper element to hold all page nodes offscreen
   const wrapper = document.createElement('div');
   wrapper.style.position = 'absolute';
   wrapper.style.top = '-9999px';
@@ -120,7 +153,6 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
 
   const pageElements: HTMLDivElement[] = [];
 
-  // Create Pages
   for (let p = 0; p < totalPages; p++) {
     const isFirstPage = p === 0;
     const startIdx = isFirstPage ? 0 : PAGE_1_MAX_YKN + (p - 1) * SUBSEQUENT_PAGE_MAX_YKN;
@@ -254,7 +286,7 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
               <tr>
                 <td style="padding: 5px 0; font-weight: 700; color: #64748b; vertical-align: middle;">Tahmini Uçuş Süresi:</td>
                 <td style="padding: 5px 0; text-align: right; font-weight: 900; color: #0f172a; vertical-align: middle;">
-                  ~${data.estimatedDurationMinutes || 0} dk
+                  ~${formatDurationText(typeof data.estimatedDurationMinutes === 'number' ? data.estimatedDurationMinutes : parseFloat(data.estimatedDurationMinutes || '0'))}
                 </td>
               </tr>
             </table>
@@ -288,19 +320,35 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
     pageElements.push(page);
   }
 
-
   document.body.appendChild(wrapper);
 
   try {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
 
+    // Embed Roboto font for accurate Turkish character text selection in PDF
+    try {
+      const fontRes = await fetch('https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf');
+      if (fontRes.ok) {
+        const fontBuf = await fontRes.arrayBuffer();
+        const base64Font = window.btoa(
+          new Uint8Array(fontBuf).reduce((acc, byte) => acc + String.fromCharCode(byte), '')
+        );
+        pdf.addFileToVFS('Roboto-Regular.ttf', base64Font);
+        pdf.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+        pdf.setFont('Roboto');
+      }
+    } catch (err) {
+      console.warn("Turkish font loading for PDF text layer warning:", err);
+    }
+
     for (let i = 0; i < pageElements.length; i++) {
       if (i > 0) {
         pdf.addPage();
       }
 
-      const canvas = await html2canvas(pageElements[i], {
+      const pageEl = pageElements[i];
+      const canvas = await html2canvas(pageEl, {
         scale: 2,
         useCORS: true,
         allowTaint: false,
@@ -312,12 +360,18 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
       const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
       pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+
+      // Overlay invisible selectable text on top of the rendered image page
+      addSelectableTextOverlay(pdf, pageEl, pdfWidth, 800);
     }
 
     const cleanName = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
     pdf.save(cleanName);
 
   } finally {
-    document.body.removeChild(wrapper);
+    if (document.body.contains(wrapper)) {
+      document.body.removeChild(wrapper);
+    }
   }
 }
+

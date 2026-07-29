@@ -6,7 +6,7 @@ import { KMLData, KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { SCALE_TARGET_GSD, FlightConfig, Camera, CAMERAS } from '../src/types/flight';
-import { getBoundingBox, expandPolygon, expandLineToPolygon, splitLineByDistance, getGridPolygon, getSteppedGridPolygon, calculatePolygonArea, getMinBoundingBoxPolygon } from './GeometryUtils';
+import { getBoundingBox, expandPolygon, expandLineToPolygon, splitLineByDistance, getGridPolygon, getSteppedGridPolygon, calculatePolygonArea, getMinBoundingBoxPolygon, calculateOptimumFlightAngle, generateFlightRoute, generateStripFlightRoute, calculateLineBearing, calculateDJIPilot2Stats, formatDurationText } from './GeometryUtils';
 import { generateFlightPlanPDF } from '../src/utils/pdfExport';
 import * as turf from '@turf/turf';
 
@@ -189,6 +189,78 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
     return processedFeatures.reduce((sum, f) => sum + (f.finalArea || 0), 0);
   }, [processedFeatures]);
 
+  const allPoints = useMemo(() => {
+    const pts: { lat: number; lng: number }[] = [];
+    processedFeatures.forEach(f => {
+      const coords = f.rectangleCoords || f.gridCoords || f.expandedCoords || f.originalCoords;
+      if (coords) {
+        coords.forEach((c: any) => pts.push({ lat: c.lat, lng: c.lng }));
+      }
+    });
+    return pts;
+  }, [processedFeatures]);
+
+  const optResult = useMemo(() => {
+    return calculateOptimumFlightAngle(
+      allPoints,
+      config.overlapSide || 70,
+      currentCamera.sensorWidth || 13.2,
+      currentCamera.focalLength || 8.8,
+      altitude || 120
+    );
+  }, [allPoints, config, currentCamera, altitude]);
+
+  const flightRoutes = useMemo(() => {
+    return processedFeatures.map(f => {
+      if (f.type === 'LineString' || config.flightType === 'Strip') {
+        return generateStripFlightRoute(
+          f.originalCoords,
+          config.stripBuffer || 50,
+          config.overlapSide || 70,
+          config.overlapFront || 80,
+          currentCamera.sensorWidth || 13.2,
+          currentCamera.focalLength || 8.8,
+          altitude || 120
+        );
+      }
+      const polyCoords = f.rectangleCoords || f.gridCoords || f.expandedCoords || f.originalCoords;
+      if (!polyCoords || polyCoords.length < 3) return [];
+      return generateFlightRoute(
+        polyCoords,
+        optResult.angle,
+        config.overlapSide || 70,
+        config.overlapFront || 80,
+        currentCamera.sensorWidth || 13.2,
+        currentCamera.focalLength || 8.8,
+        altitude || 120
+      );
+    });
+  }, [processedFeatures, optResult.angle, config, currentCamera, altitude]);
+
+  const displayOptResult = useMemo(() => {
+    if (config.flightType === 'Strip') {
+      const combinedRoute = flightRoutes.flat();
+      const firstLineFeature = processedFeatures.find(f => f.type === 'LineString');
+      const firstCoords = firstLineFeature ? firstLineFeature.originalCoords : [];
+      const angle = calculateLineBearing(firstCoords);
+      const stats = calculateDJIPilot2Stats(
+        combinedRoute,
+        altitude || 120,
+        currentCamera.sensorWidth || 13.2,
+        currentCamera.focalLength || 8.8,
+        currentCamera.imageWidth || 8192,
+        config.overlapFront || 80,
+        10
+      );
+      return {
+        angle,
+        durationMinutes: stats.durationMinutes,
+        durationText: stats.durationText
+      };
+    }
+    return optResult;
+  }, [config.flightType, flightRoutes, processedFeatures, optResult, altitude, currentCamera, config.overlapFront]);
+
   const totalStripLength = useMemo(() => {
     let totalMeters = 0;
     features.forEach(f => {
@@ -219,6 +291,8 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
         expandToGridMeters: config.expandToGrid,
         expandToRectangle: config.expandToRectangle,
         expandToMinRectangle: config.expandToMinRectangle,
+        flightAngle: displayOptResult.angle,
+        estimatedDurationMinutes: displayOptResult.durationMinutes,
         gcpEnabled: false,
         mapElement: mapEl
       }, exportName || `RAPOR_${getCleanBaseName(projectName)}`);
@@ -412,6 +486,16 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
                       </Popup>
                     </Polygon>
                   )}
+
+                  {/* Flight Route lines (Tahmini Uçuş Rotası - Mavi) */}
+                  {flightRoutes[i] && flightRoutes[i].length > 1 && (
+                    <Polyline
+                      positions={flightRoutes[i].map(c => [c.lat, c.lng] as [number, number])}
+                      color="#0284c7"
+                      weight={2.5}
+                      opacity={0.9}
+                    />
+                  )}
                 </React.Fragment>
               );
             }
@@ -421,40 +505,23 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
       </div>
 
       {/* Uçuş Bilgi Alanı */}
-      <div className="bg-slate-200 px-6 py-2 border-t border-slate-300 flex flex-col gap-2 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col items-start w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahdit Alanı</span>
+      <div className="bg-slate-200 px-6 py-2.5 border-t border-slate-300 flex flex-col gap-2.5 shrink-0">
+        <div className="grid grid-cols-4 gap-2 w-full py-1">
+          <div className="flex flex-col items-start">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Alanı</span>
             <span className="text-[11px] font-black text-slate-900">{boundaryArea.toFixed(2)} ha</span>
           </div>
-
-          <div className="flex flex-col items-start w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">GSD (cm/px)</span>
-            <div className="flex items-center gap-1.5">
-               <button onClick={() => handleGsdChange(Number((gsd - 0.01).toFixed(2)))} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-blue-50"><i className="fas fa-minus text-[7px]"></i></button>
-               <span className="text-[11px] font-black text-blue-600 w-10 text-center">{gsd.toFixed(2)}</span>
-               <button onClick={() => handleGsdChange(Number((gsd + 0.01).toFixed(2)))} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-blue-50"><i className="fas fa-plus text-[7px]"></i></button>
-            </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Toplam YKN</span>
+            <span className="text-[11px] font-black text-blue-600">0</span>
           </div>
-
-          <button 
-            onClick={() => setShowCameraModal(true)}
-            className="flex flex-col items-center w-1/4 group"
-          >
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 group-active:text-blue-500 transition-colors">Kamera</span>
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-black text-slate-900 truncate max-w-[100px]">{currentCamera.name}</span>
-              <i className="fas fa-chevron-down text-[7px] text-slate-400"></i>
-            </div>
-          </button>
-
-          <div className="flex flex-col items-end w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Yükseklik (m)</span>
-            <div className="flex items-center gap-1.5">
-               <button onClick={() => handleAltitudeChange(altitude - 5)} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-emerald-50"><i className="fas fa-minus text-[7px]"></i></button>
-               <span className="text-[11px] font-black text-emerald-600 w-8 text-center">{altitude}</span>
-               <button onClick={() => handleAltitudeChange(altitude + 5)} className="w-5 h-5 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 active:bg-emerald-50"><i className="fas fa-plus text-[7px]"></i></button>
-            </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Açısı</span>
+            <span className="text-[11px] font-black text-emerald-600">{displayOptResult.angle}°</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Süresi</span>
+            <span className="text-[11px] font-black text-purple-600">~{displayOptResult.durationText || formatDurationText(displayOptResult.durationMinutes)}</span>
           </div>
         </div>
         
@@ -464,12 +531,6 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
             className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
           >
             <i className="fas fa-plane-departure"></i>UÇUŞ PLANI
-          </button>
-          <button 
-            onClick={() => handleOpenExportModal('ykn_plan')} 
-            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
-          >
-            <i className="fas fa-map-marked-alt"></i>YKN PLANI
           </button>
           <button 
             onClick={() => handleOpenExportModal('pdf_summary')} 
@@ -619,18 +680,12 @@ const KMLMapView: React.FC<Props> = ({ projectName, features, config, onBack }) 
             <div className="space-y-4">
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dışa Aktar</p>
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-2xl">
                   <button 
                     onClick={() => setExportType('flight_plan')} 
                     className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'flight_plan' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600'}`}
                   >
                     Uçuş Planı
-                  </button>
-                  <button 
-                    onClick={() => setExportType('ykn_plan')} 
-                    className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'ykn_plan' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600'}`}
-                  >
-                    YKN Planı
                   </button>
                   <button 
                     onClick={() => setExportType('pdf_summary')} 

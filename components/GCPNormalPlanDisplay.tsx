@@ -7,7 +7,7 @@ import { KMLFeature } from './KMLUtils';
 import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { FlightConfig } from '../src/types/flight';
-import { calculatePolygonArea, expandLineToPolygon, expandPolygon, getSteppedGridPolygon, getGridPolygon, getMinBoundingBoxPolygon, calculateOptimumFlightAngle, Point } from './GeometryUtils';
+import { calculatePolygonArea, expandLineToPolygon, expandPolygon, getSteppedGridPolygon, getGridPolygon, getMinBoundingBoxPolygon, calculateOptimumFlightAngle, Point, formatDurationText } from './GeometryUtils';
 import { generateFlightPlanPDF } from '../src/utils/pdfExport';
 
 // Helper to compute boundary expansion
@@ -760,33 +760,25 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
         </MapContainer>
       </div>
 
-      <div className="bg-slate-200 px-6 py-2 border-t border-slate-300 flex flex-col gap-2 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col items-start w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahdit Alanı</span>
+      <div className="bg-slate-200 px-6 py-2.5 border-t border-slate-300 flex flex-col gap-2.5 shrink-0">
+        <div className="grid grid-cols-4 gap-2 w-full py-1">
+          <div className="flex flex-col items-start">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Alanı</span>
             <span className="text-[11px] font-black text-slate-900">{boundaryArea.toFixed(2)} ha</span>
           </div>
-          <div className="flex flex-col items-center w-1/4">
+          <div className="flex flex-col items-center">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Toplam YKN</span>
-            <span className="text-[11px] font-black text-blue-600">{points.length} Adet</span>
+            <span className="text-[11px] font-black text-blue-600">
+              {config.isGcpEnabled && points.length > 0 ? `${points.length} Adet` : '0'}
+            </span>
           </div>
-          <div className="flex flex-col items-center w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Hedef Mesafe</span>
-            <span className="text-[11px] font-black text-emerald-600">{config.gcpDistance}m</span>
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Açısı</span>
+            <span className="text-[11px] font-black text-emerald-600">{optResult.angle}°</span>
           </div>
-          <div className="flex flex-col items-end w-1/4">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Ofset</span>
-            <span className="text-[11px] font-black text-orange-600">{config.gcpStartOffset}m</span>
-          </div>
-        </div>
-        <div className="flex gap-2 w-full mb-1">
-          <div className="flex flex-col w-1/2">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Optimum Uçuş Açısı</span>
-            <span className="text-[11px] font-black text-blue-600">{optResult.angle}°</span>
-          </div>
-          <div className="flex flex-col items-end w-1/2">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Tahmini Uçuş Süresi</span>
-            <span className="text-[11px] font-black text-purple-600">~{optResult.durationMinutes} dk</span>
+          <div className="flex flex-col items-end">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Süresi</span>
+            <span className="text-[11px] font-black text-purple-600">~{optResult.durationText || formatDurationText(optResult.durationMinutes)}</span>
           </div>
         </div>
         <div className="flex gap-2 w-full">
@@ -796,12 +788,14 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
           >
             <i className="fas fa-plane-departure"></i>UÇUŞ PLANI
           </button>
-          <button 
-            onClick={() => handleOpenExportModal('ykn_plan')} 
-            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
-          >
-            <i className="fas fa-map-marked-alt"></i>YKN PLANI
-          </button>
+          {config.isGcpEnabled && (
+            <button 
+              onClick={() => handleOpenExportModal('ykn_plan')} 
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            >
+              <i className="fas fa-map-marked-alt"></i>YKN PLANI
+            </button>
+          )}
           <button 
             onClick={() => handleOpenExportModal('pdf_summary')} 
             className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
@@ -820,19 +814,21 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
             <div className="space-y-4">
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dışa Aktar</p>
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
+                <div className={`grid ${config.isGcpEnabled ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 p-1 bg-slate-100 rounded-2xl`}>
                   <button 
                     onClick={() => setExportType('flight_plan')} 
                     className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'flight_plan' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600'}`}
                   >
                     Uçuş Planı
                   </button>
-                  <button 
-                    onClick={() => setExportType('ykn_plan')} 
-                    className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'ykn_plan' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600'}`}
-                  >
-                    YKN Planı
-                  </button>
+                  {config.isGcpEnabled && (
+                    <button 
+                      onClick={() => setExportType('ykn_plan')} 
+                      className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'ykn_plan' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600'}`}
+                    >
+                      YKN Planı
+                    </button>
+                  )}
                   <button 
                     onClick={() => setExportType('pdf_summary')} 
                     className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${exportType === 'pdf_summary' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-600'}`}

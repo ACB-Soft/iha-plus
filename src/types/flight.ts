@@ -85,4 +85,10 @@ export interface FlightConfig {
   stripSplitDistance?: number;
   flightAngle?: number;
   subAreaKmlData?: KMLData | null;
+  isGcpEnabled?: boolean;
+  isCameraStepEnabled?: boolean;
+  customCamName?: string;
+  customSensorWidth?: number;
+  customFocalLength?: number;
+  customImageWidth?: number;
 }
