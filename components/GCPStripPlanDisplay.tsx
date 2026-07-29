@@ -98,10 +98,15 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
   const allPoints = useMemo(() => {
     const pts: Point[] = [];
     features.forEach(f => {
-      f.coordinates.forEach(c => pts.push({ lat: c.lat, lng: c.lng }));
+      if (f.type === 'LineString' && config.stripBuffer && config.stripBuffer > 0) {
+        const poly = expandLineToPolygon(f.coordinates, config.stripBuffer);
+        poly.forEach(c => pts.push(c));
+      } else {
+        f.coordinates.forEach(c => pts.push({ lat: c.lat, lng: c.lng }));
+      }
     });
     return pts;
-  }, [features]);
+  }, [features, config]);
 
   const optResult = useMemo(() => calculateOptimumFlightAngle(allPoints, config.overlapSide || 70, config.camera.sensorWidth, config.camera.focalLength, config.height || 120), [allPoints, config]);
 

@@ -131,8 +131,8 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
   const allPoints = useMemo(() => {
     const pts: Point[] = [];
     features.forEach(f => {
-      const { baseForRect } = getExpandedPolygonCoords(f.coordinates, config);
-      baseForRect.forEach(c => pts.push(c));
+      const { finalCoords } = getExpandedPolygonCoords(f.coordinates, config);
+      finalCoords.forEach(c => pts.push(c));
     });
     return pts;
   }, [features, config]);

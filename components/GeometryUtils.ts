@@ -540,7 +540,7 @@ export const getMinBoundingBoxPolygon = (coords: Point[]): Point[] => {
 /**
  * Calculates the Optimal Flight Angle and estimates duration.
  * Finds the orientation angle that minimizes total flight turns (pass count)
- * and total flight time penalty (acceleration/deceleration at ends of lines).
+ * and total flight time penalty (including climb, descent, turns, and overshoot).
  */
 export const calculateOptimumFlightAngle = (
   coords: Point[], 
@@ -556,7 +556,7 @@ export const calculateOptimumFlightAngle = (
   const centerLng = coords.reduce((sum, c) => sum + c.lng, 0) / coords.length;
   const { latDeg, lngDeg } = metersToDegrees(1, centerLat);
 
-  // Convert to Cartesian (x, y) in meters
+  // Convert to Cartesian (x, y) in meters where x = East, y = North
   const points = coords.map(c => ({
     x: (c.lng - centerLng) / lngDeg,
     y: (c.lat - centerLat) / latDeg
@@ -565,36 +565,46 @@ export const calculateOptimumFlightAngle = (
   const hull = convexHull2D(points);
   if (hull.length < 3) return { angle: 0, durationMinutes: 0 };
 
-  // Footprint Width = (altitude * sensorWidth) / focalLength
+  // Sensor geometry & footprint calculation
+  const sensorHeight = sensorWidth * 0.667; // 3:2 aspect ratio standard for mapping sensors
   const footprintWidth = (altitude * sensorWidth) / focalLength;
-  const stripWidth = footprintWidth * (1 - overlapSide / 100);
+  const footprintLength = (altitude * sensorHeight) / focalLength;
+  const stripWidth = Math.max(1, footprintWidth * (1 - overlapSide / 100));
+  const overshootMeters = Math.max(15, footprintLength / 2);
+
+  // Ascent/Descent speeds & pre-flight margins
+  const ascentSpeed = 4.0;   // m/s
+  const descentSpeed = 3.0;  // m/s
+  const ascentTimeSec = altitude / ascentSpeed;
+  const descentTimeSec = altitude / descentSpeed;
+  const transitMarginSec = 30; // takeoff/landing hover, transit to start
 
   let minFlightCost = Infinity;
-  let bestAngle = 0;
-  let bestDuration = 0;
+  let bestAngleCompass = 0;
+  let bestDurationMinutes = 0;
 
-  // Turn penalty in seconds (time lost per turn)
   const turnPenaltySeconds = 15;
 
+  // Candidate angles in Cartesian radians
   const candidateAngles: number[] = [];
   const n = hull.length;
+
   for (let i = 0; i < n; i++) {
     const p1 = hull[i];
     const p2 = hull[(i + 1) % n];
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
-    const angle = Math.atan2(dy, dx);
-    candidateAngles.push(angle);
+    candidateAngles.push(Math.atan2(dy, dx));
   }
   
-  // Sweep every 2 degrees for more candidates
-  for (let deg = 0; deg < 180; deg += 2) {
+  // Sweep every 1 degree for high precision candidate search
+  for (let deg = 0; deg < 180; deg += 1) {
     candidateAngles.push((deg * Math.PI) / 180);
   }
 
-  for (const angle of candidateAngles) {
-    const cos = Math.cos(-angle);
-    const sin = Math.sin(-angle);
+  for (const cartesianAngle of candidateAngles) {
+    const cos = Math.cos(-cartesianAngle);
+    const sin = Math.sin(-cartesianAngle);
 
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
@@ -608,24 +618,39 @@ export const calculateOptimumFlightAngle = (
       if (yr > maxY) maxY = yr;
     }
 
-    const width = maxY - minY;   // Perpendicular distance across flight lines
-    const length = maxX - minX; // Length of individual flight line
+    const width = Math.max(0.1, maxY - minY);   // Perpendicular width across flight lines
+    const lineLength = Math.max(0.1, maxX - minX); // Length of individual flight line
 
     const passes = Math.ceil(width / stripWidth);
-    const totalDistance = passes * length;
-    const totalTimeSeconds = (totalDistance / droneSpeed) + (passes * turnPenaltySeconds);
+    const effectiveLineLength = lineLength + (2 * overshootMeters);
+    const totalGridDistance = passes * effectiveLineLength;
+
+    const gridTimeSec = totalGridDistance / Math.max(1, droneSpeed);
+    const turnTimeSec = Math.max(0, passes - 1) * turnPenaltySeconds;
+
+    const totalTimeSeconds = ascentTimeSec + descentTimeSec + transitMarginSec + gridTimeSec + turnTimeSec;
 
     if (totalTimeSeconds < minFlightCost) {
       minFlightCost = totalTimeSeconds;
-      let finalAngle = (angle * 180 / Math.PI) % 180;
-      if (finalAngle < 0) finalAngle += 180;
-      bestAngle = finalAngle;
-      bestDuration = totalTimeSeconds / 60;
+      
+      // Convert Cartesian angle (0 rad = East, pi/2 rad = North) to Compass Bearing (0 deg = North, 90 deg = East)
+      let degCartesian = (cartesianAngle * 180 / Math.PI) % 180;
+      if (degCartesian < 0) degCartesian += 180;
+      
+      let compassBearing = (90 - degCartesian) % 180;
+      if (compassBearing < 0) compassBearing += 180;
+
+      // Snap to exact cardinal angles (0° or 90°) if very close
+      if (Math.abs(compassBearing - 0) < 3 || Math.abs(compassBearing - 180) < 3) compassBearing = 0;
+      if (Math.abs(compassBearing - 90) < 3) compassBearing = 90;
+
+      bestAngleCompass = Math.round(compassBearing);
+      bestDurationMinutes = totalTimeSeconds / 60;
     }
   }
 
   return { 
-    angle: Math.round(bestAngle), 
-    durationMinutes: Math.round(bestDuration * 10) / 10 
+    angle: bestAngleCompass, 
+    durationMinutes: Math.max(0.5, Math.round(bestDurationMinutes * 10) / 10) 
   };
 };
