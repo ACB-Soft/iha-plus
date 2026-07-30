@@ -155,7 +155,6 @@ const App = () => {
               setSettings(getInitialSettings());
               window.history.back();
             }} 
-            onOpenOnboarding={() => navigateTo('onboarding')}
           />
         )}
 

@@ -8,10 +8,9 @@ import { FlightPlanDefaults, DEFAULT_FLIGHT_DEFAULTS } from '../types';
 
 interface Props {
   onBack: () => void;
-  onOpenOnboarding?: () => void;
 }
 
-const SettingsView: React.FC<Props> = ({ onBack, onOpenOnboarding }) => {
+const SettingsView: React.FC<Props> = ({ onBack }) => {
   const [mapProvider, setMapProvider] = useState(localStorage.getItem('default_map_provider') || 'Google Satellite');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
@@ -144,18 +143,20 @@ const SettingsView: React.FC<Props> = ({ onBack, onOpenOnboarding }) => {
                 {!isCheckingUpdate && <i className="fas fa-chevron-right text-blue-300 text-xs"></i>}
               </button>
 
-              <button 
-                onClick={onOpenOnboarding}
-                className="w-full h-12 px-5 bg-slate-100 text-slate-700 rounded-2xl font-bold flex items-center justify-between shadow-sm border border-slate-100 active:scale-[0.98] transition-all hover:bg-slate-50"
-              >
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <i className="fas fa-graduation-cap text-blue-600"></i>
-                  <span className="text-[13px] whitespace-nowrap">
-                    Tanıtım Ekranını Başlat
-                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                    <i className="fas fa-mobile-alt"></i>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-slate-800">PWA Uygulama Modu</span>
+                    <span className="text-[10px] font-bold text-slate-500">Çevrimdışı Destekli PWA Aktif</span>
+                  </div>
                 </div>
-                <i className="fas fa-chevron-right text-slate-400 text-xs"></i>
-              </button>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wider">
+                  Hazır
+                </span>
+              </div>
             </div>
           </section>
 

@@ -50,7 +50,7 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
           </p>
           <div className="flex items-center justify-center gap-2.5 md:gap-3">
             <img 
-              src="./favicon.svg" 
+              src="/favicon.svg" 
               alt="iHA Plus Logo" 
               className="h-11 w-11 md:h-14 md:w-14 object-contain filter drop-shadow-md shrink-0"
             />
