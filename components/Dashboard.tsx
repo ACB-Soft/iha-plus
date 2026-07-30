@@ -5,9 +5,10 @@ interface Props {
   onSelectFlightType: (type: 'Normal' | 'Strip') => void;
   onShowHelp: () => void;
   onShowSettings: () => void;
+  onShowPresetTemplates: () => void;
 }
 
-const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSettings }) => {
+const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSettings, onShowPresetTemplates }) => {
   return (
     <div className="flex-1 flex flex-col bg-slate-200 animate-in px-8 pt-20 md:pt-28 justify-start relative">
       {/* Dil / Bayrak - Sol Üst Köşe */}
@@ -104,6 +105,24 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
           </div>
           <i className="fas fa-chevron-right text-white/50 group-hover:translate-x-1 transition-transform text-xs"></i>
           <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-6 -mt-6 blur-xl"></div>
+        </button>
+
+        {/* Hazır YKN Şablonları */}
+        <button 
+          onClick={onShowPresetTemplates}
+          className="w-full py-4.5 md:py-5 px-5 md:px-6 bg-slate-600 hover:bg-slate-700 text-white rounded-2xl shadow-xl shadow-slate-600/30 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
+        >
+          <div className="relative z-10 flex items-center gap-3.5 md:gap-4">
+            <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/20 shrink-0 shadow-inner">
+              <i className="fas fa-crosshairs text-lg md:text-xl text-white"></i>
+            </div>
+            <div className="flex flex-col text-left space-y-0.5">
+              <span className="text-sm md:text-base font-black tracking-tight leading-tight uppercase">HAZIR YKN ŞABLONLARI</span>
+              <span className="text-[11px] md:text-xs font-medium text-slate-300 leading-tight">YKN şablonu üret ve indir</span>
+            </div>
+          </div>
+          <i className="fas fa-chevron-right text-white/50 group-hover:translate-x-1 transition-transform text-xs"></i>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-6 -mt-6 blur-xl"></div>
         </button>
       </main>
     </div>

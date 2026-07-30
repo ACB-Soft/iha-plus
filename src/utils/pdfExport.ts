@@ -40,6 +40,62 @@ export interface PDFExportData {
   mapElement?: HTMLElement | null;
 }
 
+/**
+ * Sanitizes CSS in cloned documents before html2canvas converts DOM to canvas.
+ * Prevents html2canvas error: "Attempting to parse an unsupported color function 'oklch'".
+ */
+export const sanitizeOklchColors = (clonedDoc: Document) => {
+  const sanitize = (text: string) => text.replace(/oklch\((?:[^()]+|\([^()]*\))*\)/gi, '#000000');
+
+  // 1. Sanitize textContent in <style> elements and recreate node to force browser to re-parse CSS rules
+  const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
+  styleElements.forEach((style) => {
+    const cssText = style.textContent || '';
+    if (/oklch/i.test(cssText)) {
+      const newStyle = clonedDoc.createElement('style');
+      newStyle.textContent = sanitize(cssText);
+      if (style.parentNode) {
+        style.parentNode.replaceChild(newStyle, style);
+      }
+    }
+  });
+
+  // 2. Direct rule-level sanitization on clonedDoc.styleSheets
+  try {
+    const sheets = Array.from(clonedDoc.styleSheets || []);
+    sheets.forEach((sheet) => {
+      try {
+        const rules = sheet.cssRules || sheet.rules;
+        if (!rules) return;
+        for (let i = rules.length - 1; i >= 0; i--) {
+          const ruleText = rules[i]?.cssText;
+          if (ruleText && /oklch/i.test(ruleText)) {
+            try {
+              sheet.deleteRule(i);
+              const sanitizedRule = sanitize(ruleText);
+              sheet.insertRule(sanitizedRule, i);
+            } catch {
+              // Deleting problematic rule ensures html2canvas won't crash even if re-insert fails
+            }
+          }
+        }
+      } catch {
+        // Handle potential CORS restriction on external stylesheets
+      }
+    });
+  } catch (err) {
+    console.warn('StyleSheet sanitization warning:', err);
+  }
+
+  // 3. Clean inline style attributes
+  clonedDoc.querySelectorAll('*').forEach((el) => {
+    const styleAttr = el.getAttribute('style');
+    if (styleAttr && /oklch/i.test(styleAttr)) {
+      el.setAttribute('style', sanitize(styleAttr));
+    }
+  });
+};
+
 function renderYknTableColumns(points: { id: string; name: string; lat: number; lng: number }[]) {
   if (points.length === 0) {
     return `
@@ -305,7 +361,8 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
         scale: 2,
         useCORS: true,
         allowTaint: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => sanitizeOklchColors(clonedDoc)
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.85);
