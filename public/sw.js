@@ -1,8 +1,9 @@
-const CACHE_NAME = 'iha-plus-v1';
+const CACHE_NAME = 'iha-plus-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/favicon.svg',
   '/pwa-192x192.png',
   '/pwa-512x512.png'
 ];
@@ -12,9 +13,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[ServiceWorker] Caching app shell');
-      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
-        console.warn('[ServiceWorker] Some assets failed to cache:', err);
-      });
+      return Promise.allSettled(
+        ASSETS_TO_CACHE.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn('[ServiceWorker] Failed to cache asset:', url, err);
+          })
+        )
+      );
     })
   );
   self.skipWaiting();

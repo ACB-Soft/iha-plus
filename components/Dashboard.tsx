@@ -10,6 +10,8 @@ interface Props {
 }
 
 const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSettings, onShowPresetTemplates }) => {
+  const [logoError, setLogoError] = useState(false);
+
   return (
     <div className="flex-1 flex flex-col bg-slate-200 animate-in px-8 pt-20 md:pt-28 justify-start relative">
       {/* Dil Seçici - Sol Üst Köşe */}
@@ -49,11 +51,25 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
             Mobil Cihazlarınız için<br/>Uçuş Planlama Uygulaması
           </p>
           <div className="flex items-center justify-center gap-2.5 md:gap-3">
-            <img 
-              src="/favicon.svg" 
-              alt="iHA Plus Logo" 
-              className="h-11 w-11 md:h-14 md:w-14 object-contain filter drop-shadow-md shrink-0"
-            />
+            {!logoError ? (
+              <img 
+                src="./favicon.svg" 
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src.includes('./favicon.svg')) {
+                    target.src = '/favicon.svg';
+                  } else {
+                    setLogoError(true);
+                  }
+                }}
+                alt="iHA Plus Logo" 
+                className="h-11 w-11 md:h-14 md:w-14 object-contain filter drop-shadow-md shrink-0"
+              />
+            ) : (
+              <div className="h-11 w-11 md:h-14 md:w-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
+                <i className="fas fa-plane text-2xl"></i>
+              </div>
+            )}
             <h1 className="text-5xl md:text-6xl font-black text-blue-600 tracking-tighter leading-none">
               {BRAND_NAME}
             </h1>
