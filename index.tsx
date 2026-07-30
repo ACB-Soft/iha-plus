@@ -16,9 +16,9 @@ if (container) {
 }
 
 // Register Service Worker for PWA support
-if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(
+    navigator.serviceWorker.register('./sw.js').then(
       (registration) => {
         console.log('PWA ServiceWorker registration successful with scope: ', registration.scope);
       },
