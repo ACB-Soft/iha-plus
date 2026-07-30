@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BRAND_NAME } from '../version';
+import { LanguageSelector } from './LanguageSelector';
 
 interface Props {
   onSelectFlightType: (type: 'Normal' | 'Strip') => void;
@@ -11,19 +12,9 @@ interface Props {
 const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSettings, onShowPresetTemplates }) => {
   return (
     <div className="flex-1 flex flex-col bg-slate-200 animate-in px-8 pt-20 md:pt-28 justify-start relative">
-      {/* Dil / Bayrak - Sol Üst Köşe */}
+      {/* Dil Seçici - Sol Üst Köşe */}
       <div className="absolute top-6 left-8 z-20">
-        <button 
-          className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center shadow-xl border border-blue-200 active:scale-90 transition-all hover:bg-blue-100 overflow-hidden"
-          title="Dil Değiştir"
-        >
-          <div className="w-8 h-6 rounded-md overflow-hidden flex items-center justify-center shadow-sm bg-white">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="6750 -25500 76500 51000" className="w-full h-full object-cover" style={{ objectPosition: '35% 50%' }}>
-              <path fill="#e30a17" d="m0-30000h90000v60000H0z"/>
-              <path fill="#fff" d="m41750 0 13568-4408-8386 11541V-7133l8386 11541zm925 8021a15000 15000 0 1 1 0-16042 12000 12000 0 1 0 0 16042z"/>
-            </svg>
-          </div>
-        </button>
+        <LanguageSelector />
       </div>
 
       {/* Ayarlar ve Yardım Butonları - Sağ Üst Köşe */}
