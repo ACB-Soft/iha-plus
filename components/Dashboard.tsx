@@ -7,9 +7,10 @@ interface Props {
   onShowHelp: () => void;
   onShowSettings: () => void;
   onShowPresetTemplates: () => void;
+  onShowControlFlight: () => void;
 }
 
-const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSettings, onShowPresetTemplates }) => {
+const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSettings, onShowPresetTemplates, onShowControlFlight }) => {
   const [logoError, setLogoError] = useState(false);
 
   return (
@@ -77,19 +78,19 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
         </div>
       </header>
 
-      <main className="w-full max-w-sm mx-auto flex flex-col space-y-3.5 md:space-y-4">
+      <main className="w-full max-w-sm mx-auto flex flex-col space-y-2.5 md:space-y-3">
         {/* Normal Alan Haritalama */}
         <button 
           onClick={() => onSelectFlightType('Normal')}
-          className="w-full py-4.5 md:py-5 px-5 md:px-6 bg-emerald-600 text-white rounded-2xl shadow-xl shadow-emerald-600/25 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
+          className="w-full py-3 md:py-3.5 px-4 md:px-5 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
         >
-          <div className="relative z-10 flex items-center gap-3.5 md:gap-4">
-            <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 shrink-0 shadow-inner">
-              <i className="fas fa-draw-polygon text-lg md:text-xl text-white"></i>
+          <div className="relative z-10 flex items-center gap-3 md:gap-3.5">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 shrink-0 shadow-inner">
+              <i className="fas fa-draw-polygon text-base md:text-lg text-white"></i>
             </div>
             <div className="flex flex-col text-left space-y-0.5">
-              <span className="text-sm md:text-base font-black tracking-tight leading-tight uppercase">NORMAL ALAN HARİTALAMA</span>
-              <span className="text-[11px] md:text-xs font-medium text-white/80 leading-tight">Poligon tabanlı alan uçuşu</span>
+              <span className="text-xs md:text-sm font-black tracking-tight leading-tight uppercase">NORMAL ALAN HARİTALAMA</span>
+              <span className="text-[10px] md:text-[11px] font-medium text-white/80 leading-tight">Poligon tabanlı alan uçuşu</span>
             </div>
           </div>
           <i className="fas fa-chevron-right text-white/50 group-hover:translate-x-1 transition-transform text-xs"></i>
@@ -99,15 +100,33 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
         {/* Şeritvari Alan Haritalama */}
         <button 
           onClick={() => onSelectFlightType('Strip')}
-          className="w-full py-4.5 md:py-5 px-5 md:px-6 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-600/25 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
+          className="w-full py-3 md:py-3.5 px-4 md:px-5 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-600/20 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
         >
-          <div className="relative z-10 flex items-center gap-3.5 md:gap-4">
-            <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 shrink-0 shadow-inner">
-              <i className="fas fa-route text-lg md:text-xl text-white"></i>
+          <div className="relative z-10 flex items-center gap-3 md:gap-3.5">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 shrink-0 shadow-inner">
+              <i className="fas fa-route text-base md:text-lg text-white"></i>
             </div>
             <div className="flex flex-col text-left space-y-0.5">
-              <span className="text-sm md:text-base font-black tracking-tight leading-tight uppercase">ŞERİTVARİ ALAN HARİTALAMA</span>
-              <span className="text-[11px] md:text-xs font-medium text-white/80 leading-tight">Çizgi tabanlı koridor uçuşu</span>
+              <span className="text-xs md:text-sm font-black tracking-tight leading-tight uppercase">ŞERİTVARİ ALAN HARİTALAMA</span>
+              <span className="text-[10px] md:text-[11px] font-medium text-white/80 leading-tight">Çizgi tabanlı koridor uçuşu</span>
+            </div>
+          </div>
+          <i className="fas fa-chevron-right text-white/50 group-hover:translate-x-1 transition-transform text-xs"></i>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-6 -mt-6 blur-xl"></div>
+        </button>
+
+        {/* Kontrol Uçuşu Planlama */}
+        <button 
+          onClick={onShowControlFlight}
+          className="w-full py-3 md:py-3.5 px-4 md:px-5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-2xl shadow-lg shadow-cyan-600/20 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
+        >
+          <div className="relative z-10 flex items-center gap-3 md:gap-3.5">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 shrink-0 shadow-inner">
+              <i className="fas fa-clipboard-check text-base md:text-lg text-white"></i>
+            </div>
+            <div className="flex flex-col text-left space-y-0.5">
+              <span className="text-xs md:text-sm font-black tracking-tight leading-tight uppercase">KONTROL UÇUŞU PLANLAMA</span>
+              <span className="text-[10px] md:text-[11px] font-medium text-white/80 leading-tight">Doğrulama ve kalite kontrol uçuşu</span>
             </div>
           </div>
           <i className="fas fa-chevron-right text-white/50 group-hover:translate-x-1 transition-transform text-xs"></i>
@@ -117,15 +136,15 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
         {/* Hazır YKN Şablonları */}
         <button 
           onClick={onShowPresetTemplates}
-          className="w-full py-4.5 md:py-5 px-5 md:px-6 bg-slate-600 hover:bg-slate-700 text-white rounded-2xl shadow-xl shadow-slate-600/30 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
+          className="w-full py-3 md:py-3.5 px-4 md:px-5 bg-slate-600 hover:bg-slate-700 text-white rounded-2xl shadow-lg shadow-slate-600/20 active:scale-[0.98] transition-all flex items-center justify-between group relative overflow-hidden border border-white/10"
         >
-          <div className="relative z-10 flex items-center gap-3.5 md:gap-4">
-            <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/20 shrink-0 shadow-inner">
-              <i className="fas fa-crosshairs text-lg md:text-xl text-white"></i>
+          <div className="relative z-10 flex items-center gap-3 md:gap-3.5">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/20 shrink-0 shadow-inner">
+              <i className="fas fa-crosshairs text-base md:text-lg text-white"></i>
             </div>
             <div className="flex flex-col text-left space-y-0.5">
-              <span className="text-sm md:text-base font-black tracking-tight leading-tight uppercase">HAZIR YKN ŞABLONLARI</span>
-              <span className="text-[11px] md:text-xs font-medium text-slate-300 leading-tight">YKN şablonu üret ve indir</span>
+              <span className="text-xs md:text-sm font-black tracking-tight leading-tight uppercase">HAZIR YKN ŞABLONLARI</span>
+              <span className="text-[10px] md:text-[11px] font-medium text-slate-300 leading-tight">YKN şablonu üret ve indir</span>
             </div>
           </div>
           <i className="fas fa-chevron-right text-white/50 group-hover:translate-x-1 transition-transform text-xs"></i>

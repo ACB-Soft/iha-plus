@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard';
 import HelpView from './components/HelpView';
 import SettingsView from './components/SettingsView';
 import PresetTemplatesView from './components/PresetTemplatesView';
+import ControlFlightView from './components/ControlFlightView';
 import KMLMapView from './components/KMLMapView';
 import FlightPlanConfig from './components/FlightPlanConfig';
 import GCPPlanDisplay from './components/GCPPlanDisplay';
@@ -30,7 +31,7 @@ const getInitialSettings = (): AppSettings => {
 };
 
 const App = () => {
-  type ViewType = 'onboarding' | 'dashboard' | 'help' | 'settings' | 'templates' | 'kmlMap' | 'flightConfig' | 'gcpMap';
+  type ViewType = 'onboarding' | 'dashboard' | 'help' | 'settings' | 'templates' | 'controlFlight' | 'kmlMap' | 'flightConfig' | 'gcpMap';
   const [view, setView] = useState<ViewType>('dashboard');
   const [subView, setSubView] = useState<string | null>(null);
   const [normalKmlData, setNormalKmlData] = useState<KMLData | null>(null);
@@ -139,6 +140,7 @@ const App = () => {
               onShowHelp={() => navigateTo('help')}
               onShowSettings={() => navigateTo('settings')}
               onShowPresetTemplates={() => navigateTo('templates')}
+              onShowControlFlight={() => navigateTo('controlFlight')}
             />
             <GlobalFooter />
           </div>
@@ -160,6 +162,13 @@ const App = () => {
 
         {view === 'templates' && (
           <PresetTemplatesView onBack={() => window.history.back()} />
+        )}
+
+        {view === 'controlFlight' && (
+          <ControlFlightView 
+            onBack={() => window.history.back()} 
+            settings={settings}
+          />
         )}
 
         {view === 'flightConfig' && (

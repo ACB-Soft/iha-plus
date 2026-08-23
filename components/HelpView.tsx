@@ -47,7 +47,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                       <span><b>Kamera & GSD Hesabı:</b> Hazır drone/kamera modellerinden seçim yapın veya özel fokal uzunluk ve sensör değerlerinizi girin. Hedef uçuş yüksekliğine göre Yer Örnekleme Aralığı (GSD) anlık hesaplanır.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <i className="fas fa-[#fa-sliders-h] fa-sliders-h text-indigo-600 text-xs mt-1 shrink-0"></i>
+                      <i className="fas fa-sliders-h text-indigo-600 text-xs mt-1 shrink-0"></i>
                       <span><b>Bindirme & Rota Ayarları:</b> Boyuna (% Front) ve enine (% Side) bindirme oranlarını, uçuş yönü açısını ve emniyet marjını sahanın arazi yapısına göre ayarlayın.</span>
                     </li>
                     <li className="flex items-start gap-2">
@@ -82,7 +82,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                       <span><b>Manuel Sürükleme & Düzenleme:</b> Harita üzerindeki YKN işaretçilerini tutup arazi şartlarına uygun güvenli noktalara taşıyabilir veya üzerine tıklayarak silebilirsiniz.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <i className="fas fa-[#fa-file-download] fa-file-csv text-indigo-600 text-xs mt-1 shrink-0"></i>
+                      <i className="fas fa-file-csv text-indigo-600 text-xs mt-1 shrink-0"></i>
                       <span><b>Koordinat Aktarımı:</b> Oluşturulan YKN listesini KML, CSV veya Metin formatında koordinat değerleriyle birlikte dışa aktarın.</span>
                     </li>
                   </ul>
