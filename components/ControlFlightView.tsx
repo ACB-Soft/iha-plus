@@ -28,8 +28,8 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
   const [isDrawModalOpen, setIsDrawModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 2. Kontrol Alanı Yüzdesi (%5, %10, %15, %20 vb.)
-  const [samplePercentage, setSamplePercentage] = useState<number>(10);
+  // 2. Kontrol Alanı Yüzdesi (%5, %10, %15, %20)
+  const [samplePercentage, setSamplePercentage] = useState<number>(5);
 
   // 3. Kontrol Rotası Seçimi (Grid Alan vs Şeritvari Çapraz)
   const [routeType, setRouteType] = useState<ControlRouteType>('Grid');
@@ -283,13 +283,13 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             2. Kontrol Edilecek Alan Yüzdesi
           </label>
 
-          <div className="flex gap-2">
-            {[5, 10, 15, 20, 25].map(val => (
+          <div className="grid grid-cols-4 gap-2">
+            {[5, 10, 15, 20].map(val => (
               <button
                 key={val}
                 type="button"
                 onClick={() => setSamplePercentage(val)}
-                className={`flex-1 py-3 rounded-xl font-black text-xs transition-all border ${
+                className={`py-3 rounded-xl font-black text-xs transition-all border ${
                   samplePercentage === val 
                     ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
                     : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-blue-300'
@@ -395,7 +395,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
               </label>
 
               <div className="grid grid-cols-4 gap-2">
-                {[100, 250, 500, 1000].map(val => (
+                {[250, 500, 1000, 2000].map(val => (
                   <button
                     key={val}
                     type="button"
@@ -464,7 +464,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                   Z-Şerit Uzunluğu (Toplam Uçuş Hattı)
                 </span>
                 <div className="grid grid-cols-4 gap-2">
-                  {[500, 1000, 1500, 2000].map(val => (
+                  {[500, 1000, 2500, 5000].map(val => (
                     <button
                       key={val}
                       type="button"

@@ -294,7 +294,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
             </Polygon>
           ))}
 
-          {/* 2.1 Grid Taşıma Tutamaçları (Draggable Handle Markers) */}
+          {/* 2.1 Grid / Şerit Taşıma Tutamaçları (Draggable Handle Markers) */}
           {spots.map((spot) => (
             <Marker
               key={`handle-${spot.id}`}
@@ -302,15 +302,11 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
               draggable={true}
               icon={L.divIcon({
                 className: 'custom-spot-handle',
-                html: `<div class="flex flex-col items-center cursor-grab active:cursor-grabbing group">
-                        <div class="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-white rounded-md shadow-md border border-white flex items-center gap-1 text-[9px] font-black uppercase tracking-wider transition-transform group-hover:scale-110">
-                          <i class="fas fa-arrows-alt text-[8px]"></i>
-                          <span>${spot.name}</span>
-                        </div>
-                        <div class="w-2 h-2 bg-amber-600 rounded-full border border-white -mt-0.5"></div>
+                html: `<div class="w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-95 border-2 border-white shadow-lg flex items-center justify-center text-white text-[11px] cursor-grab active:cursor-grabbing transition-all">
+                        <i class="fas fa-arrows-alt"></i>
                       </div>`,
-                iconSize: [90, 30],
-                iconAnchor: [45, 15]
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
               })}
               eventHandlers={{
                 dragend: (e) => handleSpotDragEnd(spot.id, e),
@@ -322,7 +318,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                   <p className="text-slate-600 font-mono text-[10px]">
                     Merkez: {spot.center.lat.toFixed(6)}, {spot.center.lng.toFixed(6)}
                   </p>
-                  <p className="text-[9px] text-amber-800 font-medium">Bu grid alanını haritada taşımak için tutun ve sürükleyin.</p>
+                  <p className="text-[9px] text-amber-800 font-medium">Bu alanı haritada taşımak için tutun ve sürükleyin.</p>
                 </div>
               </Popup>
             </Marker>

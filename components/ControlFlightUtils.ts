@@ -939,22 +939,33 @@ ${spot.boundary.map(p => `                  ${p.lng},${p.lat},0`).join('\n')}
           </Polygon>
         </Placemark>
 
-        <!-- Uçuş Hatları (StripCross modunda) -->
+        <!-- Uçuş Hattı (StripCross modunda Tek Çoklu Çizgi & Zemine Bağlı) -->
 `;
     if (result.routeType !== 'Grid') {
-      spot.flightLines.forEach((line, lIdx) => {
+      const orderedPoints: Point[] = [];
+      spot.flightLines.forEach(line => {
+        line.forEach(pt => {
+          const last = orderedPoints[orderedPoints.length - 1];
+          if (!last || Math.abs(last.lat - pt.lat) > 0.0000001 || Math.abs(last.lng - pt.lng) > 0.0000001) {
+            orderedPoints.push(pt);
+          }
+        });
+      });
+
+      if (orderedPoints.length >= 2) {
         kml += `        <Placemark>
-          <name>${spot.name} - Hat ${lIdx + 1}</name>
+          <name>${spot.name} - Uçuş Rotası</name>
           <styleUrl>#flightLine</styleUrl>
           <LineString>
-            <altitudeMode>relativeToGround</altitudeMode>
+            <tessellate>1</tessellate>
+            <altitudeMode>clampToGround</altitudeMode>
             <coordinates>
-${line.map(p => `              ${p.lng},${p.lat},${result.height}`).join('\n')}
+${orderedPoints.map(p => `              ${p.lng},${p.lat},0`).join('\n')}
             </coordinates>
           </LineString>
         </Placemark>
 `;
-      });
+      }
     }
 
     kml += `      </Folder>\n`;
