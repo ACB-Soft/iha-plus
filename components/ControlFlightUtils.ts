@@ -1,6 +1,6 @@
 import * as turf from '@turf/turf';
 import { Camera, KMLData } from '../src/types/flight';
-import { Point, metersToDegrees, calculateLineBearing, expandLineToPolygon } from './GeometryUtils';
+import { Point, metersToDegrees, calculateLineBearing, expandLineToPolygon, rotatePointAroundCenter, rotatePointsAroundCenter } from './GeometryUtils';
 
 export interface ControlSpot {
   id: string;
@@ -9,6 +9,50 @@ export interface ControlSpot {
   boundary: Point[];
   flightLines: Point[][];
   lengthMeters: number;
+  rotationAngle?: number; // In degrees
+}
+
+/**
+ * Rotates a ControlSpot's boundary polygon and flight lines around its center of mass (centroid).
+ */
+export function rotateSpotAroundCenter(spot: ControlSpot, angleDeltaDeg: number): ControlSpot {
+  if (angleDeltaDeg === 0) return spot;
+  const newBoundary = rotatePointsAroundCenter(spot.boundary, spot.center, angleDeltaDeg);
+  const newFlightLines = spot.flightLines.map(line =>
+    rotatePointsAroundCenter(line, spot.center, angleDeltaDeg)
+  );
+  const currentAngle = spot.rotationAngle || 0;
+  const newAngle = (currentAngle + angleDeltaDeg) % 360;
+
+  return {
+    ...spot,
+    boundary: newBoundary,
+    flightLines: newFlightLines,
+    rotationAngle: newAngle >= 0 ? newAngle : newAngle + 360
+  };
+}
+
+/**
+ * Rotates associated GCPs of a spot around the spot's center of mass.
+ */
+export function rotateGCPsAroundSpotCenter(
+  gcps: ControlGCP[],
+  spotId: string,
+  center: Point,
+  angleDeltaDeg: number
+): ControlGCP[] {
+  if (angleDeltaDeg === 0) return gcps;
+  return gcps.map(g => {
+    if (g.spotId === spotId) {
+      const rotated = rotatePointAroundCenter({ lat: g.lat, lng: g.lng }, center, angleDeltaDeg);
+      return {
+        ...g,
+        lat: rotated.lat,
+        lng: rotated.lng
+      };
+    }
+    return g;
+  });
 }
 
 export interface ControlGCP {
@@ -240,16 +284,14 @@ function bufferLineAndClipToBoundary(
 }
 
 /**
- * Generates exact "Z" shape flight lines:
+ * Generates exact "Z" shape flight lines without external clipping:
  * 1. Top Parallel Line (P1 -> P2)
  * 2. 45° Diagonal Connecting Line (P2 -> P3)
  * 3. Bottom Parallel Line (P3 -> P4)
- * Lines are constrained within safe communication distance (<= 1000m radius from center, max 2000m span)
- * and automatically clipped to stay strictly inside the project boundary.
+ * Lines and corridors are kept intact so the user can freely drag/slide them.
  */
 function generateZPatternFlightLines(
-  rawZPoints: Point[],
-  boundaryPoly: any
+  rawZPoints: Point[]
 ): { flightLines: Point[][]; totalLength: number } {
   if (rawZPoints.length < 4) {
     return { flightLines: [], totalLength: 0 };
@@ -262,59 +304,13 @@ function generateZPatternFlightLines(
     [rawZPoints[2], rawZPoints[3]]
   ];
 
-  const clippedLines: Point[][] = [];
   let totalLength = 0;
-
   candidateSegments.forEach(seg => {
-    try {
-      const lineStr = turf.lineString([
-        [seg[0].lng, seg[0].lat],
-        [seg[1].lng, seg[1].lat]
-      ]);
-
-      const intersect = turf.lineIntersect(lineStr, boundaryPoly);
-      const isStartInside = turf.booleanPointInPolygon(turf.point([seg[0].lng, seg[0].lat]), boundaryPoly);
-      const isEndInside = turf.booleanPointInPolygon(turf.point([seg[1].lng, seg[1].lat]), boundaryPoly);
-
-      const allPts: Point[] = [];
-      if (isStartInside) allPts.push(seg[0]);
-
-      if (intersect && intersect.features && intersect.features.length > 0) {
-        intersect.features.forEach((f: any) => {
-          allPts.push({
-            lat: f.geometry.coordinates[1],
-            lng: f.geometry.coordinates[0]
-          });
-        });
-      }
-
-      if (isEndInside) allPts.push(seg[1]);
-
-      // Sort points along segment direction
-      if (allPts.length >= 2) {
-        allPts.sort((a, b) => {
-          const dA = turf.distance([seg[0].lng, seg[0].lat], [a.lng, a.lat], { units: 'kilometers' });
-          const dB = turf.distance([seg[0].lng, seg[0].lat], [b.lng, b.lat], { units: 'kilometers' });
-          return dA - dB;
-        });
-
-        const pStart = allPts[0];
-        const pEnd = allPts[allPts.length - 1];
-        const midLat = (pStart.lat + pEnd.lat) / 2;
-        const midLng = (pStart.lng + pEnd.lng) / 2;
-
-        if (turf.booleanPointInPolygon(turf.point([midLng, midLat]), boundaryPoly)) {
-          clippedLines.push([pStart, pEnd]);
-          const d = turf.distance([pStart.lng, pStart.lat], [pEnd.lng, pEnd.lat], { units: 'kilometers' }) * 1000;
-          totalLength += d;
-        }
-      }
-    } catch {
-      // ignore clipping error
-    }
+    const d = turf.distance([seg[0].lng, seg[0].lat], [seg[1].lng, seg[1].lat], { units: 'kilometers' }) * 1000;
+    totalLength += d;
   });
 
-  return { flightLines: clippedLines, totalLength };
+  return { flightLines: candidateSegments, totalLength };
 }
 
 /**
@@ -536,6 +532,7 @@ export function calculateControlFlightPlan(params: {
   stripBuffer: number;
   crossStripCount?: number;
   zStripLength?: number;
+  initialRotationAngle?: number;
   isGcpEnabled: boolean;
   gcpPlacementType: 'center' | 'corners_center';
   gcpStartNumber: number;
@@ -550,6 +547,7 @@ export function calculateControlFlightPlan(params: {
     stripBuffer,
     crossStripCount = 3,
     zStripLength = 1000,
+    initialRotationAngle = 0,
     isGcpEnabled,
     gcpPlacementType,
     gcpStartNumber,
@@ -737,27 +735,24 @@ export function calculateControlFlightPlan(params: {
 
       // Z'nin 4 köşe noktası (P1 -> P2 -> P3 -> P4)
       // P1: Üst-Sol, P2: Üst-Sağ, P3: Alt-Sol (45° Çapraz), P4: Alt-Sağ
-      const rawZPoints: Point[] = [
+      const baseZPoints: Point[] = [
         { lat: center.lat + dLat, lng: center.lng - dLng }, // P1: Üst-Sol
         { lat: center.lat + dLat, lng: center.lng + dLng }, // P2: Üst-Sağ
         { lat: center.lat - dLat, lng: center.lng - dLng }, // P3: Alt-Sol (P2'den 45° açılı çapraz iniş)
         { lat: center.lat - dLat, lng: center.lng + dLng }  // P4: Alt-Sağ
       ];
 
-      // Şeritvari alan haritalama yöntemindeki Square Buffer (Mitered Offset) mantığı:
-      // Z poliline hattının her iki yanına dik (perpendicular) stripBuffer ofseti uygulanarak koridor poligonu oluşturulur.
-      const expandedCorridor = expandLineToPolygon(rawZPoints, stripBuffer);
-      const clippedPieces = clipPolygonToBoundary(expandedCorridor, turfPoly);
-      
-      let boundary: Point[] = [];
-      if (clippedPieces.length > 0) {
-        boundary = clippedPieces[0];
-      } else {
-        boundary = expandedCorridor;
-      }
+      const rawZPoints = initialRotationAngle !== 0
+        ? rotatePointsAroundCenter(baseZPoints, center, initialRotationAngle)
+        : baseZPoints;
 
-      // Z-Şeklinde Hatlar (2 Paralel Hat + 45° Çapraz Birleşim)
-      const { flightLines, totalLength } = generateZPatternFlightLines(rawZPoints, turfPoly);
+      // Şeritvari alan haritalama yöntemindeki Square Buffer (Mitered Offset) mantığı:
+      // Z poliline hattının her iki yanına dik (perpendicular) stripBuffer ofseti uygulanarak tam koridor poligonu oluşturulur.
+      // Dış tahdit ile kırpılmadan tam geometri korunur, kullanıcı dilediği konuma kaydırabilir.
+      const boundary: Point[] = expandLineToPolygon(rawZPoints, stripBuffer);
+
+      // Z-Şeklinde Hatlar (2 Paralel Hat + 45° Çapraz Birleşim - Kırpmasız Tam Hatlar)
+      const { flightLines, totalLength } = generateZPatternFlightLines(rawZPoints);
       const spotArea = calculateAreaM2(boundary);
 
       spots.push({
@@ -766,7 +761,8 @@ export function calculateControlFlightPlan(params: {
         center,
         boundary,
         flightLines,
-        lengthMeters: totalLength
+        lengthMeters: totalLength,
+        rotationAngle: initialRotationAngle || 0
       });
 
       totalControlArea += spotArea;

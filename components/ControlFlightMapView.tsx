@@ -11,7 +11,9 @@ import {
   calculateAreaM2,
   generateControlFlightKML,
   generateControlGCPCSV,
-  generateControlGCPTXT
+  generateControlGCPTXT,
+  rotateSpotAroundCenter,
+  rotateGCPsAroundSpotCenter
 } from './ControlFlightUtils';
 import { Point } from './GeometryUtils';
 import { generateFlightPlanPDF } from '../src/utils/pdfExport';
@@ -133,6 +135,8 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
   const [spots, setSpots] = useState<ControlSpot[]>(result.spots || []);
   const [gcps, setGcps] = useState<ControlGCP[]>(result.gcps || []);
   const [currentZoom, setCurrentZoom] = useState<number>(15);
+  const [selectedSpotId, setSelectedSpotId] = useState<string>('all');
+  const [isRotationOpen, setIsRotationOpen] = useState<boolean>(false);
 
   // Stats dynamically computed from active spots
   const totalAreaHa = (result.totalAreaM2 / 10000).toFixed(2);
@@ -143,6 +147,62 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
   const realPercentage = result.totalAreaM2 > 0
     ? ((controlAreaM2 / result.totalAreaM2) * 100).toFixed(2)
     : (result.effectivePercentage ? result.effectivePercentage.toFixed(2) : result.samplePercentage.toFixed(2));
+
+  // Active angle of the currently selected spot or the first spot for display
+  const activeAngle = useMemo(() => {
+    if (selectedSpotId === 'all') {
+      return spots.length > 0 ? (spots[0].rotationAngle || 0) : 0;
+    }
+    const target = spots.find(s => s.id === selectedSpotId);
+    return target ? (target.rotationAngle || 0) : 0;
+  }, [selectedSpotId, spots]);
+
+  // Rotate a specific spot around its centroid / center of mass
+  const handleRotateSpot = (spotId: string, angleDeltaDeg: number) => {
+    setSpots(prev =>
+      prev.map(s => {
+        if (s.id === spotId) {
+          return rotateSpotAroundCenter(s, angleDeltaDeg);
+        }
+        return s;
+      })
+    );
+
+    const targetSpot = spots.find(s => s.id === spotId);
+    if (targetSpot) {
+      setGcps(prev => rotateGCPsAroundSpotCenter(prev, spotId, targetSpot.center, angleDeltaDeg));
+    }
+  };
+
+  // Rotate all spots around their individual centroids
+  const handleRotateAllSpots = (angleDeltaDeg: number) => {
+    setSpots(prev =>
+      prev.map(s => rotateSpotAroundCenter(s, angleDeltaDeg))
+    );
+
+    spots.forEach(s => {
+      setGcps(prev => rotateGCPsAroundSpotCenter(prev, s.id, s.center, angleDeltaDeg));
+    });
+  };
+
+  // Set absolute angle for a spot or all spots
+  const handleSetAngle = (spotId: string, targetAngle: number) => {
+    const normalized = ((targetAngle % 360) + 360) % 360;
+    if (spotId === 'all') {
+      spots.forEach(s => {
+        const cur = s.rotationAngle || 0;
+        const delta = normalized - cur;
+        handleRotateSpot(s.id, delta);
+      });
+    } else {
+      const targetSpot = spots.find(s => s.id === spotId);
+      if (targetSpot) {
+        const cur = targetSpot.rotationAngle || 0;
+        const delta = normalized - cur;
+        handleRotateSpot(spotId, delta);
+      }
+    }
+  };
 
   const getTileLayer = () => {
     switch (mapProvider) {
@@ -306,6 +366,95 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
 
       {/* Main Map Viewport */}
       <div className="flex-1 relative z-10">
+        {/* Z-Rotasyon Birleşik Alet Çubuğu (Simgeye tıklandığında genişler / daralır) */}
+        {result.routeType === 'StripCross' && (
+          <div className="absolute top-4 left-4 z-[500] animate-in fade-in duration-150">
+            {!isRotationOpen ? (
+              <button
+                type="button"
+                id="control-flight-rotate-toggle-btn"
+                onClick={() => setIsRotationOpen(true)}
+                className="w-10 h-10 bg-slate-200/95 hover:bg-slate-300 border border-slate-300 rounded-2xl shadow-xl backdrop-blur-md flex items-center justify-center text-blue-600 transition-all active:scale-95 group"
+                title="Z Deseni Döndürme Panelini Aç"
+              >
+                <i className="fas fa-sync-alt text-sm group-hover:rotate-45 transition-transform"></i>
+              </button>
+            ) : (
+              <div className="w-64 max-w-[calc(100vw-2rem)] bg-slate-200/95 backdrop-blur-md border border-slate-300 rounded-2xl p-2.5 shadow-2xl flex flex-col gap-2 text-slate-800 animate-in zoom-in-95 duration-150">
+                {/* Üst Satır: Şerit Seçimi ve Kapat Butonu */}
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center text-[10px] shadow-sm shrink-0">
+                    <i className="fas fa-sync-alt"></i>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <select
+                      value={selectedSpotId}
+                      onChange={(e) => setSelectedSpotId(e.target.value)}
+                      className="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-2 py-1 text-xs font-bold focus:outline-none focus:border-blue-500 cursor-pointer shadow-sm truncate"
+                      title="Döndürülecek Şeridi Seçin"
+                    >
+                      {spots.length > 1 && (
+                        <option value="all">⚡ Tüm Şeritler (Toplu)</option>
+                      )}
+                      {spots.map((s, idx) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name || `Şerit ${idx + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsRotationOpen(false)}
+                    className="w-6 h-6 rounded-lg bg-slate-300/80 hover:bg-slate-300 text-slate-600 hover:text-slate-900 flex items-center justify-center text-[10px] transition-colors shrink-0"
+                    title="Paneli Kapat"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+
+                {/* Alt Satır: Açı Girişi ve Canlı Kaydırıcı */}
+                <div className="flex items-center gap-2 pt-1 border-t border-slate-300/80">
+                  {/* Manuel Açı Girişi (3 haneli sayılar tam sığar) */}
+                  <div className="relative w-16 shrink-0">
+                    <input
+                      type="number"
+                      min="0"
+                      max="360"
+                      step="1"
+                      value={Math.round(activeAngle)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          handleSetAngle(selectedSpotId, ((val % 360) + 360) % 360);
+                        }
+                      }}
+                      className="w-full bg-white border border-slate-300 text-slate-900 rounded-xl pl-2 pr-4 py-1 text-xs font-bold font-mono text-center focus:outline-none focus:border-blue-500 shadow-sm"
+                      placeholder="0"
+                      title="Açı derecesi girin (0-360)"
+                    />
+                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold pointer-events-none">
+                      °
+                    </span>
+                  </div>
+
+                  {/* Canlı Açı Kaydırıcı */}
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    step="1"
+                    value={Math.round(activeAngle)}
+                    onChange={(e) => handleSetAngle(selectedSpotId, parseFloat(e.target.value))}
+                    className="flex-1 min-w-0 h-1.5 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    title="Canlı açı ayarı"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <MapContainer
           center={[result.originalBoundary[0]?.lat || 39.92, result.originalBoundary[0]?.lng || 32.85]}
           zoom={15}
@@ -343,12 +492,14 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
               weight={2.5}
             >
               <Popup>
-                <div className="font-bold text-slate-900">{spot.name}</div>
-                <div className="text-xs text-slate-600">
-                  Merkez: {spot.center.lat.toFixed(6)}, {spot.center.lng.toFixed(6)}
-                </div>
-                <div className="text-[10px] text-amber-700 font-semibold mt-1">
-                  💡 Yakınlaştığınızda beliren tutamacı sürükleyerek bu alanı taşıyabilirsiniz.
+                <div className="p-1 space-y-1 min-w-[180px]">
+                  <div className="font-bold text-slate-900">{spot.name}</div>
+                  <div className="text-xs text-slate-600 font-mono">
+                    Merkez: {spot.center.lat.toFixed(6)}, {spot.center.lng.toFixed(6)}
+                  </div>
+                  <div className="text-[10px] text-amber-700 font-medium">
+                    💡 Tutamacı sürükleyerek taşıyabilirsiniz.
+                  </div>
                 </div>
               </Popup>
             </Polygon>
@@ -369,7 +520,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                 }}
               >
                 <Popup>
-                  <div className="text-xs p-1 space-y-1">
+                  <div className="text-xs p-1 space-y-1 min-w-[180px]">
                     <p className="font-black text-amber-600">{spot.name}</p>
                     <p className="text-slate-600 font-mono text-[10px]">
                       Merkez: {spot.center.lat.toFixed(6)}, {spot.center.lng.toFixed(6)}
@@ -429,29 +580,29 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
       </div>
 
       {/* Uçuş Bilgi Alanı (Footer Üstündeki Alt Bilgi Alanı) */}
-      <div className="bg-slate-200 px-6 py-2.5 border-t border-slate-300 flex flex-col gap-2.5 shrink-0">
-        <div className="grid grid-cols-4 gap-2 w-full py-1">
-          <div className="flex flex-col items-start">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Alanı</span>
-            <span className="text-[11px] font-black text-slate-900">{totalAreaHa} ha</span>
+      <div className="bg-slate-200 px-4 sm:px-6 py-2.5 border-t border-slate-300 flex flex-col gap-2.5 shrink-0">
+        <div className="grid grid-cols-12 gap-1 sm:gap-2 w-full py-1">
+          <div className="col-span-3 flex flex-col items-start min-w-0">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 truncate w-full">Uçuş Alanı</span>
+            <span className="text-[11px] font-black text-slate-900 truncate">{totalAreaHa} ha</span>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Toplam YKN</span>
-            <span className="text-[11px] font-black text-blue-600">
+          <div className="col-span-2 flex flex-col items-center text-center min-w-0">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 truncate w-full">Toplam YKN</span>
+            <span className="text-[11px] font-black text-blue-600 truncate">
               {gcps.length > 0 ? `${gcps.length} Adet` : '0'}
             </span>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Kontrol Alanı</span>
-            <span className="text-[11px] font-black text-emerald-600">
-              {controlAreaHa} ha (%{realPercentage})
+          <div className="col-span-4 flex flex-col items-center text-center min-w-0">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 truncate w-full">Kontrol Oranı</span>
+            <span className="text-[11px] font-black text-emerald-600 truncate">
+              %{realPercentage}
             </span>
           </div>
-          <div className="flex flex-col items-end">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+          <div className="col-span-3 flex flex-col items-end text-right min-w-0">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 truncate w-full">
               {result.routeType === 'StripCross' ? 'Şerit Sayısı' : 'Grid Sayısı'}
             </span>
-            <span className="text-[11px] font-black text-purple-600">
+            <span className="text-[11px] font-black text-purple-600 truncate">
               {spots.length} {result.routeType === 'StripCross' ? 'Şerit' : 'Grid'}
             </span>
           </div>

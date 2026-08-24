@@ -15,6 +15,36 @@ export const metersToDegrees = (meters: number, lat: number) => {
 };
 
 /**
+ * Rotates a point around a pivot/center of mass by a given angle in degrees (clockwise).
+ * Takes into account earth's meridian convergence at the given latitude.
+ */
+export const rotatePointAroundCenter = (point: Point, center: Point, angleDeg: number): Point => {
+  if (angleDeg === 0) return { ...point };
+  const rad = (angleDeg * Math.PI) / 180;
+  const cosLat = Math.cos((center.lat * Math.PI) / 180);
+
+  // Scaled Cartesian offset from center in equivalent meters/units
+  const dx = (point.lng - center.lng) * cosLat;
+  const dy = point.lat - center.lat;
+
+  // Standard 2D rotation matrix (clockwise)
+  const rotatedDx = dx * Math.cos(rad) + dy * Math.sin(rad);
+  const rotatedDy = -dx * Math.sin(rad) + dy * Math.cos(rad);
+
+  return {
+    lat: center.lat + rotatedDy,
+    lng: center.lng + (cosLat !== 0 ? rotatedDx / cosLat : rotatedDx)
+  };
+};
+
+/**
+ * Rotates an array of points around a pivot/center of mass by a given angle in degrees.
+ */
+export const rotatePointsAroundCenter = (points: Point[], center: Point, angleDeg: number): Point[] => {
+  return points.map(p => rotatePointAroundCenter(p, center, angleDeg));
+};
+
+/**
  * Calculates the bounding box of a set of coordinates
  */
 export const getBoundingBox = (coords: Point[]) => {
