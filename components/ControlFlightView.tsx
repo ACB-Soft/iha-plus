@@ -439,9 +439,6 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                       <i className="fas fa-calculator text-blue-600"></i>
                       Homojen Grid Dağılım Hesabı
                     </span>
-                    <span className="bg-blue-600 text-white px-2 py-0.5 rounded-lg text-[10px]">
-                      {liveCalculation.calculatedSpots} Farklı Grid Alan
-                    </span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-snug">
                     <span className="font-bold text-slate-900">{liveCalculation.totalAreaHa} ha</span> toplam alan için hedeflenen <span className="font-bold text-blue-700">%{samplePercentage}</span> = <span className="font-bold text-slate-900">{liveCalculation.targetAreaHa} ha</span>.
@@ -551,9 +548,6 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                     <span className="flex items-center gap-1.5">
                       <i className="fas fa-calculator text-blue-600"></i>
                       Otomatik Z-Şerit Dağılım Hesabı
-                    </span>
-                    <span className="bg-blue-600 text-white px-2 py-0.5 rounded-lg text-[10px]">
-                      {liveCalculation.calculatedSpots} Adet Z-Şeridi
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-snug">
