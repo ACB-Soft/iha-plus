@@ -581,24 +581,24 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
 
       {/* Uçuş Bilgi Alanı (Footer Üstündeki Alt Bilgi Alanı) */}
       <div className="bg-slate-200 px-4 sm:px-6 py-2.5 border-t border-slate-300 flex flex-col gap-2.5 shrink-0">
-        <div className="grid grid-cols-12 gap-1 sm:gap-2 w-full py-1">
-          <div className="col-span-3 flex flex-col items-start min-w-0">
+        <div className="grid grid-cols-4 gap-2 w-full py-1">
+          <div className="flex flex-col items-center text-center min-w-0">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 truncate w-full">Uçuş Alanı</span>
             <span className="text-[11px] font-black text-slate-900 truncate">{totalAreaHa} ha</span>
           </div>
-          <div className="col-span-2 flex flex-col items-center text-center min-w-0">
+          <div className="flex flex-col items-center text-center min-w-0">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 truncate w-full">Toplam YKN</span>
             <span className="text-[11px] font-black text-blue-600 truncate">
               {gcps.length > 0 ? `${gcps.length} Adet` : '0'}
             </span>
           </div>
-          <div className="col-span-4 flex flex-col items-center text-center min-w-0">
+          <div className="flex flex-col items-center text-center min-w-0">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 truncate w-full">Kontrol Oranı</span>
             <span className="text-[11px] font-black text-emerald-600 truncate">
               %{realPercentage}
             </span>
           </div>
-          <div className="col-span-3 flex flex-col items-end text-right min-w-0">
+          <div className="flex flex-col items-center text-center min-w-0">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 truncate w-full">
               {result.routeType === 'StripCross' ? 'Şerit Sayısı' : 'Grid Sayısı'}
             </span>
@@ -625,8 +625,10 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
             </button>
           )}
           <button
-            onClick={() => handleOpenExportModal('pdf_summary')}
-            className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            type="button"
+            disabled
+            className="flex-1 py-2.5 bg-slate-300 text-slate-400 cursor-not-allowed rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-sm flex items-center justify-center gap-1.5 select-none"
+            title="PDF Özeti şimdilik pasiftir"
           >
             <i className="fas fa-file-pdf"></i>PDF ÖZETİ
           </button>
@@ -644,7 +646,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
             <div className="space-y-4">
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dışa Aktar</p>
-                <div className={`grid ${gcps.length > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 p-1 bg-slate-100 rounded-2xl`}>
+                <div className={`grid ${gcps.length > 0 ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5 p-1 bg-slate-100 rounded-2xl`}>
                   <button
                     type="button"
                     onClick={() => setExportType('flight_plan')}
@@ -665,15 +667,6 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                       YKN Planı
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setExportType('pdf_summary')}
-                    className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
-                      exportType === 'pdf_summary' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-600'
-                    }`}
-                  >
-                    PDF Özeti
-                  </button>
                 </div>
               </div>
 
