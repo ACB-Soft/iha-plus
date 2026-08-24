@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Popup, Polygon, Polyline, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Popup, Polygon, Polyline, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import GlobalFooter from './GlobalFooter';
@@ -35,25 +35,83 @@ interface Props {
   onBack: () => void;
 }
 
-const FitBounds: React.FC<{ result: ControlFlightResult; spots: ControlSpot[] }> = ({ result, spots }) => {
+const FitBounds: React.FC<{ result: ControlFlightResult }> = ({ result }) => {
   const map = useMap();
+  const hasFittedRef = React.useRef(false);
 
   useEffect(() => {
-    if (result.originalBoundary.length > 0) {
+    if (!hasFittedRef.current && result.originalBoundary.length > 0) {
       const bounds = L.latLngBounds([]);
       result.originalBoundary.forEach(c => {
         bounds.extend([c.lat, c.lng]);
       });
-      spots.forEach(s => {
-        s.boundary.forEach(c => bounds.extend([c.lat, c.lng]));
-      });
+      if (result.spots) {
+        result.spots.forEach(s => {
+          s.boundary.forEach(c => bounds.extend([c.lat, c.lng]));
+        });
+      }
       if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [50, 50] });
+        hasFittedRef.current = true;
       }
     }
-  }, [result, spots, map]);
+  }, [result, map]);
 
   return null;
+};
+
+const ZoomTracker: React.FC<{ onZoomChange: (z: number) => void }> = ({ onZoomChange }) => {
+  const map = useMapEvents({
+    zoomend: () => {
+      onZoomChange(map.getZoom());
+    },
+    zoom: () => {
+      onZoomChange(map.getZoom());
+    }
+  });
+
+  useEffect(() => {
+    onZoomChange(map.getZoom());
+  }, [map, onZoomChange]);
+
+  return null;
+};
+
+const getSpotHandleIcon = (zoom: number) => {
+  // Uzak seviyelerde (zoom < 13) devasa tutamaç görünmesin, tamamen gizle
+  if (zoom < 13) {
+    return null;
+  }
+  // 13 <= zoom < 15: Çok uzak olmayan ama hafif seviyelerde küçük bir nokta tutamaç (10px)
+  if (zoom < 15) {
+    return L.divIcon({
+      className: 'custom-spot-handle-mini',
+      html: `<div class="w-2.5 h-2.5 rounded-full bg-amber-500 hover:bg-amber-600 border border-white shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing transition-transform hover:scale-125">
+             </div>`,
+      iconSize: [10, 10],
+      iconAnchor: [5, 5]
+    });
+  }
+  // 15 <= zoom < 17: Standart orta yakınlıkta kompakt tutamaç (16px)
+  if (zoom < 17) {
+    return L.divIcon({
+      className: 'custom-spot-handle-compact',
+      html: `<div class="w-4 h-4 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-90 border-[1.5px] border-white shadow-md flex items-center justify-center text-white text-[7px] cursor-grab active:cursor-grabbing transition-all">
+               <i class="fas fa-arrows-alt"></i>
+             </div>`,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
+    });
+  }
+  // zoom >= 17: Yakın seviyede net ve kibar tutamaç (20px)
+  return L.divIcon({
+    className: 'custom-spot-handle-normal',
+    html: `<div class="w-5 h-5 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-90 border-2 border-white shadow-md flex items-center justify-center text-white text-[9px] cursor-grab active:cursor-grabbing transition-all">
+             <i class="fas fa-arrows-alt"></i>
+           </div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10]
+  });
 };
 
 const getCleanBaseName = (pName: string) => {
@@ -74,6 +132,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
   // Stateful spots & gcps for interactive dragging/repositioning
   const [spots, setSpots] = useState<ControlSpot[]>(result.spots || []);
   const [gcps, setGcps] = useState<ControlGCP[]>(result.gcps || []);
+  const [currentZoom, setCurrentZoom] = useState<number>(15);
 
   // Stats dynamically computed from active spots
   const totalAreaHa = (result.totalAreaM2 / 10000).toFixed(2);
@@ -255,7 +314,8 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
           attributionControl={false}
         >
           {getTileLayer()}
-          <FitBounds result={result} spots={spots} />
+          <FitBounds result={result} />
+          <ZoomTracker onZoomChange={setCurrentZoom} />
 
           {/* 1. Orijinal Çalışma Sahası Sınırı (Kırmızı Çerçeve - Tahdit) */}
           {result.originalBoundary.length > 2 && (
@@ -288,41 +348,38 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                   Merkez: {spot.center.lat.toFixed(6)}, {spot.center.lng.toFixed(6)}
                 </div>
                 <div className="text-[10px] text-amber-700 font-semibold mt-1">
-                  💡 Ortadaki tutamacı sürükleyerek bu grid alanını taşıyabilirsiniz.
+                  💡 Yakınlaştığınızda beliren tutamacı sürükleyerek bu alanı taşıyabilirsiniz.
                 </div>
               </Popup>
             </Polygon>
           ))}
 
-          {/* 2.1 Grid / Şerit Taşıma Tutamaçları (Draggable Handle Markers) */}
-          {spots.map((spot) => (
-            <Marker
-              key={`handle-${spot.id}`}
-              position={[spot.center.lat, spot.center.lng]}
-              draggable={true}
-              icon={L.divIcon({
-                className: 'custom-spot-handle',
-                html: `<div class="w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-95 border-2 border-white shadow-lg flex items-center justify-center text-white text-[11px] cursor-grab active:cursor-grabbing transition-all">
-                        <i class="fas fa-arrows-alt"></i>
-                      </div>`,
-                iconSize: [28, 28],
-                iconAnchor: [14, 14]
-              })}
-              eventHandlers={{
-                dragend: (e) => handleSpotDragEnd(spot.id, e),
-              }}
-            >
-              <Popup>
-                <div className="text-xs p-1 space-y-1">
-                  <p className="font-black text-amber-600">{spot.name}</p>
-                  <p className="text-slate-600 font-mono text-[10px]">
-                    Merkez: {spot.center.lat.toFixed(6)}, {spot.center.lng.toFixed(6)}
-                  </p>
-                  <p className="text-[9px] text-amber-800 font-medium">Bu alanı haritada taşımak için tutun ve sürükleyin.</p>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+          {/* 2.1 Grid / Şerit Taşıma Tutamaçları (Draggable Handle Markers) - Yakınlaştıkça görünür */}
+          {spots.map((spot) => {
+            const icon = getSpotHandleIcon(currentZoom);
+            if (!icon) return null;
+            return (
+              <Marker
+                key={`handle-${spot.id}`}
+                position={[spot.center.lat, spot.center.lng]}
+                draggable={true}
+                icon={icon}
+                eventHandlers={{
+                  dragend: (e) => handleSpotDragEnd(spot.id, e),
+                }}
+              >
+                <Popup>
+                  <div className="text-xs p-1 space-y-1">
+                    <p className="font-black text-amber-600">{spot.name}</p>
+                    <p className="text-slate-600 font-mono text-[10px]">
+                      Merkez: {spot.center.lat.toFixed(6)}, {spot.center.lng.toFixed(6)}
+                    </p>
+                    <p className="text-[9px] text-amber-800 font-medium">Bu alanı haritada taşımak için tutun ve sürükleyin.</p>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
 
           {/* 2.2 Kontrol Uçuş Hatları (Sadece StripCross 'Z' modunda göster, GridSpot modunda gizle) */}
           {result.routeType === 'StripCross' && spots.map((spot) =>
