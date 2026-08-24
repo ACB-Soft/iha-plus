@@ -46,7 +46,7 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
       </div>
 
       {/* Header - Logo ve Marka Bilgisi */}
-      <header className="flex flex-col items-center shrink-0 mb-8 md:mb-12">
+      <header className="flex flex-col items-center shrink-0 mb-10 md:mb-16">
         <div className="space-y-2 md:space-y-3 text-center">
           <p className="text-slate-900 font-black text-[12px] md:text-[14px] uppercase tracking-[0.18em] leading-tight max-w-[260px] mx-auto opacity-80">
             Mobil Cihazlarınız için<br/>Uçuş Planlama Uygulaması
