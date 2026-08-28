@@ -142,13 +142,13 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
     // 1. Grid Modu Hesabı
     const singleGridAreaM2 = gridEdgeLength * gridEdgeLength;
     const singleGridAreaHa = singleGridAreaM2 / 10000;
-    const calculatedGridSpots = (singleGridAreaM2 > 0 && targetAreaM2 > 0) ? Math.max(1, Math.round(targetAreaM2 / singleGridAreaM2)) : 0;
+    const calculatedGridSpots = (singleGridAreaM2 > 0 && targetAreaM2 > 0) ? Math.max(1, Math.ceil(targetAreaM2 / singleGridAreaM2)) : 0;
     const actualGridControlAreaM2 = calculatedGridSpots * singleGridAreaM2;
 
     // 2. Şeritvari 'Z' Modu Hesabı
     const singleZAreaM2 = zStripLength * (stripBuffer * 2);
     const singleZAreaHa = singleZAreaM2 / 10000;
-    const calculatedZSpots = (singleZAreaM2 > 0 && targetAreaM2 > 0) ? Math.max(1, Math.round(targetAreaM2 / singleZAreaM2)) : 0;
+    const calculatedZSpots = (singleZAreaM2 > 0 && targetAreaM2 > 0) ? Math.max(1, Math.ceil(targetAreaM2 / singleZAreaM2)) : 0;
     const actualZControlAreaM2 = calculatedZSpots * singleZAreaM2;
 
     const isGrid = routeType === 'Grid';

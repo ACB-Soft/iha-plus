@@ -606,7 +606,7 @@ export function calculateControlFlightPlan(params: {
     // HESAPLAMA MANTIĞI (GRID ALANLAR):
     // -------------------------------------------------------------------------
     const singleSpotArea = Math.max(100, gridEdgeLength * gridEdgeLength);
-    const calculatedSpotCount = Math.max(1, Math.round(targetControlAreaM2 / singleSpotArea));
+    const calculatedSpotCount = Math.max(1, Math.ceil(targetControlAreaM2 / singleSpotArea));
 
     const centers = distributeHomogeneousCenters(
       turfPoly,
@@ -709,7 +709,7 @@ export function calculateControlFlightPlan(params: {
     // -------------------------------------------------------------------------
     const singleZEstimatedAreaM2 = Math.max(100, zStripLength * (stripBuffer * 2));
     const calculatedSpotCount = (singleZEstimatedAreaM2 > 0 && targetControlAreaM2 > 0)
-      ? Math.max(1, Math.round(targetControlAreaM2 / singleZEstimatedAreaM2))
+      ? Math.max(1, Math.ceil(targetControlAreaM2 / singleZEstimatedAreaM2))
       : 1;
 
     // Sahada homojen dağıtılmış Z-merkez noktaları belirle
