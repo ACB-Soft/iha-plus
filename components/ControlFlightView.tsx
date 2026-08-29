@@ -189,7 +189,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
-      <Header title="Kontrol Uçuşu Planlama" onBack={onBack} />
+      <Header title="Kontrol Uçuşu" onBack={onBack} />
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* 1. Uçuş Alanı KML Yükleme */}
