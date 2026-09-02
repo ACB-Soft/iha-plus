@@ -64,9 +64,11 @@ export interface ControlGCP {
   spotId?: string;
 }
 
+export type ControlFlightRouteType = 'Grid' | 'StripCross' | 'StripL';
+
 export interface ControlFlightResult {
   projectName: string;
-  routeType: 'Grid' | 'StripCross';
+  routeType: ControlFlightRouteType;
   samplePercentage: number;
   totalAreaM2: number;
   totalAreaHa: number;
@@ -314,6 +316,34 @@ function generateZPatternFlightLines(
 }
 
 /**
+ * Generates exact "L" shape flight lines without external clipping:
+ * 1. Vertical Arm (P1 -> P2)
+ * 2. Horizontal Arm (P2 -> P3)
+ * Forming a 90° right-angled corner at P2.
+ */
+function generateLPatternFlightLines(
+  rawLPoints: Point[]
+): { flightLines: Point[][]; totalLength: number } {
+  if (rawLPoints.length < 3) {
+    return { flightLines: [], totalLength: 0 };
+  }
+
+  // 2 segments of 'L': [P1->P2 (Vertical Leg)], [P2->P3 (Horizontal Leg)]
+  const candidateSegments: Point[][] = [
+    [rawLPoints[0], rawLPoints[1]],
+    [rawLPoints[1], rawLPoints[2]]
+  ];
+
+  let totalLength = 0;
+  candidateSegments.forEach(seg => {
+    const d = turf.distance([seg[0].lng, seg[0].lat], [seg[1].lng, seg[1].lat], { units: 'kilometers' }) * 1000;
+    totalLength += d;
+  });
+
+  return { flightLines: candidateSegments, totalLength };
+}
+
+/**
  * Creates a square polygon centered at (lat, lng) with size in meters
  */
 function createBoxPolygon(center: Point, sizeMeters: number): Point[] {
@@ -527,7 +557,7 @@ function distributeHomogeneousCenters(
 export function calculateControlFlightPlan(params: {
   kmlData: KMLData;
   samplePercentage: number;
-  routeType: 'Grid' | 'StripCross';
+  routeType: ControlFlightRouteType;
   gridEdgeLength: number;
   stripBuffer: number;
   crossStripCount?: number;
@@ -690,6 +720,114 @@ export function calculateControlFlightPlan(params: {
                 name: `YKN-${gcpCounter}`,
                 lat: pLat,
                 lng: pLng,
+                alt: height,
+                spotId
+              });
+              gcpCounter++;
+            }
+          });
+        }
+      }
+    });
+
+  } else if (routeType === 'StripL') {
+    // -------------------------------------------------------------------------
+    // ŞERİTVARİ 'L' MODELİ KONTROL DAĞITIM ALGORİTMASI:
+    // Toplam L Hat Uzunluğu (zStripLength, örn: 1000m -> 500m dik + 500m yatay)
+    // ve Şerit Genişliği (stripBuffer * 2) ile 1 adet L-şeridinin alanı hesaplanır.
+    // Otomatik Şerit Sayısı = Hedef Kontrol Alanı / Tek L Alanı
+    // -------------------------------------------------------------------------
+    const singleLEstimatedAreaM2 = Math.max(100, zStripLength * (stripBuffer * 2));
+    const calculatedSpotCount = (singleLEstimatedAreaM2 > 0 && targetControlAreaM2 > 0)
+      ? Math.max(1, Math.ceil(targetControlAreaM2 / singleLEstimatedAreaM2))
+      : 1;
+
+    // Sahada homojen dağıtılmış L-merkez noktaları belirle
+    const lCenters = distributeHomogeneousCenters(
+      turfPoly,
+      originalBoundary,
+      calculatedSpotCount,
+      stripBuffer * 4
+    );
+
+    // L hat uzunluğu 2 eşit kola ayrılır (Her kol = zStripLength / 2)
+    // Merkezden uç ve köşelere yarıçap ofseti = zStripLength / 4
+    const halfArmMeters = Math.max(30, zStripLength / 4);
+
+    lCenters.forEach((center, idx) => {
+      const spotId = `l-strip-${idx + 1}`;
+      const spotName = `L-Kontrol Şeridi ${idx + 1}`;
+
+      const { latDeg: dLat } = metersToDegrees(halfArmMeters, center.lat);
+      const { lngDeg: dLng } = metersToDegrees(halfArmMeters, center.lat);
+
+      // L'nin 3 köşe noktası (P1 -> P2 -> P3)
+      // P1: Üst-Sol (Dikey kol tepesi), P2: Alt-Sol (90° dik köşe), P3: Alt-Sağ (Yatay kol ucu)
+      const baseLPoints: Point[] = [
+        { lat: center.lat + dLat, lng: center.lng - dLng }, // P1
+        { lat: center.lat - dLat, lng: center.lng - dLng }, // P2 (90° Köşe)
+        { lat: center.lat - dLat, lng: center.lng + dLng }  // P3
+      ];
+
+      const rawLPoints = initialRotationAngle !== 0
+        ? rotatePointsAroundCenter(baseLPoints, center, initialRotationAngle)
+        : baseLPoints;
+
+      // Koridor poligonu
+      const boundary: Point[] = expandLineToPolygon(rawLPoints, stripBuffer);
+
+      // L-Şeklinde Hatlar (2 dik kol)
+      const { flightLines, totalLength } = generateLPatternFlightLines(rawLPoints);
+      const spotArea = calculateAreaM2(boundary);
+
+      spots.push({
+        id: spotId,
+        name: spotName,
+        center,
+        boundary,
+        flightLines,
+        lengthMeters: totalLength,
+        rotationAngle: initialRotationAngle || 0
+      });
+
+      totalControlArea += spotArea;
+      totalFlightDistance += totalLength;
+
+      // Yer Kontrol Noktaları (L-şeklinin köşesi, uçları ve merkez)
+      if (isGcpEnabled) {
+        if (gcpPlacementType === 'center') {
+          gcps.push({
+            id: `gcp-${gcpCounter}`,
+            name: `YKN-${gcpCounter}`,
+            lat: center.lat,
+            lng: center.lng,
+            alt: height,
+            spotId
+          });
+          gcpCounter++;
+        } else {
+          // L'nin 3 köşe/uç noktası + 1 merkez noktası
+          const cornerCandidates: Point[] = [
+            { lat: center.lat, lng: center.lng }, // Merkez
+            rawLPoints[0], // P1
+            rawLPoints[1], // P2 (Köşe)
+            rawLPoints[2]  // P3
+          ];
+
+          cornerCandidates.forEach((cand) => {
+            let isInside = true;
+            try {
+              isInside = turf.booleanPointInPolygon(turf.point([cand.lng, cand.lat]), turfPoly);
+            } catch {
+              isInside = true;
+            }
+
+            if (isInside) {
+              gcps.push({
+                id: `gcp-${gcpCounter}`,
+                name: `YKN-${gcpCounter}`,
+                lat: cand.lat,
+                lng: cand.lng,
                 alt: height,
                 spotId
               });

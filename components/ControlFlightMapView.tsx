@@ -366,8 +366,8 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
 
       {/* Main Map Viewport */}
       <div className="flex-1 relative z-10">
-        {/* Z-Rotasyon Birleşik Alet Çubuğu (Simgeye tıklandığında genişler / daralır) */}
-        {result.routeType === 'StripCross' && (
+        {/* Şerit Döndürme Birleşik Alet Çubuğu (Z ve L desenleri için açılır/kapanır) */}
+        {(result.routeType === 'StripCross' || result.routeType === 'StripL') && (
           <div className="absolute top-4 left-4 z-[500] animate-in fade-in duration-150">
             {!isRotationOpen ? (
               <button
@@ -375,7 +375,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                 id="control-flight-rotate-toggle-btn"
                 onClick={() => setIsRotationOpen(true)}
                 className="w-10 h-10 bg-slate-200/95 hover:bg-slate-300 border border-slate-300 rounded-2xl shadow-xl backdrop-blur-md flex items-center justify-center text-blue-600 transition-all active:scale-95 group"
-                title="Z Deseni Döndürme Panelini Aç"
+                title={`${result.routeType === 'StripL' ? 'L' : 'Z'} Deseni Döndürme Panelini Aç`}
               >
                 <i className="fas fa-sync-alt text-sm group-hover:rotate-45 transition-transform"></i>
               </button>
@@ -532,8 +532,8 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
             );
           })}
 
-          {/* 2.2 Kontrol Uçuş Hatları (Sadece StripCross 'Z' modunda göster, GridSpot modunda gizle) */}
-          {result.routeType === 'StripCross' && spots.map((spot) =>
+          {/* 2.2 Kontrol Uçuş Hatları (Sadece StripCross 'Z' ve StripL 'L' modunda göster, GridSpot modunda gizle) */}
+          {(result.routeType === 'StripCross' || result.routeType === 'StripL') && spots.map((spot) =>
             spot.flightLines.map((line, lIdx) => (
               <Polyline
                 key={`${spot.id}-line-${lIdx}`}
@@ -600,10 +600,10 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
           </div>
           <div className="flex flex-col items-center text-center min-w-0">
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 truncate w-full">
-              {result.routeType === 'StripCross' ? 'Şerit Sayısı' : 'Grid Sayısı'}
+              {result.routeType === 'Grid' ? 'Grid Sayısı' : 'Şerit Sayısı'}
             </span>
             <span className="text-[11px] font-black text-purple-600 truncate">
-              {spots.length} {result.routeType === 'StripCross' ? 'Şerit' : 'Grid'}
+              {spots.length} {result.routeType === 'Grid' ? 'Grid' : 'Şerit'}
             </span>
           </div>
         </div>

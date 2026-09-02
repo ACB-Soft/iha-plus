@@ -13,7 +13,7 @@ interface Props {
   settings?: AppSettings;
 }
 
-export type ControlRouteType = 'Grid' | 'StripCross';
+export type ControlRouteType = 'Grid' | 'StripCross' | 'StripL';
 export type GcpPlacementType = 'center' | 'corners_center' | 'interval';
 
 const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
@@ -327,7 +327,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             3. Kontrol Rotası Modeli
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {/* Grid Alan Seçeneği */}
             <button
               type="button"
@@ -349,7 +349,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                 )}
               </div>
               <div>
-                <p className="font-black text-slate-900 text-xs uppercase">Grid Alan (Mini Adacık)</p>
+                <p className="font-black text-slate-900 text-xs uppercase">Grid Kare Alan</p>
                 <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
                   Köşeler ve merkezde homojen spot gridler
                 </p>
@@ -377,9 +377,37 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                 )}
               </div>
               <div>
-                <p className="font-black text-slate-900 text-xs uppercase">Şeritvari 'Z' Deseni</p>
+                <p className="font-black text-slate-900 text-xs uppercase">Şeritvari Z</p>
                 <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
                   2 Paralel hat ve 45° açılı çapraz 'Z' rotası
+                </p>
+              </div>
+            </button>
+
+            {/* Şeritvari 'L' Deseni Seçeneği */}
+            <button
+              type="button"
+              onClick={() => setRouteType('StripL')}
+              className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
+                routeType === 'StripL'
+                  ? 'bg-blue-50/80 border-blue-600 shadow-md'
+                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${
+                  routeType === 'StripL' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  <i className="fas fa-ruler-combined"></i>
+                </div>
+                {routeType === 'StripL' && (
+                  <i className="fas fa-check-circle text-blue-600 text-sm"></i>
+                )}
+              </div>
+              <div>
+                <p className="font-black text-slate-900 text-xs uppercase">Şeritvari L</p>
+                <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                  90° dik açılı 2 kollu 'L' koridor rotası
                 </p>
               </div>
             </button>
@@ -452,13 +480,13 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
           ) : (
             <div className="space-y-4">
               <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
-                4. Z-Şerit Uzunluğu ve Şerit Genişliği
+                4. {routeType === 'StripL' ? 'L-Şerit' : 'Z-Şerit'} Uzunluğu ve Şerit Genişliği
               </label>
 
-              {/* Z-Şerit Uzunluğu (Toplam Hat Boyu) */}
+              {/* Şerit Uzunluğu (Toplam Hat Boyu) */}
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Z-Şerit Uzunluğu (Toplam Uçuş Hattı)
+                  {routeType === 'StripL' ? 'L-Şerit Uzunluğu (Toplam 2 Kol Hattı)' : 'Z-Şerit Uzunluğu (Toplam Uçuş Hattı)'}
                 </span>
                 <div className="grid grid-cols-4 gap-2">
                   {[500, 1000, 2500, 5000].map(val => (
@@ -547,19 +575,17 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                   <div className="flex items-center justify-between font-black text-blue-900 text-[11px] uppercase tracking-wider">
                     <span className="flex items-center gap-1.5">
                       <i className="fas fa-calculator text-blue-600"></i>
-                      Otomatik Z-Şerit Dağılım Hesabı
+                      Otomatik {routeType === 'StripL' ? 'L-Şerit' : 'Z-Şerit'} Dağılım Hesabı
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-snug">
                     <span className="font-bold text-slate-900">{liveCalculation.totalAreaHa} ha</span> toplam alan için hedeflenen <span className="font-bold text-blue-700">%{samplePercentage}</span> = <span className="font-bold text-slate-900">{liveCalculation.targetAreaHa} ha</span>.
                   </p>
                   <p className="text-[10px] text-slate-500 font-medium">
-                    Her biri {zStripLength}m uzunluğunda ve {stripBuffer * 2}m genişliğinde (~{liveCalculation.singleZAreaHa} ha) olan <strong className="text-blue-800">{liveCalculation.calculatedSpots} adet</strong> Z-şeridi ile toplam <strong className="text-emerald-700">{liveCalculation.actualControlAreaHa} ha (%{liveCalculation.actualPercentage})</strong> kontrol alanı otomatik oluşturulacaktır.
+                    Her biri {zStripLength}m uzunluğunda ve {stripBuffer * 2}m genişliğinde (~{liveCalculation.singleZAreaHa} ha) olan <strong className="text-blue-800">{liveCalculation.calculatedSpots} adet</strong> {routeType === 'StripL' ? 'L-şeridi' : 'Z-şeridi'} ile toplam <strong className="text-emerald-700">{liveCalculation.actualControlAreaHa} ha (%{liveCalculation.actualPercentage})</strong> kontrol alanı otomatik oluşturulacaktır.
                   </p>
                 </div>
               )}
-
-
             </div>
           )}
         </section>
