@@ -548,7 +548,27 @@ function distributeHomogeneousCenters(
     });
   }
 
-  return refinedCenters;
+  // Sort centers in natural reading order: North to South (top to bottom), West to East (left to right)
+  return sortCentersReadingOrder(refinedCenters);
+}
+
+/**
+ * Sorts geographic centers strictly starting from the northernmost point:
+ * 1. North to South (highest latitude / en kuzeydeki nokta birinci)
+ * 2. West to East (lower longitude to higher longitude)
+ */
+function sortCentersReadingOrder(centers: Point[]): Point[] {
+  if (centers.length <= 1) return centers;
+
+  return [...centers].sort((a, b) => {
+    // Primary: Strict North to South (highest latitude first)
+    // If latitudes are very close (within ~10-15 meters / 0.0001 deg), sort West to East (left to right)
+    const latDiff = b.lat - a.lat;
+    if (Math.abs(latDiff) > 0.0001) {
+      return latDiff; // Positive means b is further North, so b comes first -> strict North to South
+    }
+    return a.lng - b.lng; // West first (left to right)
+  });
 }
 
 /**

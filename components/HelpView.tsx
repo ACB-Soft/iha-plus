@@ -23,8 +23,8 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
             </div>
             
             <div className="space-y-4">
-              {/* Uçuş Planı Oluşturma */}
-              <div className="soft-card p-5 space-y-3 border-l-4 border-l-indigo-600">
+              {/* 1. Uçuş Planı Oluşturma */}
+              <div className="soft-card p-5 space-y-3">
                 <h4 className="font-black text-slate-900 text-base uppercase flex items-center gap-2">
                   <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold">1</span>
                   Uçuş Planı Oluşturma
@@ -47,8 +47,8 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                       <span><b>Kamera & GSD Hesabı:</b> Hazır drone/kamera modellerinden seçim yapın veya özel fokal uzunluk ve sensör değerlerinizi girin. Hedef uçuş yüksekliğine göre Yer Örnekleme Aralığı (GSD) anlık hesaplanır.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <i className="fas fa-sliders-h text-indigo-600 text-xs mt-1 shrink-0"></i>
-                      <span><b>Bindirme & Rota Ayarları:</b> Boyuna (% Front) ve enine (% Side) bindirme oranlarını, uçuş yönü açısını ve emniyet marjını sahanın arazi yapısına göre ayarlayın.</span>
+                      <i className="fas fa-expand-arrows-alt text-indigo-600 text-xs mt-1 shrink-0"></i>
+                      <span><b>Tampon Genişletme & Sınır Ayarları:</b> Uçuş emniyeti ve kenar kapsamasını artırmak için sınır tamponu (buffer) belirleyin veya sahayı ızgaraya/dikdörtgene genişletme seçeneklerini kullanın.</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <i className="fas fa-file-export text-indigo-600 text-xs mt-1 shrink-0"></i>
@@ -58,8 +58,8 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                 </div>
               </div>
 
-              {/* Yer Kontrol Noktası (YKN) Planlama */}
-              <div className="soft-card p-5 space-y-3 border-l-4 border-l-indigo-600">
+              {/* 2. Yer Kontrol Noktası (YKN) Planlama */}
+              <div className="soft-card p-5 space-y-3">
                 <h4 className="font-black text-slate-900 text-base uppercase flex items-center gap-2">
                   <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold">2</span>
                   Yer Kontrol Noktası (YKN) Planlama
@@ -89,43 +89,59 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                 </div>
               </div>
 
-              {/* Hazır Şablonlar & KML Plus */}
-              <div className="soft-card p-5 space-y-3 border-l-4 border-l-indigo-600">
+              {/* 3. Kontrol Uçuşu Planlama */}
+              <div className="soft-card p-5 space-y-3">
                 <h4 className="font-black text-slate-900 text-base uppercase flex items-center gap-2">
                   <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                  Hazır Şablonlar & KML Plus
+                  Kontrol Uçuşu Planlama
                 </h4>
                 <div className="text-slate-700 text-sm leading-relaxed font-medium text-justify space-y-2.5">
                   <p>
-                    Saha süreçlerinizi hızlandırmak için gelişmiş yardımcı araçlardan yararlanın:
+                    Harita üretim denetimi ve kalite güvence süreçleri için örneklem bazlı kontrol uçuşları kurgulayın:
                   </p>
                   <ul className="space-y-2">
                     <li className="flex items-start gap-2">
-                      <i className="fas fa-bookmark text-indigo-600 text-xs mt-1 shrink-0"></i>
-                      <span><b>Preset Şablonlar:</b> Sık kullandığınız kamera, yükseklik ve bindirme kombinasyonlarını kaydedip sonraki projelerinizde tek tıkla yükleyin.</span>
+                      <i className="fas fa-percentage text-indigo-600 text-xs mt-1 shrink-0"></i>
+                      <span><b>Örneklem Yüzdesi Belirleme:</b> Ana sahanın %1 ile %100 arasında hedeflenen kontrol oranını seçin; algoritma gerekli şerit veya spot adedini otomatik hesaplasın.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <i className="fas fa-external-link-alt text-indigo-600 text-xs mt-1 shrink-0"></i>
-                      <span><b>KML Plus Entegrasyonu:</b> <b>ACB Maps</b> yapısı altındaki KML Plus uygulamasını kullanarak hızlıca poligon ve çizgi poligonları oluşturup aktarabilirsiniz.</span>
+                      <i className="fas fa-shapes text-indigo-600 text-xs mt-1 shrink-0"></i>
+                      <span><b>3 Farklı Kontrol Rotası Modeli:</b> Sahanın yapısına göre <b>"Grid Alan"</b> (homojen spot gridler), <b>"Şeritvari Z"</b> (paralel ve çapraz hatlar) veya <b>"Şeritvari L"</b> (90° dik açılı 2 kollu koridor) modellerinden birini seçin.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <i className="fas fa-sync-alt text-indigo-600 text-xs mt-1 shrink-0"></i>
+                      <span><b>Canlı Döndürme & Taşıma:</b> Harita üzerindeki alet çubuğuyla şeritlerin açısını tekil veya toplu olarak anlık döndürebilir, şerit merkezlerini haritada serbestçe sürükleyebilirsiniz.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <i className="fas fa-file-pdf text-indigo-600 text-xs mt-1 shrink-0"></i>
+                      <span><b>Raporlama & KML Aktarımı:</b> Planlanan kontrol uçuşunu tüm detaylarıyla KML formatında indirebilir veya resmi teknik özet içeren <b>PDF Raporu</b> alabilirsiniz.</span>
                     </li>
                   </ul>
                 </div>
               </div>
-            </div>
-          </section>
 
-          {/* Veri Güvenliği */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-                <i className="fas fa-shield-alt"></i>
+              {/* 4. Hazır YKN Şablonları */}
+              <div className="soft-card p-5 space-y-3">
+                <h4 className="font-black text-slate-900 text-base uppercase flex items-center gap-2">
+                  <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                  Hazır YKN Şablonları
+                </h4>
+                <div className="text-slate-700 text-sm leading-relaxed font-medium text-justify space-y-2.5">
+                  <p>
+                    Arazide fotogrametrik nirengi noktalarının hassas tespiti için yer hedef levhası şablonları oluşturun:
+                  </p>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <i className="fas fa-shapes text-indigo-600 text-xs mt-1 shrink-0"></i>
+                      <span><b>Hedef Tipleri:</b> Standart <b>Artı (+)</b>, kontrastlı <b>Dama (Checkerboard)</b> ve <b>Kelebek (Bowtie)</b> YKN hedef desenleri arasından seçim yapın.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <i className="fas fa-print text-indigo-600 text-xs mt-1 shrink-0"></i>
+                      <span><b>Baskıya Hazır PDF & SVG:</b> A4 veya A3 kağıt boyutlarında, milimetrik hassasiyette vektörel çıktılar alın veya doğrudan cihazınıza indirin.</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
-              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Veri Güvenliği</h3>
-            </div>
-            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6">
-              <p className="text-emerald-900 text-sm leading-relaxed font-medium text-justify">
-                Mobil cihazınızdan uygulamayı sildiğinizde veya tarayıcı önbelliğini temizlediğinizde cihazınızdaki veriler de silinecektir. Planlama sonrası verilerinizi yedeklemeyi unutmayın.
-              </p>
             </div>
           </section>
 
@@ -145,7 +161,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                   Grid (Alan) Fotogrametri Algoritması
                 </h4>
                 <p className="text-slate-700 text-sm leading-relaxed font-medium text-justify">
-                  Geniş alanların haritalanması için fotogrametrik kurallarla hesaplama yapılır. Seçilen uçuş yüksekliği (H), fokal uzunluk (f) ve sensör boyutuna bağlı olarak Yer Örnekleme Aralığı (GSD) tespit edilir. Belirlenen enine ve boyuna bindirme oranlarına göre hat aralıkları ve fotoğraf tetikleme mesafeleri matematiksel olarak türetilir. Rota açısı ve emniyet tamponu uygulanarak optimum zigzag uçuş çizgileri oluşturulur.
+                  Geniş alanların haritalanması için fotogrametrik kurallarla hesaplama yapılır. Seçilen uçuş yüksekliği (H), fokal uzunluk (f) ve sensör boyutuna bağlı olarak Yer Örnekleme Aralığı (GSD) anlık tespit edilir. Sahanın tam kapsanması için sınır tamponu (buffer) veya ızgaraya/dikdörtgene genişletme algoritmaları uygulanarak uçuş sahası ve nirengi dağılım sınırları oluşturulur.
                 </p>
               </div>
 
@@ -186,6 +202,38 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                   </ul>
                 </div>
               </div>
+
+              {/* 5. Kontrol Uçuşu Algoritması & Modelleri */}
+              <div className="space-y-2">
+                <h4 className="font-black text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-5 h-5 bg-orange-100 text-orange-600 rounded flex items-center justify-center text-[10px] font-bold">5</span>
+                  Kontrol Uçuşu ve Homojen Örneklem Algoritması
+                </h4>
+                <div className="text-slate-700 text-sm leading-relaxed font-medium text-justify space-y-3">
+                  <p>Fotogrametri üretimlerinin doğruluk kontrolü için 3 temel rota modeli ile dinamik örneklem dağıtımı gerçekleştirilir:</p>
+                  <ul className="list-disc ml-4 space-y-2">
+                    <li><b>Hedef Örneklem Hesabı:</b> Seçilen örneklem yüzdesi (%1-%100) ve şerit/grid parametrelerine göre sahadaki toplam kontrol alanı matematiksel olarak hesaplanır ve gerekli spot adedi üretilir.</li>
+                    <li><b>Model Çeşitliliği (Grid, Z ve L):</b> Homojen kare grid alanları, paralel ve çapraz çift yönlü 'Z' hatları veya 90° dik açılı ortogonal 'L' koridorları oluşturulur.</li>
+                    <li><b>Kuzey Öncelikli Coğrafi Sıralama:</b> Oluşturulan tüm kontrol alanları sahada en kuzeydeki noktadan başlayarak güneye ve batıdan doğuya doğru düzenli bir okuma sırasıyla (1, 2, 3...) numaralandırılır.</li>
+                    <li><b>Dinamik Geometrik Transformasyon:</b> Kontrol şeritleri ve yer kontrol noktaları harita üzerinde serbestçe döndürülebilir ve taşınabilir.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Veri Güvenliği */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                <i className="fas fa-shield-alt"></i>
+              </div>
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Veri Güvenliği</h3>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6">
+              <p className="text-emerald-900 text-sm leading-relaxed font-medium text-justify">
+                Mobil cihazınızdan uygulamayı sildiğinizde veya tarayıcı önbelleğini temizlediğinizde cihazınızdaki veriler de silinecektir. Planlama sonrası verilerinizi yedeklemeyi unutmayın.
+              </p>
             </div>
           </section>
 

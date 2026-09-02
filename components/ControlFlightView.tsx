@@ -327,31 +327,31 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             3. Kontrol Rotası Modeli
           </label>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-3 gap-2 md:gap-2.5">
             {/* Grid Alan Seçeneği */}
             <button
               type="button"
               onClick={() => setRouteType('Grid')}
-              className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
+              className={`p-2.5 sm:p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
                 routeType === 'Grid'
                   ? 'bg-blue-50/80 border-blue-600 shadow-md'
                   : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${
+                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
                   routeType === 'Grid' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
                 }`}>
                   <i className="fas fa-th-large"></i>
                 </div>
                 {routeType === 'Grid' && (
-                  <i className="fas fa-check-circle text-blue-600 text-sm"></i>
+                  <i className="fas fa-check-circle text-blue-600 text-xs sm:text-sm"></i>
                 )}
               </div>
               <div>
-                <p className="font-black text-slate-900 text-xs uppercase">Grid Kare Alan</p>
-                <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                  Köşeler ve merkezde homojen spot gridler
+                <p className="font-black text-slate-900 text-[11px] sm:text-xs uppercase tracking-tight">Grid Alan</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                  Köşeler ve merkezde spot gridler
                 </p>
               </div>
             </button>
@@ -360,26 +360,26 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             <button
               type="button"
               onClick={() => setRouteType('StripCross')}
-              className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
+              className={`p-2.5 sm:p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
                 routeType === 'StripCross'
                   ? 'bg-blue-50/80 border-blue-600 shadow-md'
                   : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${
+                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
                   routeType === 'StripCross' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
                 }`}>
                   <i className="fas fa-bolt"></i>
                 </div>
                 {routeType === 'StripCross' && (
-                  <i className="fas fa-check-circle text-blue-600 text-sm"></i>
+                  <i className="fas fa-check-circle text-blue-600 text-xs sm:text-sm"></i>
                 )}
               </div>
               <div>
-                <p className="font-black text-slate-900 text-xs uppercase">Şeritvari Z</p>
-                <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                  2 Paralel hat ve 45° açılı çapraz 'Z' rotası
+                <p className="font-black text-slate-900 text-[11px] sm:text-xs uppercase tracking-tight">Şeritvari Z</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                  2 Paralel hat ve çapraz 'Z' rotası
                 </p>
               </div>
             </button>
@@ -388,26 +388,26 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             <button
               type="button"
               onClick={() => setRouteType('StripL')}
-              className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
+              className={`p-2.5 sm:p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
                 routeType === 'StripL'
                   ? 'bg-blue-50/80 border-blue-600 shadow-md'
                   : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${
+                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
                   routeType === 'StripL' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
                 }`}>
                   <i className="fas fa-ruler-combined"></i>
                 </div>
                 {routeType === 'StripL' && (
-                  <i className="fas fa-check-circle text-blue-600 text-sm"></i>
+                  <i className="fas fa-check-circle text-blue-600 text-xs sm:text-sm"></i>
                 )}
               </div>
               <div>
-                <p className="font-black text-slate-900 text-xs uppercase">Şeritvari L</p>
-                <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                  90° dik açılı 2 kollu 'L' koridor rotası
+                <p className="font-black text-slate-900 text-[11px] sm:text-xs uppercase tracking-tight">Şeritvari L</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                  90° dik açılı 'L' koridor rotası
                 </p>
               </div>
             </button>
