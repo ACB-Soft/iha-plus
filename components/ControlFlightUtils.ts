@@ -64,7 +64,7 @@ export interface ControlGCP {
   spotId?: string;
 }
 
-export type ControlFlightRouteType = 'Grid' | 'StripCross' | 'StripL';
+export type ControlFlightRouteType = 'Grid' | 'StripCross' | 'StripLinear' | 'StripL';
 
 export interface ControlFlightResult {
   projectName: string;
@@ -304,6 +304,29 @@ function generateZPatternFlightLines(
     [rawZPoints[0], rawZPoints[1]],
     [rawZPoints[1], rawZPoints[2]],
     [rawZPoints[2], rawZPoints[3]]
+  ];
+
+  let totalLength = 0;
+  candidateSegments.forEach(seg => {
+    const d = turf.distance([seg[0].lng, seg[0].lat], [seg[1].lng, seg[1].lat], { units: 'kilometers' }) * 1000;
+    totalLength += d;
+  });
+
+  return { flightLines: candidateSegments, totalLength };
+}
+
+/**
+ * Generates single straight flight line (P1 -> P2)
+ */
+function generateStraightFlightLines(
+  rawPoints: Point[]
+): { flightLines: Point[][]; totalLength: number } {
+  if (rawPoints.length < 2) {
+    return { flightLines: [], totalLength: 0 };
+  }
+
+  const candidateSegments: Point[][] = [
+    [rawPoints[0], rawPoints[1]]
   ];
 
   let totalLength = 0;
@@ -750,54 +773,50 @@ export function calculateControlFlightPlan(params: {
       }
     });
 
-  } else if (routeType === 'StripL') {
+  } else if (routeType === 'StripLinear' || (routeType as any) === 'StripL') {
     // -------------------------------------------------------------------------
-    // ŞERİTVARİ 'L' MODELİ KONTROL DAĞITIM ALGORİTMASI:
-    // Toplam L Hat Uzunluğu (zStripLength, örn: 1000m -> 500m dik + 500m yatay)
-    // ve Şerit Genişliği (stripBuffer * 2) ile 1 adet L-şeridinin alanı hesaplanır.
-    // Otomatik Şerit Sayısı = Hedef Kontrol Alanı / Tek L Alanı
+    // DÜZ ŞERİT MODELİ KONTROL DAĞITIM ALGORİTMASI:
+    // Toplam Şerit Hat Uzunluğu (zStripLength, örn: 1000m)
+    // ve Şerit Genişliği (stripBuffer * 2) ile 1 adet düz şeridin alanı hesaplanır.
+    // Otomatik Şerit Sayısı = Hedef Kontrol Alanı / Tek Düz Şerit Alanı
     // -------------------------------------------------------------------------
-    const singleLEstimatedAreaM2 = Math.max(100, zStripLength * (stripBuffer * 2));
-    const calculatedSpotCount = (singleLEstimatedAreaM2 > 0 && targetControlAreaM2 > 0)
-      ? Math.max(1, Math.ceil(targetControlAreaM2 / singleLEstimatedAreaM2))
+    const singleLinearEstimatedAreaM2 = Math.max(100, zStripLength * (stripBuffer * 2));
+    const calculatedSpotCount = (singleLinearEstimatedAreaM2 > 0 && targetControlAreaM2 > 0)
+      ? Math.max(1, Math.ceil(targetControlAreaM2 / singleLinearEstimatedAreaM2))
       : 1;
 
-    // Sahada homojen dağıtılmış L-merkez noktaları belirle
-    const lCenters = distributeHomogeneousCenters(
+    // Sahada homojen dağıtılmış merkez noktaları belirle
+    const linearCenters = distributeHomogeneousCenters(
       turfPoly,
       originalBoundary,
       calculatedSpotCount,
       stripBuffer * 4
     );
 
-    // L hat uzunluğu 2 eşit kola ayrılır (Her kol = zStripLength / 2)
-    // Merkezden uç ve köşelere yarıçap ofseti = zStripLength / 4
-    const halfArmMeters = Math.max(30, zStripLength / 4);
+    // Düz hat uzunluğu: Merkezden iki uca eşit yarıçap (Her kol = zStripLength / 2)
+    const halfLenMeters = Math.max(25, zStripLength / 2);
 
-    lCenters.forEach((center, idx) => {
-      const spotId = `l-strip-${idx + 1}`;
-      const spotName = `L-Kontrol Şeridi ${idx + 1}`;
+    linearCenters.forEach((center, idx) => {
+      const spotId = `linear-strip-${idx + 1}`;
+      const spotName = `Düz Kontrol Şeridi ${idx + 1}`;
 
-      const { latDeg: dLat } = metersToDegrees(halfArmMeters, center.lat);
-      const { lngDeg: dLng } = metersToDegrees(halfArmMeters, center.lat);
+      const { lngDeg: dLng } = metersToDegrees(halfLenMeters, center.lat);
 
-      // L'nin 3 köşe noktası (P1 -> P2 -> P3)
-      // P1: Üst-Sol (Dikey kol tepesi), P2: Alt-Sol (90° dik köşe), P3: Alt-Sağ (Yatay kol ucu)
-      const baseLPoints: Point[] = [
-        { lat: center.lat + dLat, lng: center.lng - dLng }, // P1
-        { lat: center.lat - dLat, lng: center.lng - dLng }, // P2 (90° Köşe)
-        { lat: center.lat - dLat, lng: center.lng + dLng }  // P3
+      // Başlangıçta yatay eksende (Batı -> Doğu) düz tek doğrusal hat: P1 -> P2
+      const basePoints: Point[] = [
+        { lat: center.lat, lng: center.lng - dLng }, // P1: Batı ucu
+        { lat: center.lat, lng: center.lng + dLng }  // P2: Doğu ucu
       ];
 
-      const rawLPoints = initialRotationAngle !== 0
-        ? rotatePointsAroundCenter(baseLPoints, center, initialRotationAngle)
-        : baseLPoints;
+      const rawPoints = initialRotationAngle !== 0
+        ? rotatePointsAroundCenter(basePoints, center, initialRotationAngle)
+        : basePoints;
 
-      // Koridor poligonu
-      const boundary: Point[] = expandLineToPolygon(rawLPoints, stripBuffer);
+      // Koridor poligonu (şeridin her iki yanına stripBuffer tamponu)
+      const boundary: Point[] = expandLineToPolygon(rawPoints, stripBuffer);
 
-      // L-Şeklinde Hatlar (2 dik kol)
-      const { flightLines, totalLength } = generateLPatternFlightLines(rawLPoints);
+      // Doğrusal tek hat (P1 -> P2)
+      const { flightLines, totalLength } = generateStraightFlightLines(rawPoints);
       const spotArea = calculateAreaM2(boundary);
 
       spots.push({
@@ -813,7 +832,7 @@ export function calculateControlFlightPlan(params: {
       totalControlArea += spotArea;
       totalFlightDistance += totalLength;
 
-      // Yer Kontrol Noktaları (L-şeklinin köşesi, uçları ve merkez)
+      // Yer Kontrol Noktaları (Uçlar ve Merkez: Başlangıç, Merkez, Bitiş)
       if (isGcpEnabled) {
         if (gcpPlacementType === 'center') {
           gcps.push({
@@ -826,12 +845,11 @@ export function calculateControlFlightPlan(params: {
           });
           gcpCounter++;
         } else {
-          // L'nin 3 köşe/uç noktası + 1 merkez noktası
+          // Uçlar ve Merkez: Merkez, P1 (Başlangıç), P2 (Bitiş)
           const cornerCandidates: Point[] = [
             { lat: center.lat, lng: center.lng }, // Merkez
-            rawLPoints[0], // P1
-            rawLPoints[1], // P2 (Köşe)
-            rawLPoints[2]  // P3
+            rawPoints[0], // P1 (Başlangıç)
+            rawPoints[1]  // P2 (Bitiş)
           ];
 
           cornerCandidates.forEach((cand) => {

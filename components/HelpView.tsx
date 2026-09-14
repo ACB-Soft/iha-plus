@@ -106,7 +106,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                     </li>
                     <li className="flex items-start gap-2">
                       <i className="fas fa-shapes text-indigo-600 text-xs mt-1 shrink-0"></i>
-                      <span><b>3 Farklı Kontrol Rotası Modeli:</b> Sahanın yapısına göre <b>"Grid Alan"</b> (homojen spot gridler), <b>"Şeritvari Z"</b> (paralel ve çapraz hatlar) veya <b>"Şeritvari L"</b> (90° dik açılı 2 kollu koridor) modellerinden birini seçin.</span>
+                      <span><b>3 Farklı Kontrol Rotası Modeli:</b> Sahanın yapısına göre <b>"Grid Alan"</b> (homojen spot gridler), <b>"Şeritvari Z"</b> (paralel ve çapraz hatlar) veya <b>"Düz Şerit"</b> (doğrusal tek hatlı koridor) modellerinden birini seçin.</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <i className="fas fa-sync-alt text-indigo-600 text-xs mt-1 shrink-0"></i>
@@ -213,7 +213,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
                   <p>Fotogrametri üretimlerinin doğruluk kontrolü için 3 temel rota modeli ile dinamik örneklem dağıtımı gerçekleştirilir:</p>
                   <ul className="list-disc ml-4 space-y-2">
                     <li><b>Hedef Örneklem Hesabı:</b> Seçilen örneklem yüzdesi (%1-%100) ve şerit/grid parametrelerine göre sahadaki toplam kontrol alanı matematiksel olarak hesaplanır ve gerekli spot adedi üretilir.</li>
-                    <li><b>Model Çeşitliliği (Grid, Z ve L):</b> Homojen kare grid alanları, paralel ve çapraz çift yönlü 'Z' hatları veya 90° dik açılı ortogonal 'L' koridorları oluşturulur.</li>
+                    <li><b>Model Çeşitliliği (Grid, Z ve Düz Şerit):</b> Homojen kare grid alanları, paralel ve çapraz çift yönlü 'Z' hatları veya doğrusal tek hatlı 'Düz Şerit' koridorları oluşturulur.</li>
                     <li><b>Kuzey Öncelikli Coğrafi Sıralama:</b> Oluşturulan tüm kontrol alanları sahada en kuzeydeki noktadan başlayarak güneye ve batıdan doğuya doğru düzenli bir okuma sırasıyla (1, 2, 3...) numaralandırılır.</li>
                     <li><b>Dinamik Geometrik Transformasyon:</b> Kontrol şeritleri ve yer kontrol noktaları harita üzerinde serbestçe döndürülebilir ve taşınabilir.</li>
                   </ul>

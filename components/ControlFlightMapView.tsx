@@ -366,8 +366,8 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
 
       {/* Main Map Viewport */}
       <div className="flex-1 relative z-10">
-        {/* Şerit Döndürme Birleşik Alet Çubuğu (Z ve L desenleri için açılır/kapanır) */}
-        {(result.routeType === 'StripCross' || result.routeType === 'StripL') && (
+        {/* Şerit Döndürme Birleşik Alet Çubuğu (Z ve Düz Şerit desenleri için açılır/kapanır) */}
+        {(result.routeType === 'StripCross' || result.routeType === 'StripLinear' || result.routeType === 'StripL') && (
           <div className="absolute top-4 left-4 z-[500] animate-in fade-in duration-150">
             {!isRotationOpen ? (
               <button
@@ -375,7 +375,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                 id="control-flight-rotate-toggle-btn"
                 onClick={() => setIsRotationOpen(true)}
                 className="w-10 h-10 bg-slate-200/95 hover:bg-slate-300 border border-slate-300 rounded-2xl shadow-xl backdrop-blur-md flex items-center justify-center text-blue-600 transition-all active:scale-95 group"
-                title={`${result.routeType === 'StripL' ? 'L' : 'Z'} Deseni Döndürme Panelini Aç`}
+                title={`${result.routeType === 'StripCross' ? 'Z' : 'Düz'} Şerit Döndürme Panelini Aç`}
               >
                 <i className="fas fa-sync-alt text-sm group-hover:rotate-45 transition-transform"></i>
               </button>
@@ -532,8 +532,8 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
             );
           })}
 
-          {/* 2.2 Kontrol Uçuş Hatları (Sadece StripCross 'Z' ve StripL 'L' modunda göster, GridSpot modunda gizle) */}
-          {(result.routeType === 'StripCross' || result.routeType === 'StripL') && spots.map((spot) =>
+          {/* 2.2 Kontrol Uçuş Hatları (Sadece StripCross 'Z', StripLinear 'Düz Şerit' ve StripL modunda göster, GridSpot modunda gizle) */}
+          {(result.routeType === 'StripCross' || result.routeType === 'StripLinear' || result.routeType === 'StripL') && spots.map((spot) =>
             spot.flightLines.map((line, lIdx) => (
               <Polyline
                 key={`${spot.id}-line-${lIdx}`}
