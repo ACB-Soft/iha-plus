@@ -34,6 +34,7 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
     message: string;
     type: 'info' | 'error' | 'success' | 'confirm';
     onConfirm?: () => void;
+    confirmLabel?: string;
   }>({
     isOpen: false,
     title: '',
@@ -63,32 +64,70 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
     setIsCheckingUpdate(true);
     
     try {
-      // Cache-busting query parameter to ensure we get the latest version from the server
-      const response = await fetch(`${import.meta.env.BASE_URL}version.json?t=${Date.now()}`);
+      // 1. Force service worker update check if possible
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.update().catch(console.error);
+        }
+      }
+
+      // 2. Fetch the latest index.html to compare assets hash
+      const response = await fetch(`${import.meta.env.BASE_URL}index.html?t=${Date.now()}`);
       if (!response.ok) throw new Error('Sunucuya erişilemedi');
       
-      const data = await response.json();
-      const serverVersion = data.version;
+      const htmlText = await response.text();
+      const matchNew = htmlText.match(/assets\/index-([^"']+)\.js/);
+      const newHash = matchNew ? matchNew[1] : null;
+
+      let currentHash: string | null = null;
+      const scripts = document.querySelectorAll('script');
+      scripts.forEach(s => {
+        const match = s.src.match(/assets\/index-([^"']+)\.js/);
+        if (match) currentHash = match[1];
+      });
+
+      let isUpdateAvailable = false;
+      let versionInfo = '';
+
+      if (newHash && currentHash) {
+        if (newHash !== currentHash) {
+          isUpdateAvailable = true;
+        }
+      } else {
+        // Fallback to version.json for dev mode or if script tag differs
+        const vResponse = await fetch(`${import.meta.env.BASE_URL}version.json?t=${Date.now()}`);
+        if (vResponse.ok) {
+          const vData = await vResponse.json();
+          if (vData.version !== APP_VERSION) {
+            isUpdateAvailable = true;
+            versionInfo = ` (${vData.version})`;
+          }
+        }
+      }
       
-      // Simüle edilmiş bir ağ gecikmesi (kullanıcıya işlemin yapıldığını hissettirmek için)
+      // Simüle edilmiş bir ağ gecikmesi
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       setIsCheckingUpdate(false);
       
-      if (serverVersion !== APP_VERSION) {
+      if (isUpdateAvailable) {
         setModal({
           isOpen: true,
           title: 'Yeni Sürüm Mevcut',
-          message: `Yeni bir sürüm mevcut (${serverVersion}).\n\nMevcut Sürüm: ${APP_VERSION}\n\nSayfayı yenileyerek güncellemek ister misiniz?`,
+          message: `Uygulamanın yeni bir sürümü yayınlanmış${versionInfo}.\n\nGüncellemek için sayfanın yenilenmesi gerekiyor. Onaylıyor musunuz?`,
           type: 'confirm',
+          confirmLabel: 'Yenile',
           onConfirm: () => window.location.reload()
         });
       } else {
         setModal({
           isOpen: true,
           title: 'Uygulama Güncel',
-          message: `Güncelleştirmeler denetlendi.\n\nMevcut Sürüm: ${APP_VERSION}\nDurum: Uygulamanız güncel.`,
-          type: 'success'
+          message: `Güncelleştirmeler denetlendi.\n\nMevcut Sürüm: ${APP_VERSION}\nDurum: Uygulamanız şu an güncel.\n\n(Yine de senkronizasyon sorunu yaşıyorsanız sayfayı manuel olarak yenileyebilirsiniz.)`,
+          type: 'confirm',
+          confirmLabel: 'Yine de Yenile',
+          onConfirm: () => window.location.reload()
         });
       }
     } catch (error) {
@@ -96,9 +135,11 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
       setIsCheckingUpdate(false);
       setModal({
         isOpen: true,
-        title: 'Hata Oluştu',
-        message: 'Güncelleştirme denetimi sırasında bir hata oluştu. Lütfen internet bağlantınızı kontrol edin.',
-        type: 'error'
+        title: 'Bağlantı Hatası',
+        message: 'Güncelleştirme denetimi sırasında bir hata oluştu. Lütfen internet bağlantınızı kontrol edip tekrar deneyin veya sayfayı yenileyin.',
+        type: 'confirm',
+        confirmLabel: 'Yenile',
+        onConfirm: () => window.location.reload()
       });
     }
   };
@@ -111,7 +152,7 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
         title={modal.title}
         type={modal.type}
         onConfirm={modal.onConfirm}
-        confirmLabel={modal.type === 'confirm' ? 'Güncelle' : undefined}
+        confirmLabel={modal.confirmLabel || (modal.type === 'confirm' ? 'Güncelle' : undefined)}
       >
         <p className="whitespace-pre-line">{modal.message}</p>
       </Modal>
