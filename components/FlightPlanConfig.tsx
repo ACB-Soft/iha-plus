@@ -219,7 +219,8 @@ const FlightPlanConfig: React.FC<Props> = ({
         onBack={onBack} 
       />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="max-w-xl mx-auto w-full space-y-6">
         {/* 1. Tahdit Dosyası */}
         <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">1. Tahdit Dosyası</label>
@@ -772,6 +773,7 @@ const FlightPlanConfig: React.FC<Props> = ({
             <span>PLANLAMA EKRANINA GEÇ</span>
             <i className="fas fa-arrow-right"></i>
           </button>
+        </div>
         </div>
       </div>
 

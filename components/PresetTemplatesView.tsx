@@ -212,7 +212,7 @@ const PresetTemplatesView: React.FC<Props> = ({ onBack }) => {
       <Header title="Hazır YKN Şablonları" onBack={onBack} />
 
       <div className="flex-1 px-4 overflow-y-auto no-scrollbar py-6">
-        <div className="max-w-lg mx-auto w-full space-y-6 pb-6">
+        <div className="max-w-lg lg:max-w-xl mx-auto w-full space-y-6 pb-6">
 
           {/* Template Selection Gallery */}
           <section className="space-y-3">

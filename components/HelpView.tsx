@@ -12,7 +12,7 @@ const HelpView: React.FC<Props> = ({ onBack }) => {
       <Header title="Yardım & Hakkında" onBack={onBack} />
 
       <div className="flex-1 px-8 overflow-y-auto no-scrollbar py-4">
-        <div className="max-w-sm mx-auto w-full space-y-10">
+        <div className="max-w-sm md:max-w-md lg:max-w-xl mx-auto w-full space-y-10">
           {/* Kullanım Kılavuzu */}
           <section className="space-y-4">
             <div className="flex items-center gap-3">

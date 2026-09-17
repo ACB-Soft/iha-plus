@@ -39,9 +39,18 @@
     @apply h-full w-full max-w-[540px] bg-slate-400 flex flex-col overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.07)];
   }
 
+  /* Tablet Cihazlar (768px - 1023px): Mevcut çerçeve sınırlamaları (max-w-[540px]) aynen devam eder */
   @media (min-width: 768px) {
     #root {
       @apply h-[94%] rounded-[3rem] border-[10px] border-slate-50;
+      max-width: 540px;
+    }
+  }
+
+  /* Masaüstü Cihazlar (1024px ve üzeri): Eski sınırlama (540px) ile önceki genişletme arasındaki dengeli ara değer */
+  @media (min-width: 1024px) {
+    #root {
+      max-width: 740px;
     }
   }
 }

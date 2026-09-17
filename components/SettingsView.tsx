@@ -118,7 +118,7 @@ const SettingsView: React.FC<Props> = ({ onBack }) => {
       <Header title="Ayarlar" onBack={onBack} />
 
       <div className="flex-1 px-8 overflow-y-auto no-scrollbar py-4">
-        <div className="max-w-sm mx-auto w-full space-y-6">
+        <div className="max-w-sm md:max-w-md lg:max-w-xl mx-auto w-full space-y-6">
           {/* Sistem Ayarları */}
           <section className="space-y-3">
             <div className="flex items-center gap-3">

@@ -78,7 +78,7 @@ const Dashboard: React.FC<Props> = ({ onSelectFlightType, onShowHelp, onShowSett
         </div>
       </header>
 
-      <main className="w-full max-w-sm md:max-w-md mx-auto flex flex-col space-y-2.5">
+      <main className="w-full max-w-sm md:max-w-md lg:max-w-lg mx-auto flex flex-col space-y-2.5">
         {/* Normal Alan Haritalama */}
         <button 
           onClick={() => onSelectFlightType('Normal')}

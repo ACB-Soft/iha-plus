@@ -191,7 +191,8 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
     <div className="w-full h-full flex flex-col bg-slate-200 overflow-hidden animate-in fade-in">
       <Header title="Kontrol Uçuşu" onBack={onBack} />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="max-w-xl mx-auto w-full space-y-6">
         {/* 1. Uçuş Alanı KML Yükleme */}
         <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
@@ -848,6 +849,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             <span>KONTROL UÇUŞUNU PLANLA</span>
             <i className="fas fa-arrow-right"></i>
           </button>
+        </div>
         </div>
       </div>
 
