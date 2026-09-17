@@ -489,7 +489,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                   {routeType === 'StripLinear' || routeType === 'StripL' ? 'Düz Şerit Uzunluğu (Uçuş Hattı Boyu)' : 'Z-Şerit Uzunluğu (Toplam Uçuş Hattı)'}
                 </span>
                 <div className="grid grid-cols-4 gap-2">
-                  {[500, 1000, 2500, 5000].map(val => (
+                  {[100, 500, 1000, 2500].map(val => (
                     <button
                       key={val}
                       type="button"
@@ -508,7 +508,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                 <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                   <button 
                     type="button"
-                    onClick={() => setZStripLength(p => Math.max(200, p - 100))} 
+                    onClick={() => setZStripLength(p => Math.max(100, p - 100))} 
                     className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-minus text-xs"></i>

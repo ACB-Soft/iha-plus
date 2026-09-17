@@ -899,7 +899,7 @@ export function calculateControlFlightPlan(params: {
     // Z hat uzunluğunu 3 segmente dağıt: Üst Hat (W), Alt Hat (W), Çapraz 45° Hat (W * sqrt(2))
     // Toplam Uzunluk = W + W + W*sqrt(2) = W * (2 + sqrt(2)) => W = zStripLength / 3.4142
     // Merkezden yarıçap dLngMeters = dLatMeters = W / 2 = zStripLength / 6.8284
-    const zRadiusMeters = Math.max(50, zStripLength / (2 * (2 + Math.SQRT2)));
+    const zRadiusMeters = Math.max(10, zStripLength / (2 * (2 + Math.SQRT2)));
 
     zCenters.forEach((center, idx) => {
       const spotId = `z-strip-${idx + 1}`;
