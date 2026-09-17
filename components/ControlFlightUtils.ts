@@ -1192,3 +1192,144 @@ export function generateControlGCPTXT(gcps: ControlGCP[]): string {
   });
   return txt;
 }
+
+export interface ControlFlightBackupConfig {
+  samplePercentage: number;
+  routeType: ControlFlightRouteType;
+  gridEdgeLength: number;
+  stripBuffer: number;
+  zStripLength: number;
+  isGcpEnabled: boolean;
+  gcpPlacementType: 'center' | 'corners_center' | 'interval';
+  gcpStartNumber: number;
+  isCameraStepEnabled: boolean;
+  selectedCameraName?: string;
+  customCamName?: string;
+  customSensorWidth?: number;
+  customFocalLength?: number;
+  customImageWidth?: number;
+  height: number;
+}
+
+export interface ControlFlightBackup {
+  format: 'ihaplus_control_flight_backup';
+  version: 1;
+  savedAt: string;
+  projectName: string;
+  config: ControlFlightBackupConfig;
+  kmlData: KMLData | null;
+  result: ControlFlightResult;
+}
+
+const CONTROL_FLIGHT_DRAFT_KEY = 'ihaplus_control_flight_draft';
+
+/**
+ * Downloads a complete control flight plan backup as a formatted JSON file.
+ */
+export function downloadControlFlightBackup(backup: ControlFlightBackup, customFilename?: string): void {
+  const jsonStr = JSON.stringify(backup, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  
+  const cleanProjName = (backup.projectName || 'Ucus_Kontrol_Plani')
+    .replace(/\.(kml|kmz|json)$/i, '')
+    .replace(/[^a-zA-Z0-9_\-ığüşöçİĞÜŞÖÇ]/g, '_');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const fileName = customFilename 
+    ? (customFilename.endsWith('.json') ? customFilename : `${customFilename}.json`)
+    : `YEDEK_KONTROL_${cleanProjName}_${dateStr}.json`;
+
+  link.href = url;
+  link.setAttribute('download', fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Parses and validates a JSON backup string into a ControlFlightBackup object.
+ */
+export function parseControlFlightBackup(jsonContent: string): ControlFlightBackup | null {
+  try {
+    const data = JSON.parse(jsonContent);
+    if (!data || typeof data !== 'object') return null;
+
+    // Check if it conforms to our format or contains a valid result structure
+    if (data.format !== 'ihaplus_control_flight_backup' && !data.result) {
+      return null;
+    }
+
+    const res = data.result;
+    if (!res || !Array.isArray(res.spots) || !Array.isArray(res.originalBoundary)) {
+      return null;
+    }
+
+    const backup: ControlFlightBackup = {
+      format: 'ihaplus_control_flight_backup',
+      version: 1,
+      savedAt: data.savedAt || new Date().toISOString(),
+      projectName: data.projectName || res.projectName || 'Yedek_Kontrol_Plani',
+      config: data.config || {
+        samplePercentage: res.samplePercentage || 5,
+        routeType: res.routeType || 'Grid',
+        gridEdgeLength: 250,
+        stripBuffer: 50,
+        zStripLength: 1000,
+        isGcpEnabled: (res.gcps && res.gcps.length > 0) || false,
+        gcpPlacementType: 'center',
+        gcpStartNumber: 1,
+        isCameraStepEnabled: false,
+        height: res.height || 120
+      },
+      kmlData: data.kmlData || null,
+      result: res
+    };
+
+    return backup;
+  } catch (err) {
+    console.error('Failed to parse control flight backup:', err);
+    return null;
+  }
+}
+
+/**
+ * Saves the current control flight plan as an auto-draft to browser local storage.
+ */
+export function saveControlFlightDraft(backup: ControlFlightBackup): boolean {
+  try {
+    const serialized = JSON.stringify(backup);
+    localStorage.setItem(CONTROL_FLIGHT_DRAFT_KEY, serialized);
+    return true;
+  } catch (err) {
+    console.warn('Could not save control flight draft to localStorage:', err);
+    return false;
+  }
+}
+
+/**
+ * Loads the active control flight plan draft from browser local storage if available.
+ */
+export function loadControlFlightDraft(): ControlFlightBackup | null {
+  try {
+    const raw = localStorage.getItem(CONTROL_FLIGHT_DRAFT_KEY);
+    if (!raw) return null;
+    return parseControlFlightBackup(raw);
+  } catch (err) {
+    console.warn('Could not read control flight draft from localStorage:', err);
+    return null;
+  }
+}
+
+/**
+ * Clears the active control flight plan draft from local storage.
+ */
+export function clearControlFlightDraft(): void {
+  try {
+    localStorage.removeItem(CONTROL_FLIGHT_DRAFT_KEY);
+  } catch (err) {
+    console.warn('Could not clear control flight draft:', err);
+  }
+}
+

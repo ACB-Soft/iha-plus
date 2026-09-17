@@ -5,7 +5,18 @@ import { Camera, CAMERAS, KMLData } from '../src/types/flight';
 import { parseKMLorKMZ } from './KMLUtils';
 import { AppSettings, DEFAULT_FLIGHT_DEFAULTS } from '../types';
 import DrawBoundaryModal from './DrawBoundaryModal';
-import { calculateControlFlightPlan, ControlFlightResult, extractBoundaryPoints, calculateAreaM2 } from './ControlFlightUtils';
+import {
+  calculateControlFlightPlan,
+  ControlFlightResult,
+  extractBoundaryPoints,
+  calculateAreaM2,
+  ControlFlightBackup,
+  ControlFlightBackupConfig,
+  loadControlFlightDraft,
+  saveControlFlightDraft,
+  clearControlFlightDraft,
+  parseControlFlightBackup
+} from './ControlFlightUtils';
 import ControlFlightMapView from './ControlFlightMapView';
 
 interface Props {
@@ -22,11 +33,17 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
   // Active Plan Result (if created)
   const [planResult, setPlanResult] = useState<ControlFlightResult | null>(null);
 
+  // Local storage saved draft
+  const [savedDraft, setSavedDraft] = useState<ControlFlightBackup | null>(() => {
+    return loadControlFlightDraft();
+  });
+
   // 1. KML Data & Upload States
   const [kmlData, setKmlData] = useState<KMLData | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isDrawModalOpen, setIsDrawModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
 
   // 2. Kontrol Alanı Yüzdesi (%5, %10, %15, %20)
   const [samplePercentage, setSamplePercentage] = useState<number>(5);
@@ -98,6 +115,87 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
         setIsParsing(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
+    }
+  };
+
+  const handleRestoreBackup = (backup: ControlFlightBackup) => {
+    if (!backup || !backup.result) {
+      alert('Geçersiz veya bozuk kontrol uçuşu yedek dosyası.');
+      return;
+    }
+
+    try {
+      // 1. Restore boundary / kmlData
+      if (backup.kmlData) {
+        setKmlData(backup.kmlData);
+      } else if (backup.result.originalBoundary && backup.result.originalBoundary.length > 0) {
+        setKmlData({
+          name: backup.projectName || 'Yedek_Tahdit_Sahasi',
+          features: [{
+            type: 'Polygon',
+            name: backup.projectName || 'Yedek Saha',
+            coordinates: backup.result.originalBoundary
+          }]
+        });
+      }
+
+      // 2. Restore config parameters
+      if (backup.config) {
+        if (backup.config.samplePercentage !== undefined) setSamplePercentage(backup.config.samplePercentage);
+        if (backup.config.routeType !== undefined) setRouteType(backup.config.routeType);
+        if (backup.config.gridEdgeLength !== undefined) setGridEdgeLength(backup.config.gridEdgeLength);
+        if (backup.config.stripBuffer !== undefined) setStripBuffer(backup.config.stripBuffer);
+        if (backup.config.zStripLength !== undefined) setZStripLength(backup.config.zStripLength);
+        if (backup.config.isGcpEnabled !== undefined) setIsGcpEnabled(backup.config.isGcpEnabled);
+        if (backup.config.gcpPlacementType !== undefined) setGcpPlacementType(backup.config.gcpPlacementType);
+        if (backup.config.gcpStartNumber !== undefined) setGcpStartNumber(backup.config.gcpStartNumber);
+        if (backup.config.isCameraStepEnabled !== undefined) setIsCameraStepEnabled(backup.config.isCameraStepEnabled);
+        if (backup.config.height !== undefined) setHeight(backup.config.height);
+
+        if (backup.config.selectedCameraName) {
+          const matched = CAMERAS.find(c => c.name === backup.config.selectedCameraName);
+          if (matched) setSelectedCamera(matched);
+        }
+        if (backup.config.customCamName) setCustomCamName(backup.config.customCamName);
+        if (backup.config.customSensorWidth) setCustomSensorWidth(backup.config.customSensorWidth);
+        if (backup.config.customFocalLength) setCustomFocalLength(backup.config.customFocalLength);
+        if (backup.config.customImageWidth) setCustomImageWidth(backup.config.customImageWidth);
+      }
+
+      // 3. Immediately launch map view with saved spots and gcps
+      setPlanResult(backup.result);
+      saveControlFlightDraft(backup);
+      setSavedDraft(backup);
+    } catch (err) {
+      console.error('Error restoring backup:', err);
+      alert('Yedek yüklenirken bir sorun oluştu.');
+    }
+  };
+
+  const handleBackupFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const text = await file.text();
+        const parsed = parseControlFlightBackup(text);
+        if (!parsed) {
+          alert('HATA: Yüklenen dosya geçerli bir İHA+ Kontrol Uçuşu yedek (.json) dosyası değil.');
+          return;
+        }
+        handleRestoreBackup(parsed);
+      } catch (err) {
+        console.error('Backup load error:', err);
+        alert('HATA: Yedek dosyası okunamadı. Lütfen geçerli bir JSON yedek dosyası seçin.');
+      } finally {
+        if (backupFileInputRef.current) backupFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleClearDraft = () => {
+    if (window.confirm('Kayıtlı plan taslağını silmek istediğinize emin misiniz?')) {
+      clearControlFlightDraft();
+      setSavedDraft(null);
     }
   };
 
@@ -182,6 +280,24 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
     return (
       <ControlFlightMapView
         result={planResult}
+        rawConfig={{
+          samplePercentage,
+          routeType,
+          gridEdgeLength,
+          stripBuffer,
+          zStripLength,
+          isGcpEnabled,
+          gcpPlacementType,
+          gcpStartNumber,
+          isCameraStepEnabled,
+          selectedCameraName: selectedCamera.name,
+          customCamName,
+          customSensorWidth,
+          customFocalLength,
+          customImageWidth,
+          height
+        }}
+        kmlData={kmlData}
         onBack={() => setPlanResult(null)}
       />
     );
@@ -193,6 +309,52 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="max-w-xl mx-auto w-full space-y-6">
+        {/* Kayıtlı Taslak Bildirimi */}
+        {savedDraft && (
+          <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200/90 rounded-[24px] shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-200 shrink-0">
+                <i className="fas fa-history text-lg"></i>
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-slate-900 text-xs uppercase tracking-wider truncate">
+                    Kayıtlı Kontrol Taslağı Mevcut
+                  </span>
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[9px] font-black uppercase">
+                    Taslak
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 truncate font-semibold">
+                  {savedDraft.projectName} • {new Date(savedDraft.savedAt).toLocaleDateString('tr-TR')} {new Date(savedDraft.savedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+                <p className="text-[10px] text-amber-800 font-bold mt-0.5">
+                  %{savedDraft.config?.samplePercentage || savedDraft.result?.samplePercentage} Kontrol • {savedDraft.result?.spots?.length || 0} Şerit/Grid • {savedDraft.result?.gcps?.length || 0} YKN
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-1 sm:pt-0">
+              <button
+                type="button"
+                onClick={() => handleRestoreBackup(savedDraft)}
+                className="flex-1 sm:flex-initial px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+              >
+                <i className="fas fa-play"></i>
+                <span>DEVAM ET</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleClearDraft}
+                className="px-3 py-2.5 bg-slate-200 hover:bg-red-100 hover:text-red-600 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95"
+                title="Taslağı Sil"
+              >
+                <i className="fas fa-trash-alt"></i>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 1. Uçuş Alanı KML Yükleme */}
         <section className="space-y-2">
           <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
@@ -207,33 +369,63 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             className="hidden" 
           />
 
+          <input 
+            type="file" 
+            ref={backupFileInputRef} 
+            onChange={handleBackupFileChange} 
+            accept=".json" 
+            className="hidden" 
+          />
+
           {!kmlData ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* File Upload Option */}
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="p-4 bg-slate-100 border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-[24px] flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.98] group shadow-sm"
-              >
-                <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200 shrink-0 group-hover:scale-105 transition-transform">
-                  <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : 'fa-file-upload'} text-lg`}></i>
+            <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* File Upload Option */}
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-4 bg-slate-100 border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-[24px] flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.98] group shadow-sm"
+                >
+                  <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200 shrink-0 group-hover:scale-105 transition-transform">
+                    <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : 'fa-file-upload'} text-lg`}></i>
+                  </div>
+                  <div className="flex-1 truncate">
+                    <p className="font-black text-slate-900 text-xs uppercase tracking-wider">KML / KMZ Dosyası Yükle</p>
+                    <p className="text-[10px] text-slate-500 font-medium">Uçulmuş veya planlanan saha</p>
+                  </div>
                 </div>
-                <div className="flex-1 truncate">
-                  <p className="font-black text-slate-900 text-xs uppercase tracking-wider">KML / KMZ Dosyası Yükle</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Uçulmuş veya planlanan saha</p>
+
+                {/* Draw on Map Option */}
+                <div 
+                  onClick={() => setIsDrawModalOpen(true)}
+                  className="p-4 bg-emerald-50 border-2 border-dashed border-emerald-300 hover:border-emerald-600 rounded-[24px] flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.98] group shadow-sm"
+                >
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-200 shrink-0 group-hover:scale-105 transition-transform">
+                    <i className="fas fa-draw-polygon text-lg"></i>
+                  </div>
+                  <div className="flex-1 truncate">
+                    <p className="font-black text-slate-900 text-xs uppercase tracking-wider">Harita Üzerinden Çiz</p>
+                    <p className="text-[10px] text-emerald-700 font-semibold">Noktaları tıklayarak alan belirle</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Draw on Map Option */}
+              {/* Restore from Backup JSON option */}
               <div 
-                onClick={() => setIsDrawModalOpen(true)}
-                className="p-4 bg-emerald-50 border-2 border-dashed border-emerald-300 hover:border-emerald-600 rounded-[24px] flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.98] group shadow-sm"
+                onClick={() => backupFileInputRef.current?.click()}
+                className="mt-3 p-3.5 bg-amber-50/80 border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-[24px] flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.98] group shadow-sm"
               >
-                <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-200 shrink-0 group-hover:scale-105 transition-transform">
-                  <i className="fas fa-draw-polygon text-lg"></i>
+                <div className="w-10 h-10 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-md shadow-amber-200 shrink-0 group-hover:scale-105 transition-transform">
+                  <i className="fas fa-file-code text-base"></i>
                 </div>
                 <div className="flex-1 truncate">
-                  <p className="font-black text-slate-900 text-xs uppercase tracking-wider">Harita Üzerinden Çiz</p>
-                  <p className="text-[10px] text-emerald-700 font-semibold">Noktaları tıklayarak alan belirle</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-black text-slate-900 text-xs uppercase tracking-wider">Yedek Dosyası Yükle (.JSON)</p>
+                    <span className="px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded-md text-[9px] font-black uppercase">Devam Et</span>
+                  </div>
+                  <p className="text-[10px] text-amber-800 font-medium">Daha önce indirilmiş kontrol planını aç ve devam et</p>
+                </div>
+                <div className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shrink-0 shadow-sm">
+                  YÜKLE
                 </div>
               </div>
             </div>
@@ -260,6 +452,14 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                   <span>DÜZENLE</span>
                 </button>
                 <button 
+                  onClick={() => backupFileInputRef.current?.click()}
+                  className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
+                  title="Farklı bir .json yedek dosyası yükle"
+                >
+                  <i className="fas fa-file-code"></i>
+                  <span>YEDEK</span>
+                </button>
+                <button 
                   onClick={() => fileInputRef.current?.click()}
                   className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
                 >
@@ -268,7 +468,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                 </button>
                 <button 
                   onClick={() => setKmlData(null)}
-                  className="w-9 h-9 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl flex items-center justify-center text-xs transition-all active:scale-95"
+                  className="w-9 h-9 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl flex items-center justify-center text-xs transition-all active:scale-95 shrink-0"
                   title="Kaldır"
                 >
                   <i className="fas fa-trash-alt"></i>

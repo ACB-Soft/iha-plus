@@ -8,14 +8,19 @@ import {
   ControlFlightResult,
   ControlSpot,
   ControlGCP,
+  ControlFlightBackup,
+  ControlFlightBackupConfig,
   calculateAreaM2,
   generateControlFlightKML,
   generateControlGCPCSV,
   generateControlGCPTXT,
   rotateSpotAroundCenter,
-  rotateGCPsAroundSpotCenter
+  rotateGCPsAroundSpotCenter,
+  downloadControlFlightBackup,
+  saveControlFlightDraft
 } from './ControlFlightUtils';
 import { Point } from './GeometryUtils';
+import { KMLData } from '../src/types/flight';
 import { generateFlightPlanPDF } from '../src/utils/pdfExport';
 import { formatDurationText } from './GeometryUtils';
 
@@ -35,6 +40,8 @@ L.Marker.prototype.options.icon = DefaultIcon;
 interface Props {
   result: ControlFlightResult;
   onBack: () => void;
+  rawConfig?: ControlFlightBackupConfig;
+  kmlData?: KMLData | null;
 }
 
 const FitBounds: React.FC<{ result: ControlFlightResult }> = ({ result }) => {
@@ -123,13 +130,14 @@ const getCleanBaseName = (pName: string) => {
     .trim();
 };
 
-const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
+const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlData }) => {
   const mapProvider = localStorage.getItem('default_map_provider') || 'Google Satellite';
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
-  const [exportType, setExportType] = useState<'flight_plan' | 'ykn_plan' | 'pdf_summary'>('flight_plan');
+  const [exportType, setExportType] = useState<'flight_plan' | 'ykn_plan' | 'backup_json' | 'pdf_summary'>('flight_plan');
   const [exportName, setExportName] = useState(`UCUS_KONTROL_${getCleanBaseName(result.projectName)}`);
   const [yknSubFormat, setYknSubFormat] = useState<'kml' | 'csv' | 'txt'>('kml');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   // Stateful spots & gcps for interactive dragging/repositioning
   const [spots, setSpots] = useState<ControlSpot[]>(result.spots || []);
@@ -137,6 +145,13 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
   const [currentZoom, setCurrentZoom] = useState<number>(15);
   const [selectedSpotId, setSelectedSpotId] = useState<string>('all');
   const [isRotationOpen, setIsRotationOpen] = useState<boolean>(false);
+
+  const showToastNotification = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
 
   // Stats dynamically computed from active spots
   const totalAreaHa = (result.totalAreaM2 / 10000).toFixed(2);
@@ -147,6 +162,50 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
   const realPercentage = result.totalAreaM2 > 0
     ? ((controlAreaM2 / result.totalAreaM2) * 100).toFixed(2)
     : (result.effectivePercentage ? result.effectivePercentage.toFixed(2) : result.samplePercentage.toFixed(2));
+
+  // Helper to package the current active state into a full backup
+  const getCurrentBackup = (): ControlFlightBackup => {
+    return {
+      format: 'ihaplus_control_flight_backup',
+      version: 1,
+      savedAt: new Date().toISOString(),
+      projectName: exportName || result.projectName || 'Ucus_Kontrol_Plani',
+      config: rawConfig || {
+        samplePercentage: result.samplePercentage || 5,
+        routeType: result.routeType || 'Grid',
+        gridEdgeLength: 250,
+        stripBuffer: 50,
+        zStripLength: 1000,
+        isGcpEnabled: gcps.length > 0,
+        gcpPlacementType: 'center',
+        gcpStartNumber: 1,
+        isCameraStepEnabled: false,
+        height: result.height || 120
+      },
+      kmlData: kmlData || null,
+      result: {
+        ...result,
+        projectName: exportName || result.projectName,
+        spots,
+        gcps,
+        controlAreaM2,
+        controlAreaHa: Number(controlAreaHa),
+        effectivePercentage: Number(realPercentage)
+      }
+    };
+  };
+
+  // Auto-save draft on spot/gcp state changes
+  useEffect(() => {
+    const backup = getCurrentBackup();
+    saveControlFlightDraft(backup);
+  }, [spots, gcps, controlAreaM2, controlAreaHa, realPercentage]);
+
+  const handleQuickSaveBackup = () => {
+    const backup = getCurrentBackup();
+    downloadControlFlightBackup(backup, exportName || `YEDEK_KONTROL_${getCleanBaseName(result.projectName)}`);
+    showToastNotification('Plan yedeği (.json) indirildi ve tarayıcı taslağı güncellendi!');
+  };
 
   // Active angle of the currently selected spot or the first spot for display
   const activeAngle = useMemo(() => {
@@ -300,6 +359,10 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
         const kmlStr = generateControlFlightKML({ ...result, spots: [], gcps });
         downloadFile(kmlStr, `${cleanName}.kml`, 'application/vnd.google-earth.kml+xml');
       }
+    } else if (exportType === 'backup_json') {
+      const backup = getCurrentBackup();
+      downloadControlFlightBackup(backup, `${cleanName}.json`);
+      showToastNotification('Proje yedeği (.json) başarıyla indirildi!');
     }
     setShowExportModal(false);
   };
@@ -626,17 +689,27 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
           )}
           <button
             type="button"
-            disabled
-            className="flex-1 py-2.5 bg-slate-300 text-slate-400 cursor-not-allowed rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-sm flex items-center justify-center gap-1.5 select-none"
-            title="PDF Özeti şimdilik pasiftir"
+            onClick={handleQuickSaveBackup}
+            className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            title="Planı JSON formatında indirerek yedekle ve daha sonra devam et"
           >
-            <i className="fas fa-file-pdf"></i>PDF ÖZETİ
+            <i className="fas fa-save"></i>YEDEĞİ KAYDET
           </button>
         </div>
       </div>
 
       {/* Global Footer */}
       <GlobalFooter />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[10001] bg-slate-900/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-top-2 border border-slate-700">
+          <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] shrink-0">
+            <i className="fas fa-check"></i>
+          </div>
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
       {/* Dışa Aktar Modalı */}
       {showExportModal && (
@@ -645,8 +718,8 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
           <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl relative overflow-hidden p-6 animate-in zoom-in-95 duration-200">
             <div className="space-y-4">
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dışa Aktar</p>
-                <div className={`grid ${gcps.length > 0 ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5 p-1 bg-slate-100 rounded-2xl`}>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dışa Aktar & Yedekle</p>
+                <div className={`grid ${gcps.length > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 p-1 bg-slate-100 rounded-2xl`}>
                   <button
                     type="button"
                     onClick={() => setExportType('flight_plan')}
@@ -667,6 +740,15 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                       YKN Planı
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setExportType('backup_json')}
+                    className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+                      exportType === 'backup_json' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-600'
+                    }`}
+                  >
+                    Yedek (.json)
+                  </button>
                 </div>
               </div>
 
@@ -705,6 +787,21 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                 </div>
               )}
 
+              {exportType === 'backup_json' && (
+                <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl text-[11px] text-amber-900 leading-relaxed space-y-1">
+                  <div className="flex items-center gap-1.5 font-black text-amber-800 text-xs">
+                    <i className="fas fa-file-code"></i>
+                    <span>Tüm Plan Durumu Yedeklenir</span>
+                  </div>
+                  <p className="text-[10.5px] text-slate-700">
+                    Saha sınırı, planlama parametreleri, haritada taşınan veya döndürülen şeritler ve YKN noktaları eksiksiz saklanır.
+                  </p>
+                  <p className="text-[10px] text-amber-700 font-bold">
+                    Daha sonra "Yedek Dosyası Yükle (.json)" seçeneğiyle kaldığınız yerden devam edebilirsiniz.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dosya Adı</label>
                 <div className="relative">
@@ -715,7 +812,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                     className="w-full bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                   />
                   <span className="absolute right-4 top-3.5 text-[10px] font-black text-slate-400">
-                    {exportType === 'pdf_summary' ? '.pdf' : exportType === 'ykn_plan' ? `.${yknSubFormat}` : '.kml'}
+                    {exportType === 'backup_json' ? '.json' : exportType === 'pdf_summary' ? '.pdf' : exportType === 'ykn_plan' ? `.${yknSubFormat}` : '.kml'}
                   </span>
                 </div>
               </div>
@@ -732,7 +829,13 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                   type="button"
                   onClick={exportType === 'pdf_summary' ? handleExportPdf : handleExport}
                   disabled={isGeneratingPdf}
-                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className={`flex-1 py-3 text-white rounded-2xl font-black uppercase text-[10px] tracking-wider shadow-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 ${
+                    exportType === 'backup_json'
+                      ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30'
+                      : exportType === 'ykn_plan'
+                      ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'
+                      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'
+                  }`}
                 >
                   {isGeneratingPdf ? (
                     <>
@@ -741,8 +844,8 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack }) => {
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-download"></i>
-                      <span>İNDİR</span>
+                      <i className={`fas ${exportType === 'backup_json' ? 'fa-save' : 'fa-download'}`}></i>
+                      <span>{exportType === 'backup_json' ? 'YEDEĞİ İNDİR' : 'İNDİR'}</span>
                     </>
                   )}
                 </button>
