@@ -119,13 +119,12 @@ const App = () => {
   };
 
   return (
-    <div className="h-full bg-slate-200 font-sans text-slate-900 overflow-hidden flex flex-col">
+    <div className="h-full bg-slate-50 font-sans text-slate-800 overflow-hidden flex flex-col">
       <div className="flex-1 flex flex-col relative overflow-hidden h-full">
         
         {view === 'onboarding' && (
           <div className="flex-1 flex flex-col overflow-y-auto h-full">
             <Onboarding onFinish={handleFinishOnboarding} />
-            <GlobalFooter />
           </div>
         )}
         
@@ -142,7 +141,6 @@ const App = () => {
               onShowPresetTemplates={() => navigateTo('templates')}
               onShowControlFlight={() => navigateTo('controlFlight')}
             />
-            <GlobalFooter />
           </div>
         )}
 
@@ -225,6 +223,7 @@ const App = () => {
         )}
 
       </div>
+      <GlobalFooter />
     </div>
   );
 };

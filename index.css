@@ -12,16 +12,23 @@
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
+  --color-brand-50: #f0f7ff;
+  --color-brand-100: #e0effe;
+  --color-brand-500: #0284c7;
+  --color-brand-600: #0369a1;
+  --color-brand-700: #075985;
+  --color-brand-800: #0c4a6e;
+
   --color-blue-50: #eff6ff;
   --color-blue-100: #dbeafe;
   --color-blue-200: #bfdbfe;
   --color-blue-300: #93c5fd;
   --color-blue-400: #60a5fa;
-  --color-blue-500: #3b82f6;
-  --color-blue-600: #2563eb;
-  --color-blue-700: #1d4ed8;
-  --color-blue-800: #1e40af;
-  --color-blue-900: #1e3a8a;
+  --color-blue-500: #0284c7;
+  --color-blue-600: #0369a1;
+  --color-blue-700: #075985;
+  --color-blue-800: #0c4a6e;
+  --color-blue-900: #0f172a;
 }
 
 @layer base {
@@ -31,33 +38,33 @@
   }
 
   body { 
-    @apply bg-slate-400 m-0 p-0 overflow-hidden h-[100dvh] w-screen text-slate-900 antialiased fixed flex items-center justify-center font-sans;
+    @apply bg-slate-50 m-0 p-0 overflow-hidden h-[100dvh] w-screen text-slate-800 antialiased font-sans;
     color-scheme: light !important;
   }
 
   #root { 
-    @apply h-full w-full max-w-[540px] bg-slate-400 flex flex-col overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.07)];
-  }
-
-  /* Tablet Cihazlar (768px - 1023px): Mevcut çerçeve sınırlamaları (max-w-[540px]) aynen devam eder */
-  @media (min-width: 768px) {
-    #root {
-      @apply h-[94%] rounded-[3rem] border-[10px] border-slate-50;
-      max-width: 540px;
-    }
-  }
-
-  /* Masaüstü Cihazlar (1024px ve üzeri): Eski sınırlama (540px) ile önceki genişletme arasındaki dengeli ara değer */
-  @media (min-width: 1024px) {
-    #root {
-      max-width: 740px;
-    }
+    @apply h-full w-full bg-slate-50 flex flex-col overflow-hidden;
   }
 }
 
 @layer components {
   .soft-card { 
-    @apply bg-slate-200 rounded-[2rem] border border-slate-100/90 shadow-[0_12px_30px_-10px_rgba(15,23,42,0.06)];
+    @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
 
   .no-scrollbar::-webkit-scrollbar { display: none; }
