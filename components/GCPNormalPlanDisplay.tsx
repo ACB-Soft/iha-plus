@@ -642,18 +642,18 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Sol Panel (Masaüstü): Telemetri, YKN Listesi & Aksiyonlar */}
-        <div className="hidden lg:flex w-[380px] xl:w-[420px] 2xl:w-[460px] shrink-0 h-full overflow-y-auto bg-white border-r border-slate-200 p-5 flex-col justify-between z-20">
+        <div className="hidden lg:flex w-[380px] xl:w-[420px] 2xl:w-[460px] shrink-0 h-full overflow-y-auto bg-slate-50 border-r border-slate-200 p-5 flex-col justify-between z-20 custom-scrollbar">
           <div className="space-y-4">
             {/* Proje Başlığı */}
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm space-y-1.5">
+            <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm space-y-1.5">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Proje Adı</span>
               <p className="text-sm font-black text-slate-900 truncate font-mono">{projectName}</p>
               <div className="flex items-center gap-2 pt-1">
-                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
+                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
                   Normal Alan Haritalama
                 </span>
                 {config.isGcpEnabled && (
-                  <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 text-[10px] font-black uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[10px] font-black uppercase tracking-wider">
                     YKN Aktif
                   </span>
                 )}
@@ -662,33 +662,33 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
 
             {/* Telemetri Kartları */}
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="p-3 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Uçuş Alanı</span>
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Uçuş Alanı</span>
                 <span className="text-sm font-black text-slate-900">{boundaryArea.toFixed(2)} ha</span>
               </div>
 
-              <div className="p-3 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Toplam YKN</span>
-                <span className="text-sm font-black text-blue-600">
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Toplam YKN</span>
+                <span className="text-sm font-black text-blue-600 font-mono">
                   {config.isGcpEnabled && points.length > 0 ? `${points.length} Adet` : '0'}
                 </span>
               </div>
 
-              <div className="p-3 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Uçuş Açısı</span>
-                <span className="text-sm font-black text-emerald-600">{optResult.angle}°</span>
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Uçuş Açısı</span>
+                <span className="text-sm font-black text-emerald-600 font-mono">{optResult.angle}°</span>
               </div>
 
-              <div className="p-3 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Uçuş Süresi</span>
-                <span className="text-sm font-black text-purple-600">
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Uçuş Süresi</span>
+                <span className="text-sm font-black text-purple-600 font-mono">
                   ~{optResult.durationText || formatDurationText(optResult.durationMinutes)}
                 </span>
               </div>
 
-              <div className="p-3 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm col-span-2 flex items-center justify-between">
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm col-span-2 flex items-center justify-between">
                 <div>
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Batarya Hesabı</span>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Batarya Hesabı</span>
                   <span className="text-[11px] text-slate-500 font-medium">DJI Pilot 2 (~22 dk / batarya)</span>
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 font-black text-sm font-mono">
@@ -700,11 +700,11 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
 
             {/* YKN Yönetim & Nokta Listesi */}
             {config.isGcpEnabled && (
-              <div className="p-4 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm space-y-3">
+              <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <i className="fas fa-crosshairs text-blue-600 text-xs"></i>
-                    <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">YKN Yönetimi</span>
+                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">YKN Yönetimi</span>
                   </div>
                   <button
                     type="button"
@@ -727,9 +727,9 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
                 )}
 
                 {/* Kaydırılabilir YKN Listesi */}
-                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                   {points.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-xs">
+                    <div key={p.id} className="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200/80 text-xs transition-colors">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-black shrink-0">
                           {p.name.replace('YKN', '')}
@@ -763,7 +763,7 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
           <div className="space-y-2 pt-4">
             <button
               onClick={() => handleOpenExportModal('flight_plan')}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
             >
               <i className="fas fa-plane-departure"></i>
               <span>UÇUŞ PLANINI İNDİR (KML)</span>
@@ -771,15 +771,15 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
             {config.isGcpEnabled && (
               <button
                 onClick={() => handleOpenExportModal('ykn_plan')}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 active:scale-95 rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-sm transition-all flex items-center justify-center gap-2"
               >
-                <i className="fas fa-map-marked-alt"></i>
+                <i className="fas fa-map-marked-alt text-blue-600"></i>
                 <span>YKN PLANINI İNDİR (KML)</span>
               </button>
             )}
             <button
               onClick={() => handleOpenExportModal('pdf_summary')}
-              className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-md shadow-rose-600/20 transition-all flex items-center justify-center gap-2"
             >
               <i className="fas fa-file-pdf"></i>
               <span>PDF ÖZETİ / RAPORU OLUŞTUR</span>
@@ -989,45 +989,45 @@ const GCPNormalPlanDisplay: React.FC<Props> = ({ projectName, features, config, 
         </div>
       </div>
 
-      <div className="lg:hidden bg-white px-6 py-2.5 border-t border-slate-200 flex flex-col gap-2.5 shrink-0">
-        <div className="grid grid-cols-4 gap-2 w-full py-1">
-          <div className="flex flex-col items-start">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Alanı</span>
+      <div className="lg:hidden bg-white px-5 py-3 border-t border-slate-200 flex flex-col gap-2.5 shrink-0 shadow-lg">
+        <div className="grid grid-cols-4 gap-2 w-full py-1 text-center">
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider leading-none mb-1">Uçuş Alanı</span>
             <span className="text-[11px] font-black text-slate-900">{boundaryArea.toFixed(2)} ha</span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Toplam YKN</span>
-            <span className="text-[11px] font-black text-blue-600">
+            <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider leading-none mb-1">Toplam YKN</span>
+            <span className="text-[11px] font-black text-blue-600 font-mono">
               {config.isGcpEnabled && points.length > 0 ? `${points.length} Adet` : '0'}
             </span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Açısı</span>
-            <span className="text-[11px] font-black text-emerald-600">{optResult.angle}°</span>
+            <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider leading-none mb-1">Uçuş Açısı</span>
+            <span className="text-[11px] font-black text-emerald-600 font-mono">{optResult.angle}°</span>
           </div>
-          <div className="flex flex-col items-end">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Uçuş Süresi</span>
-            <span className="text-[11px] font-black text-purple-600">~{optResult.durationText || formatDurationText(optResult.durationMinutes)}</span>
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider leading-none mb-1">Uçuş Süresi</span>
+            <span className="text-[11px] font-black text-purple-600 font-mono">~{optResult.durationText || formatDurationText(optResult.durationMinutes)}</span>
           </div>
         </div>
         <div className="flex gap-2 w-full">
           <button 
             onClick={() => handleOpenExportModal('flight_plan')} 
-            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase tracking-[0.1em] text-[10px] shadow-md shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-1.5"
           >
             <i className="fas fa-plane-departure"></i>UÇUŞ PLANI
           </button>
           {config.isGcpEnabled && (
             <button 
               onClick={() => handleOpenExportModal('ykn_plan')} 
-              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl font-black uppercase tracking-[0.1em] text-[10px] shadow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
             >
-              <i className="fas fa-map-marked-alt"></i>YKN PLANI
+              <i className="fas fa-map-marked-alt text-blue-600"></i>YKN PLANI
             </button>
           )}
           <button 
             onClick={() => handleOpenExportModal('pdf_summary')} 
-            className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black uppercase tracking-[0.1em] text-[10px] shadow-md shadow-rose-600/20 active:scale-95 transition-all flex items-center justify-center gap-1.5"
           >
             <i className="fas fa-file-pdf"></i>PDF ÖZETİ
           </button>

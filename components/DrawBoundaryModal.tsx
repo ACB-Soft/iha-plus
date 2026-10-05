@@ -266,7 +266,7 @@ const DrawBoundaryModal: React.FC<Props> = ({
     points.length > 0 ? [points[0].lat, points[0].lng] : [39.0, 35.0];
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-200">
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-100">
       {/* Top Header */}
       <Header 
         title="Harita Üzerinden Çiz" 
@@ -334,7 +334,7 @@ const DrawBoundaryModal: React.FC<Props> = ({
                   <p className="text-[11px] font-bold text-slate-900">{pt.lat.toFixed(6)}, {pt.lng.toFixed(6)}</p>
                   <button
                     onClick={() => handleRemovePoint(idx)}
-                    className="w-full py-2 bg-rose-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg shadow-rose-100"
+                    className="w-full py-2 bg-rose-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-md shadow-rose-600/20 active:scale-95 transition-all"
                   >
                     NOKTAYI SİL
                   </button>
@@ -357,11 +357,11 @@ const DrawBoundaryModal: React.FC<Props> = ({
         </MapContainer>
       </div>
 
-      <footer className="bg-slate-200 border-t border-slate-300 py-2.5 px-6 z-20 shrink-0 flex flex-col gap-3">
+      <footer className="bg-white border-t border-slate-200 py-3 px-6 z-20 shrink-0 flex flex-col gap-3 shadow-lg">
         {/* Row 1: Points Info, Undo, and Clear */}
         <div className="flex items-center justify-between max-w-5xl mx-auto w-full gap-2 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-3 bg-white px-3 py-2 rounded-xl border border-slate-300/50 shadow-sm h-[42px] shrink-0">
-            <span className={`text-[10px] font-black whitespace-nowrap ${
+          <div className="flex items-center gap-3 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-[42px] shrink-0">
+            <span className={`text-[11px] font-black whitespace-nowrap ${
               (flightType === 'Normal' && points.length >= 3) || (flightType === 'Strip' && points.length >= 2)
                 ? 'text-emerald-600'
                 : 'text-amber-600'
@@ -371,14 +371,14 @@ const DrawBoundaryModal: React.FC<Props> = ({
 
             <div className="w-px h-4 bg-slate-200"></div>
 
-            <span className="text-[10px] font-black text-emerald-600 whitespace-nowrap">{metricLabel}</span>
+            <span className="text-[11px] font-black text-emerald-600 whitespace-nowrap">{metricLabel}</span>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               disabled={points.length === 0}
               onClick={handleUndo}
-              className="h-[42px] px-3 bg-white hover:bg-slate-50 disabled:opacity-40 text-slate-700 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 border border-slate-200 shadow-sm active:scale-95"
+              className="h-[42px] px-3.5 bg-white hover:bg-slate-50 disabled:opacity-40 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-slate-200 shadow-sm active:scale-95"
               title="Son işlemi geri al"
             >
               <i className="fas fa-undo text-amber-500"></i>
@@ -388,7 +388,7 @@ const DrawBoundaryModal: React.FC<Props> = ({
             <button
               disabled={points.length === 0}
               onClick={handleClear}
-              className="h-[42px] px-3 bg-rose-50 hover:bg-rose-100 disabled:opacity-40 text-rose-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 border border-rose-100 shadow-sm active:scale-95"
+              className="h-[42px] px-3.5 bg-rose-50 hover:bg-rose-100 disabled:opacity-40 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-rose-200 shadow-sm active:scale-95"
               title="Tüm noktaları temizle"
             >
               <i className="fas fa-trash-alt"></i>
@@ -402,18 +402,17 @@ const DrawBoundaryModal: React.FC<Props> = ({
           <button
             onClick={handleSave}
             disabled={(flightType === 'Normal' && points.length < 3) || (flightType === 'Strip' && points.length < 2)}
-            className={`w-full sm:w-auto px-10 py-2.5 font-black rounded-xl text-[10px] uppercase tracking-[0.2em] text-white shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${
+            className={`w-full sm:w-auto px-10 py-3 font-black rounded-xl text-xs uppercase tracking-wider text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 ${
               (flightType === 'Normal' && points.length >= 3) || (flightType === 'Strip' && points.length >= 2)
-                ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
-                : 'bg-slate-400 text-slate-200 cursor-not-allowed shadow-none'
+                ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
+                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
             }`}
           >
-            <i className="fas fa-check text-[10px]"></i>
+            <i className="fas fa-check text-xs"></i>
             <span>ÇİZİMİ TAMAMLA</span>
           </button>
         </div>
       </footer>
-      <GlobalFooter noPadding />
     </div>
   );
 };

@@ -429,14 +429,14 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Sol Panel (Masaüstü): Telemetri, Döndürme & Aksiyonlar */}
-        <div className="hidden lg:flex w-[380px] xl:w-[420px] 2xl:w-[460px] shrink-0 h-full overflow-y-auto bg-white border-r border-slate-200 p-5 flex-col justify-between z-20">
+        <div className="hidden lg:flex w-[380px] xl:w-[420px] 2xl:w-[460px] shrink-0 h-full overflow-y-auto bg-slate-50 border-r border-slate-200 p-5 flex-col justify-between z-20 custom-scrollbar">
           <div className="space-y-4">
             {/* Proje Başlığı */}
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm space-y-1.5">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Proje Adı</span>
+            <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm space-y-1.5">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Proje Adı</span>
               <p className="text-sm font-black text-slate-900 truncate font-mono">{result.projectName}</p>
               <div className="flex items-center gap-2 pt-1">
-                <span className="px-2 py-0.5 rounded-md bg-cyan-100 text-cyan-800 text-[10px] font-black uppercase tracking-wider">
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-black uppercase tracking-wider">
                   Kontrol Uçuşu ({result.routeType})
                 </span>
               </div>
@@ -444,28 +444,28 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
 
             {/* Telemetri Kartları */}
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="p-3 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Uçuş Alanı</span>
-                <span className="text-sm font-black text-slate-900">{totalAreaHa} ha</span>
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Uçuş Alanı</span>
+                <span className="text-sm font-black text-slate-900 font-mono">{totalAreaHa} ha</span>
               </div>
 
-              <div className="p-3 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Toplam YKN</span>
-                <span className="text-sm font-black text-blue-600">
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Toplam YKN</span>
+                <span className="text-sm font-black text-blue-600 font-mono">
                   {gcps.length > 0 ? `${gcps.length} Adet` : '0'}
                 </span>
               </div>
 
-              <div className="p-3 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Kontrol Oranı</span>
-                <span className="text-sm font-black text-emerald-600">%{realPercentage}</span>
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Kontrol Oranı</span>
+                <span className="text-sm font-black text-emerald-600 font-mono">%{realPercentage}</span>
               </div>
 
-              <div className="p-3 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">
                   {result.routeType === 'Grid' ? 'Grid Sayısı' : 'Şerit Sayısı'}
                 </span>
-                <span className="text-sm font-black text-purple-600">
+                <span className="text-sm font-black text-purple-600 font-mono">
                   {spots.length} {result.routeType === 'Grid' ? 'Grid' : 'Şerit'}
                 </span>
               </div>
@@ -473,7 +473,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
 
             {/* Şerit Açı & Yönlendirme Paneli (Z, Düz, L şerit modları için) */}
             {(result.routeType === 'StripCross' || result.routeType === 'StripLinear' || result.routeType === 'StripL') && (
-              <div className="p-4 bg-slate-100 rounded-2xl border border-slate-300/70 shadow-sm space-y-3">
+              <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-700 uppercase tracking-wider">
                     <i className="fas fa-sync-alt text-blue-600"></i>
@@ -483,11 +483,11 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase">Döndürülecek Şerit</label>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase">Döndürülecek Şerit</label>
                   <select
                     value={selectedSpotId}
                     onChange={(e) => setSelectedSpotId(e.target.value)}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-blue-500 cursor-pointer shadow-sm truncate"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-blue-500 cursor-pointer shadow-sm truncate"
                   >
                     {spots.length > 1 && (
                       <option value="all">⚡ Tüm Şeritler (Toplu)</option>
@@ -508,7 +508,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
                     step="1"
                     value={Math.round(activeAngle)}
                     onChange={(e) => handleSetAngle(selectedSpotId, parseFloat(e.target.value))}
-                    className="flex-1 h-2 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                   />
                   <input
                     type="number"
@@ -522,7 +522,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
                         handleSetAngle(selectedSpotId, ((val % 360) + 360) % 360);
                       }
                     }}
-                    className="w-14 bg-white border border-slate-300 text-slate-900 rounded-xl px-2 py-1 text-xs font-bold font-mono text-center focus:outline-none focus:border-blue-500 shadow-sm"
+                    className="w-14 bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-2 py-1 text-xs font-bold font-mono text-center focus:outline-none focus:border-blue-500 shadow-sm"
                   />
                 </div>
               </div>
@@ -533,7 +533,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
           <div className="space-y-2 pt-4">
             <button
               onClick={() => handleOpenExportModal('flight_plan')}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-lg shadow-emerald-600/10 active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <i className="fas fa-plane-departure"></i>
               <span>UÇUŞ PLANINI İNDİR (KML)</span>
@@ -541,7 +541,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
             {gcps.length > 0 && (
               <button
                 onClick={() => handleOpenExportModal('ykn_plan')}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-lg shadow-blue-600/10 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 <i className="fas fa-map-marked-alt"></i>
                 <span>YKN PLANINI İNDİR (KML/CSV/TXT)</span>
@@ -550,7 +550,7 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
             <button
               type="button"
               onClick={handleQuickSaveBackup}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-black uppercase tracking-[0.1em] text-xs shadow-lg shadow-amber-600/10 active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <i className="fas fa-save"></i>
               <span>YEDEĞİ KAYDET (.JSON)</span>

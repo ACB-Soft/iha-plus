@@ -548,9 +548,10 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
         </section>
 
         {/* 2. Kontrol Edilecek Alan Yüzdesi */}
-        <section className="space-y-3 pt-2 border-t border-slate-300/60">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest block">
-            2. Kontrol Edilecek Alan Yüzdesi
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-3.5">
+          <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <i className="fa-solid fa-percent text-blue-600"></i>
+            <span>2. Kontrol Edilecek Alan Yüzdesi</span>
           </label>
 
           <div className="grid grid-cols-4 gap-2">
@@ -559,10 +560,10 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                 key={val}
                 type="button"
                 onClick={() => setSamplePercentage(val)}
-                className={`py-3 rounded-xl font-black text-xs transition-all border ${
+                className={`py-2.5 rounded-xl font-black text-xs transition-all border ${
                   samplePercentage === val 
-                    ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                    : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-blue-300'
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                    : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                 }`}
               >
                 %{val}
@@ -570,11 +571,11 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             ))}
           </div>
 
-          <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+          <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
             <button 
               type="button"
               onClick={() => setSamplePercentage(p => Math.max(1, p - 1))} 
-              className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 flex items-center justify-center font-bold"
+              className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
             >
               <i className="fas fa-minus text-xs"></i>
             </button>
@@ -584,7 +585,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             <button 
               type="button"
               onClick={() => setSamplePercentage(p => Math.min(100, p + 1))} 
-              className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 flex items-center justify-center font-bold"
+              className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
             >
               <i className="fas fa-plus text-xs"></i>
             </button>
@@ -592,9 +593,10 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
         </section>
 
         {/* 3. Kontrol Rotası Seçimi */}
-        <section className="space-y-3 pt-2 border-t border-slate-300/60">
-          <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
-            3. Kontrol Rotası Modeli
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-3.5">
+          <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <i className="fa-solid fa-layer-group text-blue-600"></i>
+            <span>3. Kontrol Rotası Modeli</span>
           </label>
 
           <div className="grid grid-cols-3 gap-2 md:gap-2.5">
@@ -602,15 +604,15 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             <button
               type="button"
               onClick={() => setRouteType('Grid')}
-              className={`p-2.5 sm:p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
+              className={`p-2.5 sm:p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
                 routeType === 'Grid'
-                  ? 'bg-blue-50/80 border-blue-600 shadow-md'
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-slate-300'
+                  ? 'bg-blue-50/80 border-blue-600 shadow-sm'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
-                  routeType === 'Grid' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+                  routeType === 'Grid' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-200 text-slate-600'
                 }`}>
                   <i className="fas fa-th-large"></i>
                 </div>
@@ -630,15 +632,15 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             <button
               type="button"
               onClick={() => setRouteType('StripCross')}
-              className={`p-2.5 sm:p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
+              className={`p-2.5 sm:p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
                 routeType === 'StripCross'
-                  ? 'bg-blue-50/80 border-blue-600 shadow-md'
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-slate-300'
+                  ? 'bg-blue-50/80 border-blue-600 shadow-sm'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
-                  routeType === 'StripCross' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+                  routeType === 'StripCross' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-200 text-slate-600'
                 }`}>
                   <i className="fas fa-bolt"></i>
                 </div>
@@ -658,15 +660,15 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             <button
               type="button"
               onClick={() => setRouteType('StripLinear')}
-              className={`p-2.5 sm:p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
+              className={`p-2.5 sm:p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 ${
                 routeType === 'StripLinear' || routeType === 'StripL'
-                  ? 'bg-blue-50/80 border-blue-600 shadow-md'
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:border-slate-300'
+                  ? 'bg-blue-50/80 border-blue-600 shadow-sm'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
-                  routeType === 'StripLinear' || routeType === 'StripL' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+                  routeType === 'StripLinear' || routeType === 'StripL' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-200 text-slate-600'
                 }`}>
                   <i className="fas fa-arrows-alt-h"></i>
                 </div>
@@ -685,11 +687,12 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
         </section>
 
         {/* 4. Seçilen Modele Göre Boyut / Genişlik Parametreleri */}
-        <section className="space-y-4 pt-2 border-t border-slate-300/60 animate-in fade-in">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-4 animate-in fade-in">
           {routeType === 'Grid' ? (
             <div className="space-y-3">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
-                4. Grid Kenar Uzunluğu (m)
+              <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <i className="fa-solid fa-ruler-combined text-blue-600"></i>
+                <span>4. Grid Kenar Uzunluğu (m)</span>
               </label>
 
               <div className="grid grid-cols-4 gap-2">
@@ -698,10 +701,10 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                     key={val}
                     type="button"
                     onClick={() => setGridEdgeLength(val)}
-                    className={`py-3 rounded-xl font-black text-xs transition-all border ${
+                    className={`py-2.5 rounded-xl font-black text-xs transition-all border ${
                       gridEdgeLength === val 
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-blue-300'
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                     }`}
                   >
                     {val}m
@@ -709,21 +712,21 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                 ))}
               </div>
 
-              <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+              <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
                 <button 
                   type="button"
                   onClick={() => setGridEdgeLength(p => Math.max(50, p - 50))} 
-                  className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 flex items-center justify-center font-bold"
+                  className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                 >
                   <i className="fas fa-minus text-xs"></i>
                 </button>
-                <span className="flex-1 text-center font-black text-slate-900 text-base">
+                <span className="flex-1 text-center font-black text-slate-900 text-base font-mono">
                   {gridEdgeLength}m × {gridEdgeLength}m
                 </span>
                 <button 
                   type="button"
                   onClick={() => setGridEdgeLength(p => Math.min(5000, p + 50))} 
-                  className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 flex items-center justify-center font-bold"
+                  className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                 >
                   <i className="fas fa-plus text-xs"></i>
                 </button>
@@ -731,7 +734,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
 
               {/* Matematiksel Dağılım Hesap Kartı */}
               {liveCalculation.hasArea && (
-                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-2xl space-y-1.5 text-xs text-slate-800">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl space-y-1.5 text-xs text-slate-800">
                   <div className="flex items-center justify-between font-black text-blue-900 text-[11px] uppercase tracking-wider">
                     <span className="flex items-center gap-1.5">
                       <i className="fas fa-calculator text-blue-600"></i>
@@ -749,13 +752,14 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
             </div>
           ) : (
             <div className="space-y-4">
-              <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
-                4. {routeType === 'StripLinear' || routeType === 'StripL' ? 'Düz Şerit' : 'Z-Şerit'} Uzunluğu ve Şerit Genişliği
+              <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <i className="fa-solid fa-ruler-combined text-blue-600"></i>
+                <span>4. {routeType === 'StripLinear' || routeType === 'StripL' ? 'Düz Şerit' : 'Z-Şerit'} Boyutları</span>
               </label>
 
               {/* Şerit Uzunluğu (Toplam Hat Boyu) */}
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                   {routeType === 'StripLinear' || routeType === 'StripL' ? 'Düz Şerit Uzunluğu (Uçuş Hattı Boyu)' : 'Z-Şerit Uzunluğu (Toplam Uçuş Hattı)'}
                 </span>
                 <div className="grid grid-cols-4 gap-2">
@@ -764,10 +768,10 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                       key={val}
                       type="button"
                       onClick={() => setZStripLength(val)}
-                      className={`py-3 rounded-xl font-black text-xs transition-all border ${
+                      className={`py-2.5 rounded-xl font-black text-xs transition-all border ${
                         zStripLength === val 
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                          : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-blue-300'
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                          : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       {val}m
@@ -775,21 +779,21 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
                   <button 
                     type="button"
                     onClick={() => setZStripLength(p => Math.max(100, p - 100))} 
-                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 flex items-center justify-center font-bold"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-minus text-xs"></i>
                   </button>
-                  <span className="flex-1 text-center font-black text-slate-900 text-base">
+                  <span className="flex-1 text-center font-black text-slate-900 text-base font-mono">
                     Toplam {zStripLength}m Hat Boyu
                   </span>
                   <button 
                     type="button"
                     onClick={() => setZStripLength(p => Math.min(5000, p + 100))} 
-                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 flex items-center justify-center font-bold"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-plus text-xs"></i>
                   </button>
@@ -798,7 +802,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
 
               {/* Şerit Genişliği */}
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                   Şerit Genişliği (Sağ/Sol Buffer)
                 </span>
                 <div className="grid grid-cols-4 gap-2">
@@ -807,10 +811,10 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                       key={val}
                       type="button"
                       onClick={() => setStripBuffer(val)}
-                      className={`py-3 rounded-xl font-black text-xs transition-all border ${
+                      className={`py-2.5 rounded-xl font-black text-xs transition-all border ${
                         stripBuffer === val 
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                          : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-blue-300'
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                          : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       {val}m x 2
@@ -818,21 +822,21 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
                   <button 
                     type="button"
                     onClick={() => setStripBuffer(p => Math.max(10, p - 5))} 
-                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 flex items-center justify-center font-bold"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-minus text-xs"></i>
                   </button>
-                  <span className="flex-1 text-center font-black text-slate-900 text-base">
+                  <span className="flex-1 text-center font-black text-slate-900 text-base font-mono">
                     Toplam {stripBuffer * 2}m ({stripBuffer}m x 2)
                   </span>
                   <button 
                     type="button"
                     onClick={() => setStripBuffer(p => Math.min(500, p + 5))} 
-                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 flex items-center justify-center font-bold"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-plus text-xs"></i>
                   </button>
@@ -841,7 +845,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
 
               {/* Matematiksel Otomatik Şerit Dağılım Hesap Kartı */}
               {liveCalculation.hasArea && (
-                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-2xl space-y-1.5 text-xs text-slate-800">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl space-y-1.5 text-xs text-slate-800">
                   <div className="flex items-center justify-between font-black text-blue-900 text-[11px] uppercase tracking-wider">
                     <span className="flex items-center gap-1.5">
                       <i className="fas fa-calculator text-blue-600"></i>
@@ -861,16 +865,17 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
         </section>
 
         {/* 5. Yer Kontrol Noktası (YKN) */}
-        <section className="space-y-4 pt-2 border-t border-slate-300/60">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-[13px] font-black text-slate-900 uppercase tracking-widest">
-              5. Yer Kontrol Noktası (YKN)
+            <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <i className="fa-solid fa-location-crosshairs text-blue-600"></i>
+              <span>5. Yer Kontrol Noktası (YKN)</span>
             </label>
-            <div className="flex bg-slate-200 p-1 rounded-xl gap-1 border border-slate-300/60">
+            <div className="flex bg-slate-100 p-1 rounded-xl gap-1 border border-slate-200">
               <button
                 type="button"
                 onClick={() => setIsGcpEnabled(true)}
-                className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                   isGcpEnabled
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
@@ -881,9 +886,9 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
               <button
                 type="button"
                 onClick={() => setIsGcpEnabled(false)}
-                className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                   !isGcpEnabled
-                    ? 'bg-slate-700 text-white shadow-sm'
+                    ? 'bg-slate-800 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -893,10 +898,10 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
           </div>
 
           {isGcpEnabled && (
-            <div className="space-y-4 animate-in fade-in duration-200 pt-1">
+            <div className="space-y-4 animate-in fade-in duration-200 pt-2 border-t border-slate-100">
               {/* YKN Dağıtım Tipi */}
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                   YKN Dağıtım Şekli
                 </span>
                 <div className="grid grid-cols-2 gap-2">
@@ -906,7 +911,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                     className={`py-3 px-3 rounded-xl font-bold text-xs transition-all border text-left ${
                       gcpPlacementType === 'center'
                         ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-sm'
-                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-blue-200'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-blue-200'
                     }`}
                   >
                     <p className="font-black text-[11px] uppercase">Merkez Noktalar</p>
@@ -919,7 +924,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                     className={`py-3 px-3 rounded-xl font-bold text-xs transition-all border text-left ${
                       gcpPlacementType === 'corners_center'
                         ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-sm'
-                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-blue-200'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-blue-200'
                     }`}
                   >
                     <p className="font-black text-[11px] uppercase">Köşeler + Merkez</p>
@@ -930,14 +935,14 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
 
               {/* YKN Başlangıç Numarası */}
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                   YKN Başlangıç Numarası
                 </span>
-                <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
                   <button 
                     type="button"
                     onClick={() => setGcpStartNumber(p => Math.max(1, p - 1))} 
-                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 font-bold"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-minus text-xs"></i>
                   </button>
@@ -945,13 +950,13 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                     type="number"
                     value={gcpStartNumber}
                     onChange={(e) => setGcpStartNumber(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="flex-1 text-center font-black text-slate-900 text-lg bg-transparent focus:outline-none"
+                    className="flex-1 text-center font-black text-slate-900 text-base font-mono bg-transparent focus:outline-none"
                     min="1"
                   />
                   <button 
                     type="button"
                     onClick={() => setGcpStartNumber(p => p + 1)} 
-                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-100 font-bold"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-plus text-xs"></i>
                   </button>
@@ -962,20 +967,20 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
         </section>
 
         {/* 6. Kamera ve Uçuş Parametreleri */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-4">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <i className="fa-solid fa-camera text-brand-600"></i>
+            <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <i className="fa-solid fa-camera text-blue-600"></i>
               <span>6. Kamera & Yükseklik Seçimi</span>
             </label>
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1">
               <button
                 type="button"
                 onClick={() => setIsCameraStepEnabled(true)}
-                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                   isCameraStepEnabled
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-800'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 EVET
@@ -983,10 +988,10 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
               <button
                 type="button"
                 onClick={() => setIsCameraStepEnabled(false)}
-                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                   !isCameraStepEnabled
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-800'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 HAYIR
@@ -999,7 +1004,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
               {/* Kamera Seçimi */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                     Kamera Modeli
                   </span>
                   {!selectedCamera.isCustom && (
@@ -1014,7 +1019,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                     const cam = CAMERAS.find(c => c.name === e.target.value);
                     if (cam) setSelectedCamera(cam);
                   }}
-                  className="w-full h-11 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs cursor-pointer shadow-sm"
+                  className="w-full h-11 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs cursor-pointer shadow-sm"
                 >
                   {CAMERAS.map(cam => (
                     <option key={cam.name} value={cam.name}>{cam.name}</option>
@@ -1024,9 +1029,9 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
 
               {/* Özel Kamera Alanları */}
               {(selectedCamera.isCustom || selectedCamera.name.includes('Özel')) && (
-                <div className="p-3.5 bg-brand-50/50 border border-brand-200 rounded-xl space-y-3 animate-in fade-in">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-brand-800 uppercase tracking-wider">
-                    <i className="fa-solid fa-sliders text-brand-600"></i>
+                <div className="p-3.5 bg-blue-50/50 border border-blue-200 rounded-xl space-y-3 animate-in fade-in">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-blue-900 uppercase tracking-wider">
+                    <i className="fa-solid fa-sliders text-blue-600"></i>
                     <span>Özel Kamera Parametreleri</span>
                   </div>
 
@@ -1037,7 +1042,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                       value={customCamName}
                       onChange={(e) => setCustomCamName(e.target.value)}
                       placeholder="Örn: Özel Fotogrametri Sensörü"
-                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm"
+                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                     />
                   </div>
 
@@ -1049,7 +1054,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                         step="0.1"
                         value={customSensorWidth}
                         onChange={(e) => setCustomSensorWidth(Number(e.target.value))}
-                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm text-center"
+                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-center"
                       />
                     </div>
                     <div>
@@ -1059,7 +1064,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                         step="0.1"
                         value={customFocalLength}
                         onChange={(e) => setCustomFocalLength(Number(e.target.value))}
-                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm text-center"
+                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-center"
                       />
                     </div>
                     <div>
@@ -1068,7 +1073,7 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                         type="number"
                         value={customImageWidth}
                         onChange={(e) => setCustomImageWidth(Number(e.target.value))}
-                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm text-center"
+                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-center"
                       />
                     </div>
                   </div>
@@ -1078,26 +1083,26 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
               {/* Uçuş Yüksekliği & GSD */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                     Uçuş Yüksekliği
                   </span>
-                  <span className="text-[10px] font-bold bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 font-mono">
+                  <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 font-mono">
                     GSD: ~{effectiveGsd.toFixed(2)} cm/px
                   </span>
                 </div>
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
                   <button 
                     type="button"
                     onClick={() => setHeight(p => Math.max(20, p - 10))}
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-minus text-xs"></i>
                   </button>
-                  <span className="flex-1 text-center font-bold text-slate-800 text-base font-mono">{height}m</span>
+                  <span className="flex-1 text-center font-black text-slate-900 text-base font-mono">{height}m</span>
                   <button 
                     type="button"
                     onClick={() => setHeight(p => Math.min(500, p + 10))}
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-plus text-xs"></i>
                   </button>
@@ -1108,10 +1113,10 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
                       key={h}
                       type="button"
                       onClick={() => setHeight(h)}
-                      className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition-all border ${
+                      className={`flex-1 py-2 rounded-xl font-black text-xs transition-all border ${
                         height === h
-                          ? 'bg-brand-600 border-brand-600 text-white shadow-sm'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                          : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       {h}m

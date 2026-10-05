@@ -410,14 +410,14 @@ const FlightPlanConfig: React.FC<Props> = ({
         <div className="w-full lg:w-[460px] xl:w-[500px] 2xl:w-[540px] shrink-0 h-full overflow-y-auto p-4 sm:p-6 lg:border-r border-slate-200 flex flex-col justify-between z-10 bg-slate-50 custom-scrollbar">
           <div className="max-w-xl mx-auto lg:max-w-none w-full space-y-4">
         {/* 1. Tahdit Dosyası */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-3">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-3.5">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <i className="fa-solid fa-file-code text-brand-600"></i>
+            <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <i className="fa-solid fa-file-code text-blue-600"></i>
               <span>1. Tahdit Dosyası</span>
             </label>
             {kmlData && (
-              <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200 font-mono">
+              <span className="text-[10px] font-black bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200 font-mono">
                 {kmlData.features[0]?.coordinates?.length || 0} Nokta
               </span>
             )}
@@ -435,42 +435,42 @@ const FlightPlanConfig: React.FC<Props> = ({
               {/* File Upload Option */}
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="p-3.5 bg-slate-50 border-2 border-dashed border-slate-300 hover:border-brand-500 rounded-xl flex items-center gap-3 cursor-pointer transition-all active:scale-[0.98] group"
+                className="p-4 bg-slate-50 border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.98] group shadow-sm"
               >
-                <div className="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shrink-0 group-hover:scale-105 transition-transform">
-                  <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : 'fa-file-upload'} text-sm`}></i>
+                <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-200 shrink-0 group-hover:scale-105 transition-transform">
+                  <i className={`fas ${isParsing ? 'fa-spinner fa-spin' : 'fa-file-upload'} text-base`}></i>
                 </div>
                 <div className="flex-1 truncate">
-                  <p className="font-bold text-slate-800 text-xs">KML / KMZ Yükle</p>
-                  <p className="text-[10px] text-slate-500">Dosya seçin</p>
+                  <p className="font-black text-slate-900 text-xs uppercase tracking-wider">KML / KMZ Yükle</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Dosya seçin</p>
                 </div>
               </div>
 
               {/* Draw on Map Option */}
               <div 
                 onClick={() => setIsDrawModalOpen(true)}
-                className="p-3.5 bg-emerald-50 border-2 border-dashed border-emerald-300 hover:border-emerald-600 rounded-xl flex items-center gap-3 cursor-pointer transition-all active:scale-[0.98] group"
+                className="p-4 bg-emerald-50/70 border-2 border-dashed border-emerald-300 hover:border-emerald-600 rounded-2xl flex items-center gap-3.5 cursor-pointer transition-all active:scale-[0.98] group shadow-sm"
               >
-                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0 group-hover:scale-105 transition-transform">
-                  <i className={`fas ${flightType === 'Normal' ? 'fa-draw-polygon' : 'fa-route'} text-sm`}></i>
+                <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-200 shrink-0 group-hover:scale-105 transition-transform">
+                  <i className={`fas ${flightType === 'Normal' ? 'fa-draw-polygon' : 'fa-route'} text-base`}></i>
                 </div>
                 <div className="flex-1 truncate">
-                  <p className="font-bold text-slate-800 text-xs">Haritada Çiz</p>
-                  <p className="text-[10px] text-emerald-700">
-                    {flightType === 'Normal' ? 'Alan çiz' : 'Hat çiz'}
+                  <p className="font-black text-slate-900 text-xs uppercase tracking-wider">Haritada Çiz</p>
+                  <p className="text-[10px] text-emerald-700 font-semibold">
+                    {flightType === 'Normal' ? 'Poligon alan çiz' : 'Şerit güzergah çiz'}
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="p-4 bg-emerald-50/80 border-2 border-emerald-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 shadow-sm">
               <div className="flex items-center gap-3 truncate">
-                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0">
-                  <i className="fas fa-check text-sm"></i>
+                <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-200 shrink-0">
+                  <i className="fas fa-check text-base"></i>
                 </div>
                 <div className="truncate">
-                  <p className="font-bold text-slate-900 text-xs truncate font-mono">{kmlData.name}</p>
-                  <p className="text-[10px] text-emerald-700 font-medium">
+                  <p className="font-black text-slate-900 text-xs truncate font-mono">{kmlData.name}</p>
+                  <p className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider">
                     {kmlData.features[0]?.coordinates?.length || 0} Nokta • {flightType === 'Normal' ? 'Tahdit Alanı' : 'Şerit Hattı'}
                   </p>
                 </div>
@@ -479,17 +479,27 @@ const FlightPlanConfig: React.FC<Props> = ({
               <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                 <button 
                   onClick={() => setIsDrawModalOpen(true)}
-                  className="flex-1 sm:flex-initial px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                  className="flex-1 sm:flex-initial px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                 >
                   <i className="fas fa-edit text-[10px]"></i>
                   <span>Düzenle</span>
                 </button>
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 sm:flex-initial px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-medium border border-slate-300 transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                  className="flex-1 sm:flex-initial px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider border border-slate-300 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                 >
                   <i className="fas fa-folder-open text-[10px]"></i>
                   <span>Değiştir</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    setKmlData(null);
+                    onKmlDataChange?.(null);
+                  }}
+                  className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl flex items-center justify-center text-xs transition-all active:scale-95 shrink-0"
+                  title="Kaldır"
+                >
+                  <i className="fas fa-trash-alt"></i>
                 </button>
               </div>
             </div>
@@ -497,25 +507,25 @@ const FlightPlanConfig: React.FC<Props> = ({
         </section>
 
         {/* 2. Uçuş Genişliği */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-4">
-          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-            <i className="fa-solid fa-arrows-left-right-to-line text-brand-600"></i>
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-4">
+          <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <i className="fa-solid fa-arrows-left-right-to-line text-blue-600"></i>
             <span>2. Uçuş Genişliği</span>
           </label>
 
           {flightType === 'Normal' ? (
             <div className="space-y-4">
               <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">Tahditi Genişlet (Buffer)</span>
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Tahditi Genişlet (Buffer)</span>
                 <div className="flex gap-2">
                   {[0, 5, 10, 20].map(val => (
                     <button
                       key={val}
                       onClick={() => setBuffer(val)}
-                      className={`flex-1 py-2 px-1 rounded-lg font-bold text-xs transition-all border ${
+                      className={`flex-1 py-2.5 px-1 rounded-xl font-black text-xs transition-all border ${
                         buffer === val 
-                        ? 'bg-brand-600 border-brand-600 text-white shadow-sm' 
-                        : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       {val === 0 ? 'Hayır' : `${val}m`}
@@ -525,16 +535,16 @@ const FlightPlanConfig: React.FC<Props> = ({
               </div>
 
               <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">Tahditi Genişlet (Ortogonal)</span>
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Tahditi Genişlet (Ortogonal)</span>
                 <div className="flex gap-2">
                   {[0, 50, 100, 200].map(val => (
                     <button
                       key={val}
                       onClick={() => setExpandToGrid(val)}
-                      className={`flex-1 py-2 px-1 rounded-lg font-bold text-xs transition-all border ${
+                      className={`flex-1 py-2.5 px-1 rounded-xl font-black text-xs transition-all border ${
                         expandToGrid === val 
-                        ? 'bg-brand-600 border-brand-600 text-white shadow-sm' 
-                        : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       {val === 0 ? 'Hayır' : `${val}m`}
@@ -544,7 +554,7 @@ const FlightPlanConfig: React.FC<Props> = ({
               </div>
 
               <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">Tahditi Genişlet (Geometri / Şekil)</span>
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Tahditi Genişlet (Geometri / Şekil)</span>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -552,10 +562,10 @@ const FlightPlanConfig: React.FC<Props> = ({
                       setExpandToRectangle(false);
                       setExpandToMinRectangle(false);
                     }}
-                    className={`py-2 px-1 rounded-lg font-bold text-xs transition-all border text-center ${
+                    className={`py-2.5 px-1 rounded-xl font-black text-xs transition-all border text-center ${
                       !expandToRectangle && !expandToMinRectangle
-                      ? 'bg-brand-600 border-brand-600 text-white shadow-sm' 
-                      : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                      : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                     }`}
                   >
                     HAYIR
@@ -566,10 +576,10 @@ const FlightPlanConfig: React.FC<Props> = ({
                       setExpandToRectangle(true);
                       setExpandToMinRectangle(false);
                     }}
-                    className={`py-2 px-1 rounded-lg font-bold text-xs transition-all border text-center ${
+                    className={`py-2.5 px-1 rounded-xl font-black text-xs transition-all border text-center ${
                       expandToRectangle && !expandToMinRectangle
-                      ? 'bg-brand-600 border-brand-600 text-white shadow-sm' 
-                      : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                      : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                     }`}
                   >
                     Eksenel Dikdörtgen
@@ -580,10 +590,10 @@ const FlightPlanConfig: React.FC<Props> = ({
                       setExpandToRectangle(false);
                       setExpandToMinRectangle(true);
                     }}
-                    className={`py-2 px-1 rounded-lg font-bold text-xs transition-all border text-center ${
+                    className={`py-2.5 px-1 rounded-xl font-black text-xs transition-all border text-center ${
                       expandToMinRectangle
-                      ? 'bg-brand-600 border-brand-600 text-white shadow-sm' 
-                      : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                      : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                     }`}
                   >
                     Döndürülmüş
@@ -593,19 +603,19 @@ const FlightPlanConfig: React.FC<Props> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-9 h-9 bg-white border border-slate-300 rounded-lg text-slate-700 shadow-sm active:scale-95 transition-all">
+              <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
+                <button onClick={() => setStripBuffer(p => Math.max(5, p - 5))} className="w-10 h-10 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm active:scale-95 transition-all flex items-center justify-center font-bold">
                   <i className="fas fa-minus text-xs"></i>
                 </button>
                 <div className="flex-1 text-center font-mono">
-                  <span className="block font-bold text-slate-900 text-base leading-none">{stripBuffer}m x 2</span>
+                  <span className="block font-black text-slate-900 text-base leading-none">{stripBuffer}m x 2</span>
                 </div>
-                <button onClick={() => setStripBuffer(p => Math.min(500, p + 5))} className="w-9 h-9 bg-white border border-slate-300 rounded-lg text-slate-700 shadow-sm active:scale-95 transition-all">
+                <button onClick={() => setStripBuffer(p => Math.min(500, p + 5))} className="w-10 h-10 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm active:scale-95 transition-all flex items-center justify-center font-bold">
                   <i className="fas fa-plus text-xs"></i>
                 </button>
               </div>
-              <p className="text-[10px] text-slate-400 font-medium text-center">
-                Toplam {stripBuffer * 2}m (Sağ/Sol Koridor)
+              <p className="text-[10px] text-slate-500 font-medium text-center">
+                Toplam {stripBuffer * 2}m (Sağ/Sol Koridor Genişliği)
               </p>
             </div>
           )}
@@ -613,19 +623,19 @@ const FlightPlanConfig: React.FC<Props> = ({
 
         {/* 3. Uçuşu Parçalara Ayır (Şerit Uçuş için) */}
         {flightType === 'Strip' && (
-          <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-3">
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-3.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                <i className="fa-solid fa-scissors text-brand-600"></i>
+              <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <i className="fa-solid fa-scissors text-blue-600"></i>
                 <span>3. Uçuşu Parçalara Ayır</span>
               </label>
-              <div className="flex bg-slate-100 p-1 rounded-lg gap-1 border border-slate-200">
+              <div className="flex bg-slate-100 p-1 rounded-xl gap-1 border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsStripSplitEnabled(true)}
-                  className={`px-3 py-1 rounded-md font-bold text-xs uppercase tracking-wider transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                     isStripSplitEnabled
-                      ? 'bg-brand-600 text-white shadow-sm'
+                      ? 'bg-blue-600 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -634,7 +644,7 @@ const FlightPlanConfig: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setIsStripSplitEnabled(false)}
-                  className={`px-3 py-1 rounded-md font-bold text-xs uppercase tracking-wider transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                     !isStripSplitEnabled
                       ? 'bg-slate-800 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
@@ -647,17 +657,17 @@ const FlightPlanConfig: React.FC<Props> = ({
 
             {isStripSplitEnabled && (
               <div className="animate-in slide-in-from-top-2 duration-300 space-y-3 pt-2 border-t border-slate-100">
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                  <button onClick={() => setStripSplitDistance(p => Math.max(100, p - 100))} className="w-9 h-9 bg-white border border-slate-300 rounded-lg text-slate-700 shadow-sm active:scale-95 transition-all">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
+                  <button onClick={() => setStripSplitDistance(p => Math.max(100, p - 100))} className="w-10 h-10 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm active:scale-95 transition-all flex items-center justify-center font-bold">
                     <i className="fas fa-minus text-xs"></i>
                   </button>
-                  <span className="flex-1 text-center font-bold text-slate-900 text-base font-mono">{stripSplitDistance}m</span>
-                  <button onClick={() => setStripSplitDistance(p => Math.min(10000, p + 100))} className="w-9 h-9 bg-white border border-slate-300 rounded-lg text-slate-700 shadow-sm active:scale-95 transition-all">
+                  <span className="flex-1 text-center font-black text-slate-900 text-base font-mono">{stripSplitDistance}m</span>
+                  <button onClick={() => setStripSplitDistance(p => Math.min(10000, p + 100))} className="w-10 h-10 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm active:scale-95 transition-all flex items-center justify-center font-bold">
                     <i className="fas fa-plus text-xs"></i>
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-500 font-medium text-center">
-                  Uçuşlar 20m overlap ile parçalara ayrılacaktır.
+                  Uçuşlar 20m bindirme (overlap) ile otomatik parçalara ayrılacaktır.
                 </p>
               </div>
             )}
@@ -665,19 +675,19 @@ const FlightPlanConfig: React.FC<Props> = ({
         )}
 
         {/* 4. Yer Kontrol Noktası */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-4">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <i className="fa-solid fa-location-crosshairs text-brand-600"></i>
+            <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <i className="fa-solid fa-location-crosshairs text-blue-600"></i>
               <span>{flightType === 'Strip' ? '4. Yer Kontrol Noktası' : '3. Yer Kontrol Noktası'}</span>
             </label>
-            <div className="flex bg-slate-100 p-1 rounded-lg gap-1 border border-slate-200">
+            <div className="flex bg-slate-100 p-1 rounded-xl gap-1 border border-slate-200">
               <button
                 type="button"
                 onClick={() => setIsGcpEnabled(true)}
-                className={`px-3 py-1 rounded-md font-bold text-xs uppercase tracking-wider transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                   isGcpEnabled
-                    ? 'bg-brand-600 text-white shadow-sm'
+                    ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -686,7 +696,7 @@ const FlightPlanConfig: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setIsGcpEnabled(false)}
-                className={`px-3 py-1 rounded-md font-bold text-xs uppercase tracking-wider transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                   !isGcpEnabled
                     ? 'bg-slate-800 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
@@ -701,14 +711,14 @@ const FlightPlanConfig: React.FC<Props> = ({
             <div className="space-y-4 animate-in fade-in duration-200 pt-2 border-t border-slate-100">
               {/* Alt Alan Seçimi */}
               <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                   Alt Alan Seçimi (İsteğe Bağlı)
                 </span>
                 <div className="flex flex-col gap-2">
                   <div 
                     onClick={() => !subAreaKmlData && subAreaFileInputRef.current?.click()}
-                    className={`w-full p-3 border-2 border-dashed rounded-xl flex items-center gap-3 transition-all ${
-                      subAreaKmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-50 border-slate-300 hover:border-brand-500 cursor-pointer'
+                    className={`w-full p-3.5 border-2 border-dashed rounded-2xl flex items-center gap-3.5 transition-all ${
+                      subAreaKmlData ? 'bg-emerald-50 border-emerald-200 cursor-default' : 'bg-slate-50 border-slate-300 hover:border-blue-500 cursor-pointer'
                     }`}
                   >
                     <input 
@@ -718,14 +728,14 @@ const FlightPlanConfig: React.FC<Props> = ({
                       accept=".kml,.kmz" 
                       className="hidden" 
                     />
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shadow-sm shrink-0 ${
-                      subAreaKmlData ? 'bg-emerald-600 text-white' : 'bg-brand-600 text-white'
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm shrink-0 ${
+                      subAreaKmlData ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
                     }`}>
-                      <i className={`fas ${isParsingSubArea ? 'fa-spinner fa-spin' : subAreaKmlData ? 'fa-check' : 'fa-file-upload'} text-xs`}></i>
+                      <i className={`fas ${isParsingSubArea ? 'fa-spinner fa-spin' : subAreaKmlData ? 'fa-check' : 'fa-file-upload'} text-sm`}></i>
                     </div>
                     <div className="flex-1 truncate">
-                      <p className="font-bold text-slate-800 truncate text-xs font-mono">{subAreaKmlData ? subAreaKmlData.name : 'Dosya Seçin'}</p>
-                      <p className="text-[10px] text-slate-500">
+                      <p className="font-black text-slate-800 truncate text-xs font-mono">{subAreaKmlData ? subAreaKmlData.name : 'Dosya Seçin'}</p>
+                      <p className="text-[10px] text-slate-500 font-medium">
                         {subAreaKmlData ? '1 Polygon bulundu' : 'Sadece Polygon tipi KML/KMZ'}
                       </p>
                     </div>
@@ -736,7 +746,7 @@ const FlightPlanConfig: React.FC<Props> = ({
                         setSubAreaKmlData(null);
                         onSubAreaKmlDataChange?.(null);
                       }}
-                      className="w-full py-2 bg-slate-100 border border-slate-200 rounded-lg font-bold text-slate-600 text-[11px] hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 active:scale-95 transition-all"
+                      className="w-full py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-600 text-xs hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 active:scale-95 transition-all"
                     >
                       Alt Alanı Kaldır
                     </button>
@@ -746,20 +756,20 @@ const FlightPlanConfig: React.FC<Props> = ({
 
               {/* YKN Arası Mesafe */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                   YKN Arası Mesafe
                 </span>
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
                   <button 
                     onClick={() => setGcpDistance(p => Math.max(50, p - 50))} 
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-minus text-xs"></i>
                   </button>
-                  <span className="flex-1 text-center font-bold text-slate-800 text-base font-mono">{gcpDistance}m</span>
+                  <span className="flex-1 text-center font-black text-slate-900 text-base font-mono">{gcpDistance}m</span>
                   <button 
                     onClick={() => setGcpDistance(p => Math.min(2000, p + 50))} 
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-plus text-xs"></i>
                   </button>
@@ -768,20 +778,20 @@ const FlightPlanConfig: React.FC<Props> = ({
 
               {/* YKN Başlangıç Mesafesi */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                   YKN Başlangıç Mesafesi (m)
                 </span>
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
                   <button 
                     onClick={() => setGcpStartOffset(p => Math.max(0, p - 10))} 
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-minus text-xs"></i>
                   </button>
-                  <span className="flex-1 text-center font-bold text-slate-800 text-base font-mono">{gcpStartOffset}m</span>
+                  <span className="flex-1 text-center font-black text-slate-900 text-base font-mono">{gcpStartOffset}m</span>
                   <button 
                     onClick={() => setGcpStartOffset(p => Math.min(500, p + 10))} 
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-plus text-xs"></i>
                   </button>
@@ -790,13 +800,13 @@ const FlightPlanConfig: React.FC<Props> = ({
 
               {/* YKN Başlangıç Numarası */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                   YKN Başlangıç Numarası
                 </span>
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
                   <button 
                     onClick={() => setGcpStartNumber(p => Math.max(1, p - 1))} 
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-minus text-xs"></i>
                   </button>
@@ -804,12 +814,12 @@ const FlightPlanConfig: React.FC<Props> = ({
                     type="number"
                     value={gcpStartNumber}
                     onChange={(e) => setGcpStartNumber(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="flex-1 text-center font-bold text-slate-800 text-base font-mono bg-transparent focus:outline-none"
+                    className="flex-1 text-center font-black text-slate-900 text-base font-mono bg-transparent focus:outline-none"
                     min="1"
                   />
                   <button 
                     onClick={() => setGcpStartNumber(p => p + 1)} 
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-plus text-xs"></i>
                   </button>
@@ -820,20 +830,20 @@ const FlightPlanConfig: React.FC<Props> = ({
         </section>
 
         {/* 5. / 4. Kamera Seçimi */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-4">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <i className="fa-solid fa-camera text-brand-600"></i>
+            <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <i className="fa-solid fa-camera text-blue-600"></i>
               <span>{flightType === 'Strip' ? '5. Kamera Seçimi' : '4. Kamera Seçimi'}</span>
             </label>
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1">
               <button
                 type="button"
                 onClick={() => setIsCameraStepEnabled(true)}
-                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                   isCameraStepEnabled
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-800'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 EVET
@@ -841,10 +851,10 @@ const FlightPlanConfig: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setIsCameraStepEnabled(false)}
-                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all ${
                   !isCameraStepEnabled
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-800'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 HAYIR
@@ -857,7 +867,7 @@ const FlightPlanConfig: React.FC<Props> = ({
               {/* Kamera Seçimi */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                     Kamera Modeli
                   </span>
                   {!selectedCamera.isCustom && (
@@ -872,7 +882,7 @@ const FlightPlanConfig: React.FC<Props> = ({
                     const cam = CAMERAS.find(c => c.name === e.target.value);
                     if (cam) setSelectedCamera(cam);
                   }}
-                  className="w-full h-11 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs cursor-pointer shadow-sm"
+                  className="w-full h-11 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs cursor-pointer shadow-sm"
                 >
                   {CAMERAS.map(cam => (
                     <option key={cam.name} value={cam.name}>{cam.name}</option>
@@ -882,9 +892,9 @@ const FlightPlanConfig: React.FC<Props> = ({
 
               {/* Special Custom Camera Fields if selectedCamera is custom / unlisted */}
               {(selectedCamera.isCustom || selectedCamera.name.includes('Özel')) && (
-                <div className="p-3.5 bg-brand-50/50 border border-brand-200 rounded-xl space-y-3 animate-in fade-in">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-brand-800 uppercase tracking-wider">
-                    <i className="fa-solid fa-sliders text-brand-600"></i>
+                <div className="p-3.5 bg-blue-50/50 border border-blue-200 rounded-xl space-y-3 animate-in fade-in">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-blue-900 uppercase tracking-wider">
+                    <i className="fa-solid fa-sliders text-blue-600"></i>
                     <span>Özel Kamera Parametreleri</span>
                   </div>
 
@@ -895,7 +905,7 @@ const FlightPlanConfig: React.FC<Props> = ({
                       value={customCamName}
                       onChange={(e) => setCustomCamName(e.target.value)}
                       placeholder="Örn: Custom Payload Drone"
-                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm"
+                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                     />
                   </div>
 
@@ -907,7 +917,7 @@ const FlightPlanConfig: React.FC<Props> = ({
                         step="0.1"
                         value={customSensorWidth}
                         onChange={(e) => setCustomSensorWidth(Number(e.target.value))}
-                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm text-center"
+                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-center"
                       />
                     </div>
                     <div>
@@ -917,7 +927,7 @@ const FlightPlanConfig: React.FC<Props> = ({
                         step="0.1"
                         value={customFocalLength}
                         onChange={(e) => setCustomFocalLength(Number(e.target.value))}
-                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm text-center"
+                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-center"
                       />
                     </div>
                     <div>
@@ -926,7 +936,7 @@ const FlightPlanConfig: React.FC<Props> = ({
                         type="number"
                         value={customImageWidth}
                         onChange={(e) => setCustomImageWidth(Number(e.target.value))}
-                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm text-center"
+                        className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-center"
                       />
                     </div>
                   </div>
@@ -936,26 +946,26 @@ const FlightPlanConfig: React.FC<Props> = ({
               {/* Uçuş Yüksekliği */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
                     Uçuş Yüksekliği
                   </span>
-                  <span className="text-[10px] font-bold bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 font-mono">
+                  <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 font-mono">
                     GSD: ~{effectiveGsd.toFixed(2)} cm/px
                   </span>
                 </div>
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl border border-slate-200">
                   <button 
                     type="button"
                     onClick={() => setHeight(p => Math.max(20, p - 10))}
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-minus text-xs"></i>
                   </button>
-                  <span className="flex-1 text-center font-bold text-slate-800 text-base font-mono">{height}m</span>
+                  <span className="flex-1 text-center font-black text-slate-900 text-base font-mono">{height}m</span>
                   <button 
                     type="button"
                     onClick={() => setHeight(p => Math.min(500, p + 10))}
-                    className="w-9 h-9 bg-white rounded-lg text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-300"
+                    className="w-10 h-10 bg-white rounded-xl text-slate-700 shadow-sm active:scale-90 transition-all border border-slate-200 flex items-center justify-center font-bold"
                   >
                     <i className="fas fa-plus text-xs"></i>
                   </button>
@@ -966,10 +976,10 @@ const FlightPlanConfig: React.FC<Props> = ({
                       key={h}
                       type="button"
                       onClick={() => setHeight(h)}
-                      className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition-all border ${
+                      className={`flex-1 py-2 rounded-xl font-black text-xs transition-all border ${
                         height === h
-                          ? 'bg-brand-600 border-brand-600 text-white shadow-sm'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                          : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       {h}m
