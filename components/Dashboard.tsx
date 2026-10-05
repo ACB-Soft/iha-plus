@@ -1,5 +1,6 @@
 import React from 'react';
 import { BRAND_NAME, FULL_BRAND } from '../version';
+import { IhaLogo } from './IhaLogo';
 
 interface Props {
   onSelectFlightType: (type: 'Normal' | 'Strip') => void;
@@ -23,7 +24,7 @@ const Dashboard: React.FC<Props> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between gap-3">
           <div className="flex items-center space-x-3.5">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white border border-slate-200/90 flex items-center justify-center p-1.5 shadow-sm shrink-0">
-              <img src="/favicon.svg" alt="Logo" className="w-full h-full object-contain" />
+              <IhaLogo className="w-full h-full object-contain" />
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white flex items-center gap-2 leading-none">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { BRAND_NAME } from '../version';
+import { IhaLogo } from './IhaLogo';
 
 interface Props {
   onFinish: () => void;
@@ -17,7 +18,7 @@ const Onboarding: React.FC<Props> = ({ onFinish }) => {
         <div className="relative mb-3 md:mb-4">
           <div className="absolute inset-0 bg-blue-600/5 blur-3xl rounded-full"></div>
           <div className="relative flex items-center justify-center transform rotate-2">
-            <img src="favicon.svg" alt="Logo" className="w-28 h-28 md:w-36 md:h-36 transform -rotate-2" referrerPolicy="no-referrer" />
+            <IhaLogo className="w-28 h-28 md:w-36 md:h-36 transform -rotate-2" />
           </div>
         </div>
         

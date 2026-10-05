@@ -1,11 +1,12 @@
-const CACHE_NAME = 'iha-plus-v3';
+const CACHE_NAME = 'iha-plus-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './favicon.svg',
   './pwa-192x192.png',
-  './pwa-512x512.png'
+  './pwa-512x512.png',
+  './apple-touch-icon.png'
 ];
 
 // Install Event - Caching App Shell
@@ -45,6 +46,22 @@ self.addEventListener('activate', (event) => {
 // Fetch Event - Network First with Cache Fallback for dynamic app & offline capabilities
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  const requestUrl = new URL(event.request.url);
+
+  // Special handling for favicon / logo requests: ensure instant cache match
+  if (requestUrl.pathname.endsWith('favicon.svg')) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return caches.match('./favicon.svg').then((relCached) => {
+          if (relCached) return relCached;
+          return fetch(event.request).catch(() => caches.match('./favicon.svg'));
+        });
+      })
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)

@@ -1,8 +1,15 @@
 {
+  "id": "./",
   "short_name": "İHA Plus",
   "name": "İHA Plus",
   "description": "Uçuş Planlama Uygulaması",
   "icons": [
+    {
+      "src": "./favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
     {
       "src": "./pwa-192x192.png",
       "type": "image/png",
