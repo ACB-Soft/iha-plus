@@ -771,63 +771,8 @@ const GCPStripPlanDisplay: React.FC<Props> = ({ projectName, features, config, o
 
         {/* Sağ Panel: Geniş Harita */}
         <div className="flex-1 relative z-10 h-full flex flex-col">
-          {/* Top Bar HUD (Masaüstü Telemetri Üst Barı) */}
-          <div className="absolute top-4 left-4 right-4 z-[500] hidden lg:flex items-center justify-between pointer-events-none">
-            <div className="bg-slate-900/85 backdrop-blur-md text-white px-4 py-2 rounded-2xl shadow-xl border border-slate-700 pointer-events-auto flex items-center gap-3.5 text-xs font-bold">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="font-black uppercase tracking-wider text-[11px] text-slate-300">TELEMETRİ</span>
-              </div>
-              <span className="text-slate-600">|</span>
-              <span className="text-emerald-400 font-black">{totalStripLength} m</span>
-              <span className="text-slate-600">|</span>
-              <span className="text-blue-400 font-mono">İrtifa: {config.height || 200}m</span>
-              <span className="text-slate-600">|</span>
-              <span className="text-amber-400 font-mono">GSD: ~{calculatedGsd} cm/px</span>
-              <span className="text-slate-600">|</span>
-              <span className="text-purple-300 font-mono">Süre: ~{displayOptResult.durationText || formatDurationText(displayOptResult.durationMinutes)}</span>
-              <span className="text-slate-600">|</span>
-              <span className="text-yellow-400 flex items-center gap-1.5 font-mono">
-                <i className="fas fa-battery-half"></i>
-                <span>~{batteryCount} Batarya</span>
-              </span>
-              {config.isGcpEnabled && (
-                <>
-                  <span className="text-slate-600">|</span>
-                  <span className="text-cyan-400 font-mono">{points.length} YKN</span>
-                </>
-              )}
-            </div>
-
-            <div className="pointer-events-auto flex items-center gap-2">
-              <select
-                value={mapProvider}
-                onChange={(e) => {
-                  setMapProvider(e.target.value);
-                  localStorage.setItem('default_map_provider', e.target.value);
-                }}
-                className="bg-slate-900/85 backdrop-blur-md text-white border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-blue-500 shadow-xl cursor-pointer"
-              >
-                <option value="Google Satellite">Google Uydu</option>
-                <option value="Google Hybrid">Google Hibrit</option>
-                <option value="OpenStreetMap">OpenStreetMap</option>
-                <option value="OpenTopoMap">Topografya</option>
-              </select>
-
-              <button 
-                onClick={() => setIsAddingPoint(!isAddingPoint)}
-                className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xl font-black text-xs uppercase tracking-wider active:scale-95 transition-all border ${
-                  isAddingPoint ? 'bg-orange-500 text-white border-orange-400 animate-pulse' : 'bg-blue-600 text-white border-blue-500'
-                }`}
-              >
-                <i className={`fas ${isAddingPoint ? 'fa-times' : 'fa-plus'} text-xs`}></i>
-                <span>{isAddingPoint ? 'İptal' : 'YKN Ekle'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Mobil Harita Katman ve YKN Butonu */}
-          <div className="lg:hidden absolute top-4 right-4 z-[500] flex items-center gap-2">
+          {/* Harita Katman ve YKN Butonu (Üst Sağ) */}
+          <div className="absolute top-4 right-4 z-[500] flex items-center gap-2">
             <select
               value={mapProvider}
               onChange={(e) => {

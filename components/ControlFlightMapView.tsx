@@ -560,42 +560,8 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
 
         {/* Sağ Panel: Geniş Harita Viewport */}
         <div className="flex-1 relative z-10 h-full flex flex-col">
-          {/* Top Bar HUD (Masaüstü Telemetri Üst Barı) */}
-          <div className="absolute top-4 left-4 right-4 z-[500] hidden lg:flex items-center justify-between pointer-events-none">
-            <div className="bg-slate-900/85 backdrop-blur-md text-white px-4 py-2 rounded-2xl shadow-xl border border-slate-700 pointer-events-auto flex items-center gap-3.5 text-xs font-bold">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="font-black uppercase tracking-wider text-[11px] text-slate-300">KONTROL UÇUŞU TELEMETRİ</span>
-              </div>
-              <span className="text-slate-600">|</span>
-              <span className="text-emerald-400 font-black">{result.areaHa.toFixed(2)} ha</span>
-              <span className="text-slate-600">|</span>
-              <span className="text-blue-400 font-mono">{gcps.length} YKN</span>
-              <span className="text-slate-600">|</span>
-              <span className="text-amber-400 font-mono">Kontrol: %{realPercentage}</span>
-              <span className="text-slate-600">|</span>
-              <span className="text-purple-300 font-mono">{spots.length} {result.routeType === 'Grid' ? 'Grid' : 'Şerit'}</span>
-            </div>
-
-            <div className="pointer-events-auto flex items-center gap-2">
-              <select
-                value={mapProvider}
-                onChange={(e) => {
-                  setMapProvider(e.target.value);
-                  localStorage.setItem('default_map_provider', e.target.value);
-                }}
-                className="bg-slate-900/85 backdrop-blur-md text-white border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-blue-500 shadow-xl cursor-pointer"
-              >
-                <option value="Google Satellite">Google Uydu</option>
-                <option value="Google Hybrid">Google Hibrit</option>
-                <option value="OpenStreetMap">OpenStreetMap</option>
-                <option value="OpenTopoMap">Topografya</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Mobil Harita Katman Seçici */}
-          <div className="lg:hidden absolute top-4 right-4 z-[500] flex items-center gap-2">
+          {/* Harita Katman Seçici (Üst Sağ) */}
+          <div className="absolute top-4 right-4 z-[500] flex items-center gap-2">
             <select
               value={mapProvider}
               onChange={(e) => {
