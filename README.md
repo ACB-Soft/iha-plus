@@ -21,4 +21,4 @@ Projeyi yerel ortamınızda çalıştırmak için:
 
 ## 📄 Lisans
 
-Bu proje **ACB_Soft** tarafından geliştirilmiştir. Tüm hakları saklıdır.
+Bu proje **BSR Maps** tarafından geliştirilmiştir. Tüm hakları saklıdır.

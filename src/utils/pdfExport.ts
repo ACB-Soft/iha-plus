@@ -335,7 +335,7 @@ export async function generateFlightPlanPDF(data: PDFExportData, fileName: strin
 
         <!-- Footer Note -->
         <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #94a3b8; font-weight: 700; line-height: 1;">
-          <div>ACB MAPS - İHA PLUS</div>
+          <div>BSR MAPS - İHA PLUS</div>
           <div>Sayfa ${currentPageNum} / ${totalPages}</div>
         </div>
       </div>

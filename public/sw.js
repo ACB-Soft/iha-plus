@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iha-plus-v4';
+const CACHE_NAME = 'iha-plus-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

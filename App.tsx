@@ -114,7 +114,7 @@ const App = () => {
   }, []);
 
   const handleFinishOnboarding = () => {
-    localStorage.setItem('onboarding_v1.4_done', 'true');
+    localStorage.setItem('onboarding_v1.0_done', 'true');
     navigateTo('dashboard');
   };
 
