@@ -18,7 +18,7 @@ import {
   parseControlFlightBackup
 } from './ControlFlightUtils';
 import ControlFlightMapView from './ControlFlightMapView';
-import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Popup, useMap, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -122,15 +122,15 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
   const getPreviewTileLayer = () => {
     switch (previewMapProvider) {
       case 'Google Satellite':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
       case 'Google Hybrid':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
       case 'OpenStreetMap':
-        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" crossOrigin="anonymous" />;
+        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={19} />;
       case 'OpenTopoMap':
-        return <TileLayer url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" crossOrigin="anonymous" />;
+        return <TileLayer url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={17} />;
       default:
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
     }
   };
 
@@ -1173,10 +1173,12 @@ const ControlFlightView: React.FC<Props> = ({ onBack, settings }) => {
           <MapContainer
             center={livePreviewPlan?.originalBoundary[0] ? [livePreviewPlan.originalBoundary[0].lat, livePreviewPlan.originalBoundary[0].lng] : [39, 35]}
             zoom={livePreviewPlan ? 14 : 6}
+            maxZoom={22}
             style={{ height: '100%', width: '100%' }}
             zoomControl={false}
             attributionControl={false}
           >
+            <ZoomControl position="bottomright" />
             {getPreviewTileLayer()}
             {livePreviewPlan && livePreviewPlan.originalBoundary.length > 0 && (
               <FitPreviewBounds coords={livePreviewPlan.originalBoundary} />

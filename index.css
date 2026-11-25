@@ -117,3 +117,38 @@
 .leaflet-tooltip-top.custom-tooltip::before {
   border-top-color: rgba(15, 23, 42, 0.9);
 }
+
+/* Modern Leaflet Zoom Control Styling */
+.leaflet-bar {
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 20px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -4px rgba(0, 0, 0, 0.08) !important;
+}
+
+.leaflet-bar a {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(8px) !important;
+  color: #1e293b !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  transition: all 0.15s ease !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: #f8fafc !important;
+  color: #2563eb !important;
+}
+
+.leaflet-bar a:active {
+  background-color: #eff6ff !important;
+}
+
+.leaflet-bar a.leaflet-disabled {
+  background-color: rgba(248, 250, 252, 0.8) !important;
+  color: #cbd5e1 !important;
+}

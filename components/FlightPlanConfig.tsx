@@ -5,7 +5,7 @@ import GlobalFooter from './GlobalFooter';
 import Header from './Header';
 import { AppSettings } from '../types';
 import DrawBoundaryModal from './DrawBoundaryModal';
-import { MapContainer, TileLayer, Polygon, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Polyline, useMap, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
@@ -322,15 +322,15 @@ const FlightPlanConfig: React.FC<Props> = ({
   const getPreviewTileLayer = () => {
     switch (previewMapProvider) {
       case 'Google Satellite':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
       case 'Google Hybrid':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
       case 'OpenStreetMap':
-        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" crossOrigin="anonymous" />;
+        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={19} />;
       case 'OpenTopoMap':
-        return <TileLayer url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" crossOrigin="anonymous" />;
+        return <TileLayer url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={17} />;
       default:
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
     }
   };
 
@@ -1034,10 +1034,12 @@ const FlightPlanConfig: React.FC<Props> = ({
             <MapContainer
               center={livePreviewData?.activeBoundary[0] ? [livePreviewData.activeBoundary[0].lat, livePreviewData.activeBoundary[0].lng] : [39, 35]}
               zoom={livePreviewData ? 14 : 6}
+              maxZoom={22}
               style={{ height: '100%', width: '100%' }}
               zoomControl={false}
               attributionControl={false}
             >
+              <ZoomControl position="bottomright" />
               {getPreviewTileLayer()}
               {livePreviewData && (
                 <FitPreviewBounds coords={livePreviewData.activeBoundary} />

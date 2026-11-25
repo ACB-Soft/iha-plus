@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Polygon, Polyline, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Polyline, Marker, Popup, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import * as turf from '@turf/turf';
 import { KMLData } from '../src/types/flight';
@@ -220,15 +220,15 @@ const DrawBoundaryModal: React.FC<Props> = ({
   const getTileLayer = () => {
     switch (mapProvider) {
       case 'Google Satellite':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
       case 'Google Hybrid':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
       case 'Esri World Imagery':
-        return <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="&copy; Esri" crossOrigin="anonymous" />;
+        return <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="&copy; Esri" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={19} />;
       case 'OpenStreetMap':
-        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" crossOrigin="anonymous" />;
+        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={19} />;
       default:
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
     }
   };
 
@@ -278,10 +278,12 @@ const DrawBoundaryModal: React.FC<Props> = ({
         <MapContainer
           center={initialCenter}
           zoom={points.length > 0 ? 15 : 6}
+          maxZoom={22}
           style={{ width: '100%', height: '100%' }}
-          zoomControl={true}
+          zoomControl={false}
           attributionControl={false}
         >
+          <ZoomControl position="bottomright" />
           {getTileLayer()}
           <MapClickHandler onMapClick={handleMapClick} />
           <FitOrCenterMap points={points} />

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Popup, Polygon, Polyline, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Popup, Polygon, Polyline, Marker, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import GlobalFooter from './GlobalFooter';
@@ -266,18 +266,18 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
   const getTileLayer = () => {
     switch (mapProvider) {
       case 'Google Satellite':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=s&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
       case 'Google Hybrid':
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
       case 'Esri Satellite':
       case 'Esri World Imagery':
-        return <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="&copy; Esri" crossOrigin="anonymous" />;
+        return <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="&copy; Esri" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={19} />;
       case 'OpenStreetMap':
-        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" crossOrigin="anonymous" />;
+        return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={19} />;
       case 'OpenTopoMap':
-        return <TileLayer url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" crossOrigin="anonymous" />;
+        return <TileLayer url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={17} />;
       default:
-        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" />;
+        return <TileLayer url="https://mt1.google.com/vt/lyrs=y&hl=tr&gl=TR&x={x}&y={y}&z={z}" attribution="&copy; Google" crossOrigin="anonymous" maxZoom={22} maxNativeZoom={20} />;
     }
   };
 
@@ -665,10 +665,12 @@ const ControlFlightMapView: React.FC<Props> = ({ result, onBack, rawConfig, kmlD
           <MapContainer
             center={[result.originalBoundary[0]?.lat || 39.92, result.originalBoundary[0]?.lng || 32.85]}
             zoom={15}
+            maxZoom={22}
             style={{ height: '100%', width: '100%' }}
             zoomControl={false}
             attributionControl={false}
           >
+            <ZoomControl position="bottomright" />
             {getTileLayer()}
             <FitBounds result={result} />
             <ZoomTracker onZoomChange={setCurrentZoom} />
